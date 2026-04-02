@@ -30,6 +30,7 @@ NEIGHBOR_K = 150
 ATR_LOOKBACK_DAYS = int(os.getenv("ATR_LOOKBACK_DAYS", "14"))
 BASE_ATR_MULTIPLIER = float(os.getenv("BASE_ATR_MULTIPLIER", "2.0"))
 RED_DAY_ATR_MULTIPLIER = float(os.getenv("RED_DAY_ATR_MULTIPLIER", "0.75"))
+MIN_MULTIPLIER_FLOOR = float(os.getenv("MIN_MULTIPLIER_FLOOR", "0.5"))
 
 # ==========================================
 # 2. STATE MANAGEMENT
@@ -151,7 +152,6 @@ def fetch_alpaca_history(tickers):
                             if date_str not in historical_data:
                                 historical_data[date_str] = {}
                             
-                            # Store full OHLC dictionary instead of just daily return
                             historical_data[date_str][symbol] = {
                                 'o': bars[j]['o'],
                                 'h': bars[j]['h'],
@@ -191,7 +191,6 @@ def calculate_portfolio_natr(holdings, historical_data, lookback_days=14):
                 low = data['l']
                 prev_c = data['prev_c']
                 
-                # True Range Calculation: Max of (H-L), abs(H-prevC), abs(L-prevC)
                 tr = max(high - low, abs(high - prev_c), abs(low - prev_c))
                 true_ranges.append(tr)
                 closes.append(data['c'])
@@ -199,12 +198,9 @@ def calculate_portfolio_natr(holdings, historical_data, lookback_days=14):
         if true_ranges and closes and closes[-1] > 0:
             avg_tr = sum(true_ranges) / len(true_ranges)
             current_close = closes[-1]
-            
-            # Convert dollar True Range to a percentage (Normalized ATR)
             natr_pct = (avg_tr / current_close) * 100 
             weighted_natr += (natr_pct * weight)
             
-    # Default to 1.5% if data is completely missing to avoid zero-division errors
     return weighted_natr if weighted_natr > 0 else 1.5 
 
 def run_monte_carlo(holdings, historical_data, spy_today_return):
@@ -232,9 +228,6 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
     
     latest_valid_day = valid_dates[-1]
     missing_tickers = [t for t in weights.keys() if t not in historical_data.get(latest_valid_day, {})]
-    
-    if missing_tickers:
-        print(f"    -> [Notice] Missing history for {missing_tickers}. Substituting with SPY proxy.")
 
     sim_results = np.zeros(SIMULATION_PATHS)
     
@@ -269,12 +262,10 @@ def main():
         print("CRITICAL: Missing API Keys. Please check your .env file.")
         return
 
-    # 1. Load Local State (High Water Marks)
+    # 1. Load Local State
     bot_state = load_state()
     
     # --- AUTOMATIC DAILY RESET ---
-    # Convert current time to US Eastern Time (UTC - 5)
-    # This ensures the reset happens based on US market days, regardless of your local server time.
     current_et = datetime.utcnow() - timedelta(hours=5)
     current_date_str = current_et.strftime('%Y-%m-%d')
     
@@ -287,7 +278,7 @@ def main():
     all_tickers = set()
     symphony_data_cache = {} 
     
-    # 2. Fetch Symphony data and build ticker list
+    # 2. Fetch Symphony data
     for account in ACCOUNT_UUIDS:
         symphonies = fetch_symphony_stats(account)
         symphony_data_cache[account] = symphonies
@@ -302,14 +293,14 @@ def main():
                     all_tickers.add(alpaca_ticker)
                     holding['working_ticker'] = alpaca_ticker
                     
-    # 3. Fetch Historical Data (now includes OHLC)
+    # 3. Fetch Historical Data 
     historical_data = fetch_alpaca_history(list(all_tickers))
     
     if not historical_data:
         print("CRITICAL: Failed to retrieve historical data from Alpaca. Aborting execution.")
         return
     
-    # 4. Determine Market Tone (Did SPY gap down?)
+    # 4. Determine Market Tone
     latest_date = sorted(historical_data.keys())[-1]
     latest_spy_data = historical_data[latest_date].get("SPY", {})
     spy_today = latest_spy_data.get("daily_ret", 0.0) * 100 
@@ -335,22 +326,18 @@ def main():
             for h in holdings:
                 h['ticker'] = h.get('working_ticker', h.get('ticker'))
             
-            # Initialize state for this symphony if it doesn't exist
             if symphony_id not in bot_state:
                 bot_state[symphony_id] = {"high_water_mark": current_return, "armed": False}
 
-            # Update High Water Mark
             if current_return > bot_state[symphony_id]["high_water_mark"]:
                 bot_state[symphony_id]["high_water_mark"] = current_return
                 save_state(bot_state)
 
             high_water_mark = bot_state[symphony_id]["high_water_mark"]
             
-            # Run Monte Carlo
             prob_beating = run_monte_carlo(holdings, historical_data, spy_today)
             print(f"  -> {symphony_name}: Live Return = {current_return:.2f}% | High Water Mark = {high_water_mark:.2f}% | Prob Beating = {prob_beating:.1f}%")
             
-            # Arming Logic
             if prob_beating < TRIGGER_THRESHOLD_PCT and not bot_state[symphony_id]["armed"]:
                 bot_state[symphony_id]["armed"] = True
                 save_state(bot_state)
@@ -360,6 +347,15 @@ def main():
             if bot_state[symphony_id]["armed"]:
                 active_multiplier = RED_DAY_ATR_MULTIPLIER if market_tone_red else BASE_ATR_MULTIPLIER
                 portfolio_natr = calculate_portfolio_natr(holdings, historical_data, ATR_LOOKBACK_DAYS)
+                
+                # --- PROFIT PARACHUTE LOGIC ---
+                # If the current peak is higher than the portfolio's normal daily volatility
+                if high_water_mark > portfolio_natr and portfolio_natr > 0:
+                    outlier_ratio = high_water_mark / portfolio_natr
+                    
+                    # Shrink the multiplier, but respect the floor
+                    active_multiplier = max(MIN_MULTIPLIER_FLOOR, active_multiplier / outlier_ratio)
+                # ------------------------------
                 
                 trailing_stop_distance = portfolio_natr * active_multiplier
                 drawdown_from_peak = high_water_mark - current_return
