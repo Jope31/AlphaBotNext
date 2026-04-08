@@ -6,10 +6,10 @@
     <title>Alpha Bot Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom scrollbar for modal if needed */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        /* Custom scrollbar for the modal */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
@@ -73,9 +73,10 @@
 
     <!-- Edit Variables Modal Overlay -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300" id="settings-modal-content">
+        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="settings-modal-content">
             
-            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/80">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 shrink-0">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
                     Strategy Control Panel
@@ -85,99 +86,164 @@
                 </button>
             </div>
 
-            <form id="settings-form" class="p-6 space-y-5" onsubmit="saveSettings(event)">
-                
-                <!-- Variable: TRIGGER_THRESHOLD_PCT -->
-                <div class="relative group">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
-                            TRIGGER_THRESHOLD_PCT
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </label>
-                        <span class="text-xs text-slate-500">Default: 15.0</span>
+            <!-- Modal Body (Scrollable) -->
+            <form id="settings-form" class="flex flex-col overflow-hidden h-full" onsubmit="saveSettings(event)">
+                <div class="p-6 overflow-y-auto space-y-8">
+                    
+                    <!-- SECTION 1: API & ACCOUNTS -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">API Credentials & Accounts</h4>
+                        
+                        <!-- Composer Keys -->
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Composer Key ID</label>
+                                <input type="text" id="env-comp-key" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Composer Secret</label>
+                                <input type="password" id="env-comp-sec" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <!-- Alpaca Keys -->
+                        <div class="grid grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Alpaca Key</label>
+                                <input type="text" id="env-alp-key" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Alpaca Secret</label>
+                                <input type="password" id="env-alp-sec" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <!-- Accounts -->
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 mb-2 block">Composer Account UUIDs</label>
+                            <div class="space-y-3">
+                                <div>
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Individual</span>
+                                    <input type="text" id="env-acc-1" placeholder="Account 1 UUID" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Roth IRA</span>
+                                    <input type="text" id="env-acc-2" placeholder="Account 2 UUID (Optional)" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Trad. IRA</span>
+                                    <input type="text" id="env-acc-3" placeholder="Account 3 UUID (Optional)" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Discord Webhook -->
+                        <div class="mt-5">
+                            <label class="text-xs font-semibold text-slate-300 mb-1 block">Discord Server Webhook (Optional)</label>
+                            <input type="text" id="env-discord" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 transition-colors mt-1 inline-block">How do I create a webhook?</a>
+                        </div>
                     </div>
-                    <input type="number" step="0.1" id="env-trigger" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                    <!-- Tooltip -->
-                    <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-2 left-[105%] border border-slate-600 pointer-events-none">
-                        <strong class="text-white">The "Arming" switch.</strong><br>
-                        <strong>Lower (e.g., 5.0):</strong> Aggressive. Trusts the runner.<br>
-                        <strong>Higher (e.g., 25.0):</strong> Conservative. Gets nervous faster.
+
+                    <!-- SECTION 2: STRATEGY VARIABLES -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Strategy Variables</h4>
+                        <div class="space-y-4">
+                            <!-- Variable: TRIGGER_THRESHOLD_PCT -->
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
+                                        TRIGGER_THRESHOLD_PCT
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </label>
+                                    <span class="text-xs text-slate-500">Default: 15.0</span>
+                                </div>
+                                <input type="number" step="0.1" id="env-trigger" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                                <!-- Tooltip -->
+                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
+                                    <strong class="text-white">The "Arming" switch.</strong><br>
+                                    <strong>Lower (e.g., 5.0):</strong> Aggressive. Trusts the runner.<br>
+                                    <strong>Higher (e.g., 25.0):</strong> Conservative. Gets nervous faster.
+                                </div>
+                            </div>
+
+                            <!-- Variable: ATR_LOOKBACK_DAYS -->
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
+                                        ATR_LOOKBACK_DAYS
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </label>
+                                    <span class="text-xs text-slate-500">Default: 14</span>
+                                </div>
+                                <input type="number" step="1" id="env-lookback" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                                <!-- Tooltip -->
+                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
+                                    <strong class="text-white">Volatility memory bank.</strong><br>
+                                    <strong>Decrease (e.g., 7):</strong> Hyper-sensitive to recent chop.<br>
+                                    <strong>Increase (e.g., 21):</strong> Smooths out the data.
+                                </div>
+                            </div>
+
+                            <!-- Variable: BASE_ATR_MULTIPLIER -->
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
+                                        BASE_ATR_MULTIPLIER
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </label>
+                                    <span class="text-xs text-slate-500">Default: 2.0</span>
+                                </div>
+                                <input type="number" step="0.1" id="env-base-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                                <!-- Tooltip -->
+                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
+                                    <strong class="text-white">Primary leash on normal days.</strong><br>
+                                    <strong>Decrease (e.g., 1.25):</strong> Tight leash. Locks in faster.<br>
+                                    <strong>Increase (e.g., 3.0):</strong> Diamond Hands setting.
+                                </div>
+                            </div>
+
+                            <!-- Variable: RED_DAY_ATR_MULTIPLIER -->
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
+                                        RED_DAY_ATR_MULTIPLIER
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </label>
+                                    <span class="text-xs text-slate-500">Default: 0.75</span>
+                                </div>
+                                <input type="number" step="0.05" id="env-red-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                                <!-- Tooltip -->
+                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
+                                    <strong class="text-white">Defensive leash for gap-downs.</strong><br>
+                                    <strong>Decrease (e.g., 0.25):</strong> Panic button.<br>
+                                    <strong>Increase (e.g., 1.5):</strong> Gives room to recover.
+                                </div>
+                            </div>
+
+                            <!-- Variable: MIN_MULTIPLIER_FLOOR -->
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
+                                        MIN_MULTIPLIER_FLOOR
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </label>
+                                    <span class="text-xs text-slate-500">Default: 0.5</span>
+                                </div>
+                                <input type="number" step="0.1" id="env-floor" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                                <!-- Tooltip -->
+                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
+                                    <strong class="text-white">Profit Parachute limit.</strong><br>
+                                    <strong>Decrease (e.g., 0.1):</strong> Strangles outliers faster.<br>
+                                    <strong>Increase (e.g., 2.0):</strong> Weakens the parachute.
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Variable: ATR_LOOKBACK_DAYS -->
-                <div class="relative group">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
-                            ATR_LOOKBACK_DAYS
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </label>
-                        <span class="text-xs text-slate-500">Default: 14</span>
-                    </div>
-                    <input type="number" step="1" id="env-lookback" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                    <!-- Tooltip -->
-                    <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-2 left-[105%] border border-slate-600 pointer-events-none">
-                        <strong class="text-white">Volatility memory bank.</strong><br>
-                        <strong>Decrease (e.g., 7):</strong> Hyper-sensitive to recent chop.<br>
-                        <strong>Increase (e.g., 21):</strong> Smooths out the data.
-                    </div>
-                </div>
-
-                <!-- Variable: BASE_ATR_MULTIPLIER -->
-                <div class="relative group">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
-                            BASE_ATR_MULTIPLIER
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </label>
-                        <span class="text-xs text-slate-500">Default: 2.0</span>
-                    </div>
-                    <input type="number" step="0.1" id="env-base-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                    <!-- Tooltip -->
-                    <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-2 left-[105%] border border-slate-600 pointer-events-none">
-                        <strong class="text-white">Primary leash on normal days.</strong><br>
-                        <strong>Decrease (e.g., 1.25):</strong> Tight leash. Locks in faster.<br>
-                        <strong>Increase (e.g., 3.0):</strong> Diamond Hands setting.
-                    </div>
-                </div>
-
-                <!-- Variable: RED_DAY_ATR_MULTIPLIER -->
-                <div class="relative group">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
-                            RED_DAY_ATR_MULTIPLIER
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </label>
-                        <span class="text-xs text-slate-500">Default: 0.75</span>
-                    </div>
-                    <input type="number" step="0.05" id="env-red-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                    <!-- Tooltip -->
-                    <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-2 left-[105%] border border-slate-600 pointer-events-none">
-                        <strong class="text-white">Defensive leash for gap-downs.</strong><br>
-                        <strong>Decrease (e.g., 0.25):</strong> Panic button.<br>
-                        <strong>Increase (e.g., 1.5):</strong> Gives room to recover.
-                    </div>
-                </div>
-
-                <!-- Variable: MIN_MULTIPLIER_FLOOR -->
-                <div class="relative group">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
-                            MIN_MULTIPLIER_FLOOR
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </label>
-                        <span class="text-xs text-slate-500">Default: 0.5</span>
-                    </div>
-                    <input type="number" step="0.1" id="env-floor" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                    <!-- Tooltip -->
-                    <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-2 left-[105%] border border-slate-600 pointer-events-none">
-                        <strong class="text-white">Profit Parachute limit.</strong><br>
-                        <strong>Decrease (e.g., 0.1):</strong> Strangles outliers faster.<br>
-                        <strong>Increase (e.g., 2.0):</strong> Weakens the parachute.
-                    </div>
-                </div>
-
-                <div class="pt-4 border-t border-slate-700 flex justify-end gap-3">
+                <!-- Sticky Modal Footer -->
+                <div class="p-5 border-t border-slate-700 bg-slate-800 flex justify-end gap-3 shrink-0">
                     <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
                     <button type="submit" id="save-settings-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all shadow-lg active:scale-95">Save & Close</button>
                 </div>
@@ -187,6 +253,21 @@
 
     <script>
         // --- Core Dashboard State Logic ---
+        let accountLabels = {};
+
+        async function initAccountLabels() {
+            try {
+                const response = await fetch('/api/settings');
+                const vars = await response.json();
+                const accounts = vars.ACCOUNT_UUIDS ? vars.ACCOUNT_UUIDS.split(',').map(s => s.trim()) : [];
+                if (accounts[0]) accountLabels[accounts[0]] = "Individual";
+                if (accounts[1]) accountLabels[accounts[1]] = "Roth IRA";
+                if (accounts[2]) accountLabels[accounts[2]] = "Trad. IRA";
+            } catch (e) {
+                console.error("Failed to load account labels", e);
+            }
+        }
+
         async function fetchState() {
             try {
                 const response = await fetch('/api/state');
@@ -217,10 +298,13 @@
                 // Build UI
                 let html = '';
                 for (const [accId, syms] of Object.entries(accountsMap)) {
+                    const displayLabel = accountLabels[accId] || "Account";
+                    const displayId = accId !== 'Unknown Account' ? `(${accId.substring(0,8)}...)` : '';
+
                     html += `
                     <div class="bg-slate-900 rounded-xl border border-slate-700 overflow-hidden shadow-sm">
                         <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-                            <span class="text-sm font-semibold text-slate-300">Account: <span class="text-blue-400 font-mono text-xs ml-1">${accId}</span></span>
+                            <span class="text-sm font-semibold text-slate-300">${displayLabel} <span class="text-blue-400 font-mono text-xs ml-1" title="${accId}">${displayId}</span></span>
                             <span class="text-xs text-slate-500">${syms.length} Symphonies</span>
                         </div>
                         <div class="overflow-x-auto">
@@ -314,20 +398,32 @@
         const modalContent = document.getElementById('settings-modal-content');
 
         async function openSettingsModal() {
-            // Fetch current vars
             try {
                 const response = await fetch('/api/settings');
                 const vars = await response.json();
                 
+                // Populate Strategy Vars
                 document.getElementById('env-trigger').value = vars.TRIGGER_THRESHOLD_PCT;
                 document.getElementById('env-lookback').value = vars.ATR_LOOKBACK_DAYS;
                 document.getElementById('env-base-atr').value = vars.BASE_ATR_MULTIPLIER;
                 document.getElementById('env-red-atr').value = vars.RED_DAY_ATR_MULTIPLIER;
                 document.getElementById('env-floor').value = vars.MIN_MULTIPLIER_FLOOR;
 
+                // Populate Credentials
+                document.getElementById('env-comp-key').value = vars.COMPOSER_KEY_ID;
+                document.getElementById('env-comp-sec').value = vars.COMPOSER_SECRET;
+                document.getElementById('env-alp-key').value = vars.ALPACA_KEY;
+                document.getElementById('env-alp-sec').value = vars.ALPACA_SECRET;
+                document.getElementById('env-discord').value = vars.DISCORD_WEBHOOK_URL || '';
+
+                // Populate Accounts (split comma-separated string)
+                const accounts = vars.ACCOUNT_UUIDS ? vars.ACCOUNT_UUIDS.split(',').map(s => s.trim()) : [];
+                document.getElementById('env-acc-1').value = accounts[0] || '';
+                document.getElementById('env-acc-2').value = accounts[1] || '';
+                document.getElementById('env-acc-3').value = accounts[2] || '';
+
                 // Show modal
                 modal.classList.remove('hidden');
-                // Tiny delay to allow display:block to apply before animating opacity
                 setTimeout(() => {
                     modal.classList.remove('opacity-0');
                     modalContent.classList.remove('scale-95');
@@ -351,7 +447,21 @@
             btn.disabled = true;
             btn.textContent = "Saving...";
 
+            // Reconstruct Account UUIDs string
+            const acc1 = document.getElementById('env-acc-1').value.trim();
+            const acc2 = document.getElementById('env-acc-2').value.trim();
+            const acc3 = document.getElementById('env-acc-3').value.trim();
+            const accountsStr = [acc1, acc2, acc3].filter(a => a !== '').join(',');
+
             const payload = {
+                // Credentials
+                COMPOSER_KEY_ID: document.getElementById('env-comp-key').value.trim(),
+                COMPOSER_SECRET: document.getElementById('env-comp-sec').value.trim(),
+                ALPACA_KEY: document.getElementById('env-alp-key').value.trim(),
+                ALPACA_SECRET: document.getElementById('env-alp-sec').value.trim(),
+                ACCOUNT_UUIDS: accountsStr,
+                DISCORD_WEBHOOK_URL: document.getElementById('env-discord').value.trim(),
+                // Strategy
                 TRIGGER_THRESHOLD_PCT: document.getElementById('env-trigger').value,
                 ATR_LOOKBACK_DAYS: document.getElementById('env-lookback').value,
                 BASE_ATR_MULTIPLIER: document.getElementById('env-base-atr').value,
@@ -369,6 +479,8 @@
                 
                 if (result.status === 'success') {
                     showNotification("✅ " + result.message, "success");
+                    await initAccountLabels();
+                    fetchState();
                     closeSettingsModal();
                 } else {
                     showNotification("⚠️ " + result.message, "error");
@@ -396,8 +508,10 @@
         }
 
         // Initial launch
-        fetchState();
-        setInterval(fetchState, 5000);
+        initAccountLabels().then(() => {
+            fetchState();
+            setInterval(fetchState, 5000);
+        });
     </script>
 </body>
 </html>
