@@ -6,7 +6,8 @@ The system features a live web dashboard that allows you to monitor the state of
 
 ## **🌟 Key Features**
 
-* **Live Web Dashboard:** Monitor all symphonies across your Composer accounts (Individual, Roth IRA, Trad. IRA) in real-time. View Current Returns, High Water Marks, and Monte Carlo Probabilities.  
+* **Live Web Dashboard:** Monitor all symphonies across your Composer accounts (Individual, Roth IRA, Trad. IRA) in real-time. View Current Returns, High Water Marks, and Monte Carlo Probabilities.
+* **Execution Toggle:** Switch instantly between safe "Dry Run Mode" (simulation) and "Live Execution Mode" (real API trading) directly from the dashboard.
 * **In-Browser Control Panel:** Safely update your Composer keys, Alpaca keys, Account UUIDs, and all algorithmic risk variables directly from the web interface—no coding required.  
 * **Monte Carlo "Arming":** Simulates 5,000 potential future paths based on historical Alpaca data. If the probability of beating the current return drops below a threshold, the bot "arms" a trailing stop.  
 * **Volatility-Adjusted Stops:** Calculates the Normalized Average True Range (NATR) of your specific holdings to create a dynamic trailing stop that breathes with the market.  
@@ -59,6 +60,11 @@ Clicking the "Force Run Now" button on the dashboard immediately spawns a separa
 ## **🎛️ The Control Panel**
 
 You can adjust these settings directly from the web dashboard by clicking **Edit Variables**. Changes are saved to your ```.env``` file and applied instantly to the very next scheduled bot execution.
+
+### **Execution Mode**
+
+* **Dry Run Mode:** The bot acts normally, calculating stops and probabilities, but bypasses the actual sell-to-cash Composer API call. Discord alerts are sent with a [DRY RUN] tag.
+* **Live Execution:** The bot will execute real sell-to-cash requests to Composer when trailing stops are hit.
 
 ### **API Credentials & Accounts**
 
