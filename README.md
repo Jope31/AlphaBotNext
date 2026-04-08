@@ -16,28 +16,28 @@ The system features a live web dashboard that allows you to monitor the state of
 ## **📂 Project Structure**
 
 Alpha\_Bot\_Project/  
-├── .env                 &emsp;&emsp;&emsp;&emsp;&emsp; \# API Keys and Algorithm Parameters  
-├── alpha\_bot\_final.py     &emsp; \# Core Bot Engine (Math, API Calls, Execution)  
-├── app.py               &emsp;  &emsp; \# Flask Web Server & Background Scheduler  
-├── bot\_state.json     &emsp;  &emsp;   \# Local memory (High Water Marks, Armed status)  
+├── .env&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; \# API Keys and Algorithm Parameters  
+├── alpha\_bot\_final.py&emsp;\# Core Bot Engine (Math, API Calls, Execution)  
+├── app.py&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;\# Flask Web Server & Background Scheduler  
+├── bot\_state.json&emsp;&emsp;&emsp;\# Local memory (High Water Marks, Armed status)  
 └── templates/  
-&emsp;&emsp;└── index.html    &emsp;      \# Web Dashboard UI
+&emsp;&emsp;└── index.html&emsp;&emsp;&emsp;\# Web Dashboard UI
 
 ## **🚀 Installation & Setup**
 
 1. **Install Python Dependencies:**  
    Ensure you have Python installed, then run:  
-   pip install flask schedule python-dotenv requests numpy jinja2
+   ```pip install flask schedule python-dotenv requests numpy jinja2```
 
 2. **Configure Environment Variables:**  
    Update your .env file with your API credentials (Composer, Alpaca, Discord) and your Account UUIDs (comma-separated).  
 3. **Run the Control Center:**  
    Instead of running the bot directly or using Windows Task Scheduler, start the master app:  
-   python app.py
+   ```python app.py```
 
    *Note: This starts a background thread that runs alpha\_bot\_final.py every 5 minutes, while simultaneously hosting the web dashboard.*  
 4. **Access the Dashboard:**  
-   Open your browser and navigate to http://localhost:5000.
+   Open your browser and navigate to ```http://localhost:5000```.
 
 ## **🎛️ Strategy Control Panel Variables**
 
