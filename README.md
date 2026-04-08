@@ -16,12 +16,12 @@ The system features a live web dashboard that allows you to monitor the state of
 ## **📂 Project Structure**
 
 Alpha\_Bot\_Project/  
-├── .env                    \# API Keys and Algorithm Parameters  
-├── alpha\_bot\_final.py      \# Core Bot Engine (Math, API Calls, Execution)  
-├── app.py                  \# Flask Web Server & Background Scheduler  
-├── bot\_state.json          \# Local memory (High Water Marks, Armed status)  
+├── .env                 &emsp;&emsp;&emsp;&emsp;&emsp; \# API Keys and Algorithm Parameters  
+├── alpha\_bot\_final.py     &emsp; \# Core Bot Engine (Math, API Calls, Execution)  
+├── app.py               &emsp;  &emsp; \# Flask Web Server & Background Scheduler  
+├── bot\_state.json     &emsp;  &emsp;   \# Local memory (High Water Marks, Armed status)  
 └── templates/  
-    └── index.html          \# Web Dashboard UI
+&emsp;&emsp;└── index.html    &emsp;      \# Web Dashboard UI
 
 ## **🚀 Installation & Setup**
 
