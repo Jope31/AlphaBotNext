@@ -39,6 +39,13 @@ Alpha\_Bot\_Project/
 4. **Access the Dashboard:**  
    Open your browser and navigate to ```http://localhost:5000```. Click **Edit Variables** to configure your accounts and risk settings.
 
+## **🔌 Connection Status Indicators**
+
+At the top right of your dashboard, you will see a live connection indicator next to the "Force Run Now" button:
+
+* **🟢 System Online (Green Pulse):** Your web browser is successfully communicating with your local Python backend (app.py). Your dashboard is actively receiving live data updates every 5 seconds.  
+* **🔴 Disconnected (Red Solid):** Your browser has lost connection to the backend. This almost always means the terminal window running app.py was closed, stopped, or crashed. The dashboard is now frozen. To fix this, simply restart python app.py in your terminal and the dashboard will reconnect automatically.
+
 ## **⏱️ Scheduling & Manual Triggers**
 
 **Automated 24/7 Execution**
