@@ -6,7 +6,6 @@
     <title>Alpha Bot Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom scrollbar for the modal */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -16,17 +15,22 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen p-8 font-sans">
     
     <div class="max-w-7xl mx-auto relative">
-        <!-- Unified Header -->
         <header class="flex justify-between items-center mb-8 bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
             <!-- Left: Branding -->
             <div class="w-1/3">
-                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
-                    Alpha Bot Control
-                </h1>
-                <p class="text-slate-400 mt-1 text-sm" id="state-date">Loading date...</p>
+                <div class="flex items-center gap-3 mb-1">
+                    <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                        Alpha Bot Control
+                    </h1>
+                    <!-- Mode Badge (Updates dynamically) -->
+                    <div id="dashboard-mode-badge" class="px-3 py-1 bg-slate-700 text-slate-400 border border-slate-600 rounded-full text-[10px] font-bold tracking-widest hidden">
+                        DRY RUN
+                    </div>
+                </div>
+                <p class="text-slate-400 text-sm" id="state-date">Loading date...</p>
             </div>
             
-            <!-- Center: Integrated State Overview -->
+            <!-- Center: Stats -->
             <div class="w-1/3 flex justify-center gap-6">
                 <div class="text-center px-6 py-2 bg-slate-900 rounded-xl border border-slate-700">
                     <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-0.5">Tracked</p>
@@ -58,24 +62,19 @@
 
         <div id="notification" class="hidden mb-6 p-4 rounded-xl text-sm font-medium transition-all duration-300"></div>
 
-        <!-- Dynamic Accounts Container -->
         <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 min-h-[750px]">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-semibold text-slate-200">Symphony States by Account</h2>
                 <span class="text-xs text-slate-500" id="last-updated">Last Updated: ---</span>
             </div>
-            
-            <div id="accounts-container" class="space-y-8">
-                <!-- Tables injected here grouped by Account -->
-            </div>
+            <div id="accounts-container" class="space-y-8"></div>
         </div>
     </div>
 
-    <!-- Edit Variables Modal Overlay -->
+    <!-- Edit Variables Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="settings-modal-content">
             
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 shrink-0">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
@@ -86,15 +85,27 @@
                 </button>
             </div>
 
-            <!-- Modal Body (Scrollable) -->
             <form id="settings-form" class="flex flex-col overflow-hidden h-full" onsubmit="saveSettings(event)">
                 <div class="p-6 overflow-y-auto space-y-8">
                     
-                    <!-- SECTION 1: API & ACCOUNTS -->
+                    <!-- SECTION 1: EXECUTION MODE -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Execution Mode</h4>
+                        <div class="bg-slate-900 border border-slate-700 p-5 rounded-xl flex items-center justify-between transition-colors duration-300" id="mode-container">
+                            <div>
+                                <h4 class="text-sm font-bold text-white mb-0.5 transition-colors duration-300" id="mode-title">Dry Run Mode</h4>
+                                <p class="text-xs text-slate-400 transition-colors duration-300" id="mode-desc">Safe: Bot will simulate trades but bypass actual execution.</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="env-live-mode" class="sr-only peer" onchange="toggleModeUI(this)">
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500 shadow-inner"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: API & ACCOUNTS -->
                     <div>
                         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">API Credentials & Accounts</h4>
-                        
-                        <!-- Composer Keys -->
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="text-xs font-semibold text-slate-300 mb-1 block">Composer Key ID</label>
@@ -105,8 +116,6 @@
                                 <input type="password" id="env-comp-sec" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
                         </div>
-
-                        <!-- Alpaca Keys -->
                         <div class="grid grid-cols-2 gap-4 mb-5">
                             <div>
                                 <label class="text-xs font-semibold text-slate-300 mb-1 block">Alpaca Key</label>
@@ -117,27 +126,23 @@
                                 <input type="password" id="env-alp-sec" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
                         </div>
-
-                        <!-- Accounts -->
                         <div>
                             <label class="text-xs font-semibold text-slate-300 mb-2 block">Composer Account UUIDs</label>
                             <div class="space-y-3">
                                 <div>
                                     <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Individual</span>
-                                    <input type="text" id="env-acc-1" placeholder="Account 1 UUID" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                    <input type="text" id="env-acc-1" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                                 </div>
                                 <div>
                                     <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Roth IRA</span>
-                                    <input type="text" id="env-acc-2" placeholder="Account 2 UUID (Optional)" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                    <input type="text" id="env-acc-2" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                                 </div>
                                 <div>
                                     <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Trad. IRA</span>
-                                    <input type="text" id="env-acc-3" placeholder="Account 3 UUID (Optional)" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                    <input type="text" id="env-acc-3" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Discord Webhook -->
                         <div class="mt-5">
                             <label class="text-xs font-semibold text-slate-300 mb-1 block">Discord Server Webhook (Optional)</label>
                             <input type="text" id="env-discord" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
@@ -145,104 +150,60 @@
                         </div>
                     </div>
 
-                    <!-- SECTION 2: STRATEGY VARIABLES -->
+                    <!-- SECTION 3: STRATEGY VARIABLES -->
                     <div>
                         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Strategy Variables</h4>
                         <div class="space-y-4">
-                            <!-- Variable: TRIGGER_THRESHOLD_PCT -->
+                            <!-- Variables -->
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
                                         TRIGGER_THRESHOLD_PCT
-                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </label>
                                     <span class="text-xs text-slate-500">Default: 15.0</span>
                                 </div>
-                                <input type="number" step="0.1" id="env-trigger" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                                <!-- Tooltip -->
-                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
-                                    <strong class="text-white">The "Arming" switch.</strong><br>
-                                    <strong>Lower (e.g., 5.0):</strong> Aggressive. Trusts the runner.<br>
-                                    <strong>Higher (e.g., 25.0):</strong> Conservative. Gets nervous faster.
-                                </div>
+                                <input type="number" step="0.1" id="env-trigger" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
-
-                            <!-- Variable: ATR_LOOKBACK_DAYS -->
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
                                         ATR_LOOKBACK_DAYS
-                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </label>
                                     <span class="text-xs text-slate-500">Default: 14</span>
                                 </div>
-                                <input type="number" step="1" id="env-lookback" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                                <!-- Tooltip -->
-                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
-                                    <strong class="text-white">Volatility memory bank.</strong><br>
-                                    <strong>Decrease (e.g., 7):</strong> Hyper-sensitive to recent chop.<br>
-                                    <strong>Increase (e.g., 21):</strong> Smooths out the data.
-                                </div>
+                                <input type="number" step="1" id="env-lookback" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
-
-                            <!-- Variable: BASE_ATR_MULTIPLIER -->
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
                                         BASE_ATR_MULTIPLIER
-                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </label>
                                     <span class="text-xs text-slate-500">Default: 2.0</span>
                                 </div>
-                                <input type="number" step="0.1" id="env-base-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                                <!-- Tooltip -->
-                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
-                                    <strong class="text-white">Primary leash on normal days.</strong><br>
-                                    <strong>Decrease (e.g., 1.25):</strong> Tight leash. Locks in faster.<br>
-                                    <strong>Increase (e.g., 3.0):</strong> Diamond Hands setting.
-                                </div>
+                                <input type="number" step="0.1" id="env-base-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
-
-                            <!-- Variable: RED_DAY_ATR_MULTIPLIER -->
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
                                         RED_DAY_ATR_MULTIPLIER
-                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </label>
                                     <span class="text-xs text-slate-500">Default: 0.75</span>
                                 </div>
-                                <input type="number" step="0.05" id="env-red-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                                <!-- Tooltip -->
-                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
-                                    <strong class="text-white">Defensive leash for gap-downs.</strong><br>
-                                    <strong>Decrease (e.g., 0.25):</strong> Panic button.<br>
-                                    <strong>Increase (e.g., 1.5):</strong> Gives room to recover.
-                                </div>
+                                <input type="number" step="0.05" id="env-red-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
-
-                            <!-- Variable: MIN_MULTIPLIER_FLOOR -->
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">
                                         MIN_MULTIPLIER_FLOOR
-                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </label>
                                     <span class="text-xs text-slate-500">Default: 0.5</span>
                                 </div>
-                                <input type="number" step="0.1" id="env-floor" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                                <!-- Tooltip -->
-                                <div class="absolute z-10 hidden group-hover:block w-72 bg-slate-700 text-xs text-slate-200 p-3 rounded-lg shadow-xl -top-12 left-[102%] border border-slate-600 pointer-events-none">
-                                    <strong class="text-white">Profit Parachute limit.</strong><br>
-                                    <strong>Decrease (e.g., 0.1):</strong> Strangles outliers faster.<br>
-                                    <strong>Increase (e.g., 2.0):</strong> Weakens the parachute.
-                                </div>
+                                <input type="number" step="0.1" id="env-floor" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Sticky Modal Footer -->
                 <div class="p-5 border-t border-slate-700 bg-slate-800 flex justify-end gap-3 shrink-0">
                     <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
                     <button type="submit" id="save-settings-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all shadow-lg active:scale-95">Save & Close</button>
@@ -252,6 +213,29 @@
     </div>
 
     <script>
+        // --- UI Interactions ---
+        function toggleModeUI(checkbox) {
+            const title = document.getElementById('mode-title');
+            const desc = document.getElementById('mode-desc');
+            const container = document.getElementById('mode-container');
+            
+            if (checkbox.checked) {
+                title.textContent = "Live Execution Mode";
+                title.classList.replace("text-white", "text-rose-400");
+                desc.textContent = "DANGER: Bot will execute real sell-to-cash orders via API.";
+                desc.classList.replace("text-slate-400", "text-rose-300/80");
+                container.classList.replace("bg-slate-900", "bg-rose-950/40");
+                container.classList.replace("border-slate-700", "border-rose-900/50");
+            } else {
+                title.textContent = "Dry Run Mode";
+                title.classList.replace("text-rose-400", "text-white");
+                desc.textContent = "Safe: Bot will simulate trades but bypass actual execution.";
+                desc.classList.replace("text-rose-300/80", "text-slate-400");
+                container.classList.replace("bg-rose-950/40", "bg-slate-900");
+                container.classList.replace("border-rose-900/50", "border-slate-700");
+            }
+        }
+
         // --- Core Dashboard State Logic ---
         let accountLabels = {};
 
@@ -275,6 +259,17 @@
                 
                 if (data.status === 'error' || data.status === 'waiting') return;
 
+                // Handle Mode Badge
+                const modeBadge = document.getElementById('dashboard-mode-badge');
+                modeBadge.classList.remove('hidden');
+                if (data.live_mode) {
+                    modeBadge.className = "px-3 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full text-[10px] font-bold tracking-widest";
+                    modeBadge.textContent = "LIVE EXECUTION";
+                } else {
+                    modeBadge.className = "px-3 py-1 bg-slate-700 text-slate-400 border border-slate-600 rounded-full text-[10px] font-bold tracking-widest";
+                    modeBadge.textContent = "DRY RUN";
+                }
+
                 const stateObj = data.state;
                 document.getElementById('state-date').textContent = `Ledger Date: ${stateObj.date || 'Unknown'} (ET)`;
                 
@@ -282,11 +277,9 @@
                 let armedCount = 0;
                 const accountsMap = {};
 
-                // Process and Group Data
                 symphonyKeys.forEach(id => {
                     const sym = stateObj[id];
                     if (sym.armed) armedCount++;
-                    
                     const accId = sym.account || 'Unknown Account';
                     if (!accountsMap[accId]) accountsMap[accId] = [];
                     accountsMap[accId].push({ id, ...sym });
@@ -295,7 +288,6 @@
                 document.getElementById('total-symphonies').textContent = symphonyKeys.length;
                 document.getElementById('total-armed').textContent = armedCount;
 
-                // Build UI
                 let html = '';
                 for (const [accId, syms] of Object.entries(accountsMap)) {
                     const displayLabel = accountLabels[accId] || "Account";
@@ -321,7 +313,6 @@
                                 <tbody class="divide-y divide-slate-800">
                     `;
 
-                    // Sort symphonies alphabetically by name
                     syms.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
 
                     syms.forEach(sym => {
@@ -335,16 +326,13 @@
                         const curRet = sym.current_return !== undefined ? `${sym.current_return.toFixed(2)}%` : '---';
                         const hwm = sym.high_water_mark !== undefined && sym.high_water_mark !== -999.0 ? `${sym.high_water_mark.toFixed(2)}%` : '---';
                         
-                        // Dynamic Colors
                         const mcColor = sym.mc_prob < 15.0 ? 'text-amber-400 font-medium' : 'text-slate-400';
                         const curRetColor = sym.current_return >= 0 ? 'text-emerald-400' : 'text-rose-400';
                         const hwmColor = sym.high_water_mark > 0 ? 'text-emerald-400' : 'text-slate-300';
 
                         html += `
                                     <tr class="hover:bg-slate-800 transition-colors">
-                                        <td class="px-5 py-3 text-slate-200">
-                                            <div class="max-w-[400px] truncate" title="${name}">${name}</div>
-                                        </td>
+                                        <td class="px-5 py-3 text-slate-200"><div class="max-w-[400px] truncate" title="${name}">${name}</div></td>
                                         <td class="px-5 py-3 text-right font-mono ${mcColor}">${mcProb}</td>
                                         <td class="px-5 py-3 text-center">${statusBadge}</td>
                                         <td class="px-5 py-3 text-right font-mono ${curRetColor}">${curRet}</td>
@@ -352,13 +340,7 @@
                                     </tr>
                         `;
                     });
-
-                    html += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    `;
+                    html += `</tbody></table></div></div>`;
                 }
                 
                 document.getElementById('accounts-container').innerHTML = html;
@@ -370,30 +352,23 @@
             }
         }
 
-        // --- Trigger Logic ---
         async function triggerBot() {
             const btn = document.getElementById('trigger-btn');
-            const notif = document.getElementById('notification');
             btn.disabled = true;
             btn.textContent = "Executing...";
             
             try {
                 const response = await fetch('/api/trigger', { method: 'POST' });
                 const result = await response.json();
-                
                 showNotification("🚀 " + result.message, "success");
                 setTimeout(fetchState, 3000);
             } catch (error) {
                 showNotification("⚠️ Failed to trigger bot.", "error");
             } finally {
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.textContent = "Force Run Now";
-                }, 4000);
+                setTimeout(() => { btn.disabled = false; btn.textContent = "Force Run Now"; }, 4000);
             }
         }
 
-        // --- Settings Modal Logic ---
         const modal = document.getElementById('settings-modal');
         const modalContent = document.getElementById('settings-modal-content');
 
@@ -402,27 +377,30 @@
                 const response = await fetch('/api/settings');
                 const vars = await response.json();
                 
-                // Populate Strategy Vars
+                // Populate Toggle
+                const isLive = vars.LIVE_EXECUTION.toLowerCase() === 'true';
+                const toggle = document.getElementById('env-live-mode');
+                toggle.checked = isLive;
+                toggleModeUI(toggle); // set correct UI colors
+
+                // Populate Others
                 document.getElementById('env-trigger').value = vars.TRIGGER_THRESHOLD_PCT;
                 document.getElementById('env-lookback').value = vars.ATR_LOOKBACK_DAYS;
                 document.getElementById('env-base-atr').value = vars.BASE_ATR_MULTIPLIER;
                 document.getElementById('env-red-atr').value = vars.RED_DAY_ATR_MULTIPLIER;
                 document.getElementById('env-floor').value = vars.MIN_MULTIPLIER_FLOOR;
 
-                // Populate Credentials
                 document.getElementById('env-comp-key').value = vars.COMPOSER_KEY_ID;
                 document.getElementById('env-comp-sec').value = vars.COMPOSER_SECRET;
                 document.getElementById('env-alp-key').value = vars.ALPACA_KEY;
                 document.getElementById('env-alp-sec').value = vars.ALPACA_SECRET;
                 document.getElementById('env-discord').value = vars.DISCORD_WEBHOOK_URL || '';
 
-                // Populate Accounts (split comma-separated string)
                 const accounts = vars.ACCOUNT_UUIDS ? vars.ACCOUNT_UUIDS.split(',').map(s => s.trim()) : [];
                 document.getElementById('env-acc-1').value = accounts[0] || '';
                 document.getElementById('env-acc-2').value = accounts[1] || '';
                 document.getElementById('env-acc-3').value = accounts[2] || '';
 
-                // Show modal
                 modal.classList.remove('hidden');
                 setTimeout(() => {
                     modal.classList.remove('opacity-0');
@@ -436,9 +414,7 @@
         function closeSettingsModal() {
             modal.classList.add('opacity-0');
             modalContent.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300); // Matches duration-300
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
 
         async function saveSettings(e) {
@@ -447,21 +423,19 @@
             btn.disabled = true;
             btn.textContent = "Saving...";
 
-            // Reconstruct Account UUIDs string
             const acc1 = document.getElementById('env-acc-1').value.trim();
             const acc2 = document.getElementById('env-acc-2').value.trim();
             const acc3 = document.getElementById('env-acc-3').value.trim();
             const accountsStr = [acc1, acc2, acc3].filter(a => a !== '').join(',');
 
             const payload = {
-                // Credentials
+                LIVE_EXECUTION: document.getElementById('env-live-mode').checked ? "True" : "False",
                 COMPOSER_KEY_ID: document.getElementById('env-comp-key').value.trim(),
                 COMPOSER_SECRET: document.getElementById('env-comp-sec').value.trim(),
                 ALPACA_KEY: document.getElementById('env-alp-key').value.trim(),
                 ALPACA_SECRET: document.getElementById('env-alp-sec').value.trim(),
                 ACCOUNT_UUIDS: accountsStr,
                 DISCORD_WEBHOOK_URL: document.getElementById('env-discord').value.trim(),
-                // Strategy
                 TRIGGER_THRESHOLD_PCT: document.getElementById('env-trigger').value,
                 ATR_LOOKBACK_DAYS: document.getElementById('env-lookback').value,
                 BASE_ATR_MULTIPLIER: document.getElementById('env-base-atr').value,
@@ -493,7 +467,6 @@
             }
         }
 
-        // --- Utils ---
         function showNotification(msg, type) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
@@ -502,12 +475,9 @@
             } else {
                 notif.className = "mb-6 p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-red-500/20 text-red-300 border border-red-500/30 block";
             }
-            setTimeout(() => {
-                notif.classList.add('hidden');
-            }, 4000);
+            setTimeout(() => { notif.classList.add('hidden'); }, 4000);
         }
 
-        // Initial launch
         initAccountLabels().then(() => {
             fetchState();
             setInterval(fetchState, 5000);
