@@ -39,7 +39,15 @@ def get_state():
         with open('bot_state.json', 'r') as f:
             state_data = json.load(f)
             
-        return jsonify({"status": "active", "state": state_data})
+        # We also pass the LIVE_EXECUTION state down to the UI so it can display the badge
+        env_vars = dotenv_values('.env')
+        live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
+            
+        return jsonify({
+            "status": "active", 
+            "state": state_data,
+            "live_mode": live_mode
+        })
         
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -52,18 +60,15 @@ def manual_trigger():
 # --- 4. Settings/Control Panel Routes ---
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    """Reads the current algorithm parameters and API keys from the .env file."""
     env_vars = dotenv_values('.env')
     return jsonify({
-        # API & Account Credentials
+        "LIVE_EXECUTION": env_vars.get("LIVE_EXECUTION", "False"),
         "COMPOSER_KEY_ID": env_vars.get("COMPOSER_KEY_ID", ""),
         "COMPOSER_SECRET": env_vars.get("COMPOSER_SECRET", ""),
         "ALPACA_KEY": env_vars.get("ALPACA_KEY", ""),
         "ALPACA_SECRET": env_vars.get("ALPACA_SECRET", ""),
         "ACCOUNT_UUIDS": env_vars.get("ACCOUNT_UUIDS", ""),
         "DISCORD_WEBHOOK_URL": env_vars.get("DISCORD_WEBHOOK_URL", ""),
-        
-        # Strategy Parameters
         "TRIGGER_THRESHOLD_PCT": env_vars.get("TRIGGER_THRESHOLD_PCT", "15.0"),
         "ATR_LOOKBACK_DAYS": env_vars.get("ATR_LOOKBACK_DAYS", "14"),
         "BASE_ATR_MULTIPLIER": env_vars.get("BASE_ATR_MULTIPLIER", "2.0"),
@@ -73,33 +78,22 @@ def get_settings():
 
 @app.route('/api/settings', methods=['POST'])
 def save_settings():
-    """Safely updates specific algorithm parameters and keys in the .env file."""
     data = request.json
     env_file = find_dotenv()
     if not env_file:
-        env_file = '.env' # Fallback
+        env_file = '.env'
     
-    # We explicitly define allowed keys so the API can't arbitrarily rewrite files
     allowed_keys = [
-        "COMPOSER_KEY_ID",
-        "COMPOSER_SECRET",
-        "ALPACA_KEY",
-        "ALPACA_SECRET",
-        "ACCOUNT_UUIDS",
-        "DISCORD_WEBHOOK_URL",
-        "TRIGGER_THRESHOLD_PCT", 
-        "ATR_LOOKBACK_DAYS", 
-        "BASE_ATR_MULTIPLIER", 
-        "RED_DAY_ATR_MULTIPLIER", 
-        "MIN_MULTIPLIER_FLOOR"
+        "LIVE_EXECUTION",
+        "COMPOSER_KEY_ID", "COMPOSER_SECRET", "ALPACA_KEY", "ALPACA_SECRET",
+        "ACCOUNT_UUIDS", "DISCORD_WEBHOOK_URL", "TRIGGER_THRESHOLD_PCT", 
+        "ATR_LOOKBACK_DAYS", "BASE_ATR_MULTIPLIER", "RED_DAY_ATR_MULTIPLIER", "MIN_MULTIPLIER_FLOOR"
     ]
     
     try:
         for key in allowed_keys:
             if key in data:
-                # set_key safely updates or adds the key without breaking other file contents
                 set_key(env_file, key, str(data[key]))
-                
         return jsonify({"status": "success", "message": "Variables updated successfully! Applied to next run."})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
