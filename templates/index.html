@@ -22,7 +22,7 @@
                     <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
                         Alpha Bot Control
                     </h1>
-                    <!-- Mode Badge (Updates dynamically) -->
+                    <!-- Mode Badge -->
                     <div id="dashboard-mode-badge" class="px-3 py-1 bg-slate-700 text-slate-400 border border-slate-600 rounded-full text-[10px] font-bold tracking-widest hidden">
                         DRY RUN
                     </div>
@@ -52,11 +52,14 @@
             <!-- Right: Controls -->
             <div class="w-1/3 flex flex-col items-end gap-3">
                 <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-full border border-slate-700">
-                        <div id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span id="status-text" class="text-xs font-medium text-slate-300">System Online</span>
+                    <div class="flex flex-col items-center justify-center">
+                        <span id="countdown-text" class="text-[10px] text-slate-400 font-mono tracking-widest font-bold mb-1">NEXT RUN: --:--</span>
+                        <div class="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-slate-700">
+                            <div id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span id="status-text" class="text-xs font-medium text-slate-300">System Online</span>
+                        </div>
                     </div>
-                    <button onclick="triggerBot()" id="trigger-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-xl text-sm font-medium transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95">
+                    <button onclick="triggerBot()" id="trigger-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95">
                         Force Run Now
                     </button>
                 </div>
@@ -77,7 +80,7 @@
 
         <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 min-h-[750px]">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-semibold text-slate-200">Symphony Status by Account</h2>
+                <h2 class="text-xl font-semibold text-slate-200">Symphony States by Account</h2>
                 <span class="text-xs text-slate-500" id="last-updated">Last Updated: ---</span>
             </div>
             <div id="accounts-container" class="space-y-8"></div>
@@ -298,8 +301,9 @@
         let accountLabels = {};
         let globalStateCache = {};
         let pendingAccountId = null; 
+        let countdownSeconds = 0;
 
-        // --- Clock Logic ---
+        // --- Clocks & Timers ---
         function startNYClock() {
             setInterval(() => {
                 const nyTime = new Date().toLocaleTimeString('en-US', {
@@ -311,6 +315,19 @@
                 });
                 const clockEl = document.getElementById('ny-time');
                 if (clockEl) clockEl.textContent = `${nyTime} ET`;
+            }, 1000);
+        }
+
+        function startCountdown() {
+            setInterval(() => {
+                if (countdownSeconds > 0) {
+                    countdownSeconds--;
+                    const mins = String(Math.floor(countdownSeconds / 60)).padStart(2, '0');
+                    const secs = String(countdownSeconds % 60).padStart(2, '0');
+                    document.getElementById('countdown-text').textContent = `NEXT RUN: ${mins}:${secs}`;
+                } else {
+                    document.getElementById('countdown-text').textContent = `NEXT RUN: 00:00`;
+                }
             }, 1000);
         }
 
@@ -358,7 +375,8 @@
                 
                 if (data.status === 'error' || data.status === 'waiting') return;
 
-                // Handle Mode Badge
+                countdownSeconds = data.next_run_seconds || 0;
+
                 const modeBadge = document.getElementById('dashboard-mode-badge');
                 modeBadge.classList.remove('hidden');
                 if (data.live_mode) {
@@ -739,6 +757,7 @@
 
         // Boot Sequence
         startNYClock();
+        startCountdown();
         initAccountLabels().then(() => {
             fetchState();
             setInterval(fetchState, 5000);
