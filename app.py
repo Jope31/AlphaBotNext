@@ -12,16 +12,19 @@ from dotenv import dotenv_values, set_key, find_dotenv
 app = Flask(__name__)
 
 # --- 1. Bot Execution Logic ---
-def trigger_alpha_bot():
+def trigger_alpha_bot(force=False):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Triggering Alpha Bot...")
     try:
-        subprocess.run(["python", "alpha_bot_final.py"], check=True)
+        cmd = ["python", "alpha_bot_final.py"]
+        if force:
+            cmd.append("--force")
+        subprocess.run(cmd, check=True)
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Execution failed: {e}")
 
 # --- 2. Background Scheduler ---
 def run_scheduler():
-    schedule.every(5).minutes.do(trigger_alpha_bot)
+    schedule.every(5).minutes.do(trigger_alpha_bot, force=False)
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -54,12 +57,12 @@ def get_state():
 
 @app.route('/api/trigger', methods=['POST'])
 def manual_trigger():
-    threading.Thread(target=trigger_alpha_bot).start()
-    return jsonify({"status": "success", "message": "Bot execution started in background."})
+    # Pass force=True when triggered manually via the dashboard UI
+    threading.Thread(target=trigger_alpha_bot, args=(True,)).start()
+    return jsonify({"status": "success", "message": "Bot execution forced (bypassing gatekeeper)."})
 
 # --- 4. Account Liquidation Route ---
 def perform_account_liquidation(account_id, key, secret, live_mode):
-    """Background task to sell all symphonies in a specific account."""
     headers = {
         "x-api-key-id": key,
         "authorization": f"Bearer {secret}",
@@ -75,7 +78,7 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
                 if live_mode:
                     sell_url = f"https://api.composer.trade/api/v0.1/deploy/symphonies/{sym['id']}/sell-all"
                     requests.post(sell_url, headers=headers)
-                    time.sleep(1.5)  # Respect Composer rate limits
+                    time.sleep(1.5)  
     except Exception as e:
         print(f"Liquidation Error: {e}")
 
@@ -94,12 +97,10 @@ def sell_account():
     if not key or not secret:
         return jsonify({"status": "error", "message": "Composer API keys missing in settings."}), 400
         
-    # Start the liquidation loop in a background thread so the UI doesn't hang
     threading.Thread(target=perform_account_liquidation, args=(account_id, key, secret, live_mode)).start()
     
     mode_text = "LIVE EXECUTION" if live_mode else "DRY RUN"
     return jsonify({"status": "success", "message": f"[{mode_text}] Initiated account liquidation."})
-
 
 # --- 5. Settings/Control Panel Routes ---
 @app.route('/api/settings', methods=['GET'])
