@@ -46,10 +46,18 @@ def get_state():
         env_vars = dotenv_values('.env')
         live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
             
+        # Calculate seconds until next automated run
+        next_run_seconds = 0
+        jobs = schedule.get_jobs()
+        if jobs and jobs[0].next_run:
+            delta = jobs[0].next_run - datetime.now()
+            next_run_seconds = max(0, int(delta.total_seconds()))
+
         return jsonify({
             "status": "active", 
             "state": state_data,
-            "live_mode": live_mode
+            "live_mode": live_mode,
+            "next_run_seconds": next_run_seconds
         })
         
     except Exception as e:
