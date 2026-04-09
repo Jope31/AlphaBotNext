@@ -1,9 +1,10 @@
 import os
+import sys
 import time
 import json
 import requests
 import numpy as np
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time as dt_time
 from dotenv import load_dotenv
 
 # ==========================================
@@ -220,12 +221,39 @@ def main():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...")
     print(f"MODE: {'LIVE EXECUTION (DANGER)' if LIVE_EXECUTION else 'DRY RUN (SAFE)'}")
     
+    # --- MARKET HOURS GATEKEEPER ---
+    force_run = "--force" in sys.argv
+    utc_now = datetime.now(timezone.utc)
+    
+    try:
+        from zoneinfo import ZoneInfo
+        current_et = datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        # Robust fallback for systems without tzdata installed
+        if 3 <= utc_now.month <= 11:
+            current_et = utc_now - timedelta(hours=4) # EDT approx
+        else:
+            current_et = utc_now - timedelta(hours=5) # EST approx
+            
+    is_weekday = current_et.weekday() < 5
+    current_time = current_et.time()
+    market_open = dt_time(9, 30)
+    market_close = dt_time(16, 0)
+    
+    if not is_weekday or not (market_open <= current_time <= market_close):
+        if not force_run:
+            print(f"  -> Market closed (ET: {current_et.strftime('%a %H:%M')}). Sleeping to conserve API limits...")
+            return
+        else:
+            print(f"  -> Market closed, but --force flag detected! Bypassing gatekeeper...")
+    
+    # --- END GATEKEEPER ---
+
     if not COMPOSER_KEY_ID or not ALPACA_KEY:
         print("CRITICAL: Missing API Keys. Please check your .env file.")
         return
 
     bot_state = load_state()
-    current_et = datetime.now(timezone.utc) - timedelta(hours=5)
     current_date_str = current_et.strftime('%Y-%m-%d')
     
     if bot_state.get("date") != current_date_str:
@@ -291,8 +319,6 @@ def main():
                 active_multiplier = max(MIN_MULTIPLIER_FLOOR, active_multiplier / outlier_ratio)
             
             trailing_stop_distance = portfolio_natr * active_multiplier
-            
-            # If high water mark is -999 (sold), fallback to current return for math consistency
             safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
             stop_trigger_level = safe_hwm - trailing_stop_distance
             
