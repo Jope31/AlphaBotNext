@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 # ==========================================
 # 1. CONFIGURATION & CREDENTIALS
 # ==========================================
-# Load environment variables from .env file
 load_dotenv()
 
 COMPOSER_KEY_ID = os.getenv("COMPOSER_KEY_ID")
@@ -24,16 +23,13 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 # --- EXECUTION MODE ---
 LIVE_EXECUTION = os.getenv("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
 
-# Algorithm Parameters 
+# --- STRATEGY PARAMETERS (APPROACH A) ---
 TRIGGER_THRESHOLD_PCT = float(os.getenv("TRIGGER_THRESHOLD_PCT", "15.0"))
+TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", "1.5"))
+BREAKEVEN_ACTIVATION_PCT = float(os.getenv("BREAKEVEN_ACTIVATION_PCT", "2.0"))
+
 SIMULATION_PATHS = 5000
 NEIGHBOR_K = 150 
-
-# Trailing Stop & Volatility Settings
-ATR_LOOKBACK_DAYS = int(os.getenv("ATR_LOOKBACK_DAYS", "14"))
-BASE_ATR_MULTIPLIER = float(os.getenv("BASE_ATR_MULTIPLIER", "2.0"))
-RED_DAY_ATR_MULTIPLIER = float(os.getenv("RED_DAY_ATR_MULTIPLIER", "0.75"))
-MIN_MULTIPLIER_FLOOR = float(os.getenv("MIN_MULTIPLIER_FLOOR", "0.5"))
 
 # ==========================================
 # 2. STATE MANAGEMENT & LOGGING
@@ -56,7 +52,6 @@ def save_state(state):
 # ==========================================
 # 3. API CONNECTORS & RATE LIMIT HANDLING
 # ==========================================
-
 def get_composer_headers():
     return {
         "x-api-key-id": COMPOSER_KEY_ID,
@@ -79,7 +74,7 @@ def execute_sell_to_cash(symphony_id, account_id):
     time.sleep(1.5)
     return response.status_code in [200, 201, 202]
 
-def send_discord_alert(symphony_name, current_return, prob_beating, drawdown, stop_distance, is_live):
+def send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger_level, is_live):
     if not DISCORD_WEBHOOK_URL:
         return
         
@@ -94,18 +89,17 @@ def send_discord_alert(symphony_name, current_return, prob_beating, drawdown, st
             "fields": [
                 {"name": "Symphony", "value": symphony_name, "inline": True},
                 {"name": "Exit Return", "value": f"{current_return:.2f}%", "inline": True},
+                {"name": "Stop Level", "value": f"{stop_trigger_level:.2f}%", "inline": True},
                 {"name": "MC Probability", "value": f"{prob_beating:.1f}%", "inline": True},
-                {"name": "Drawdown from Peak", "value": f"{drawdown:.2f}%", "inline": True},
-                {"name": "Dynamic Stop Level", "value": f"{stop_distance:.2f}%", "inline": True},
                 {"name": "Action Taken", "value": action_text, "inline": False}
             ],
-            "footer": {"text": "Alpha Bot • Volatility-Adjusted Trailing Stop"}
+            "footer": {"text": "Alpha Bot • Hybrid Trailing Stop"}
         }]
     }
     requests.post(DISCORD_WEBHOOK_URL, json=payload)
 
 def fetch_alpaca_history(tickers):
-    print(f"Fetching 3-year history from Alpaca for {len(tickers)} tickers in batches...")
+    print(f"Fetching 3-year history from Alpaca for Monte Carlo ({len(tickers)} tickers)...")
     if "SPY" not in tickers:
         tickers.append("SPY")
         
@@ -142,42 +136,18 @@ def fetch_alpaca_history(tickers):
                             if date_str not in historical_data:
                                 historical_data[date_str] = {}
                             historical_data[date_str][symbol] = {
-                                'o': bars[j]['o'], 'h': bars[j]['h'], 'l': bars[j]['l'],
-                                'c': curr_close, 'prev_c': prev_close, 'daily_ret': daily_ret
+                                'c': curr_close, 'daily_ret': daily_ret
                             }
             
             page_token = data.get("next_page_token")
             if not page_token:
                 break 
                 
-    print("  -> History download complete.")
     return historical_data
 
 # ==========================================
-# 4. MATH ENGINE: VOLATILITY & MONTE CARLO
+# 4. MATH ENGINE: MONTE CARLO ONLY
 # ==========================================
-
-def calculate_portfolio_natr(holdings, historical_data, lookback_days=14):
-    valid_dates = sorted(list(historical_data.keys()))[-lookback_days:]
-    weighted_natr = 0.0
-    for h in holdings:
-        ticker = h.get('working_ticker', h.get('ticker'))
-        weight = h.get('allocation', 0.0)
-        true_ranges = []
-        closes = []
-        for date in valid_dates:
-            data = historical_data[date].get(ticker)
-            if data:
-                high, low, prev_c = data['h'], data['l'], data['prev_c']
-                tr = max(high - low, abs(high - prev_c), abs(low - prev_c))
-                true_ranges.append(tr)
-                closes.append(data['c'])
-        if true_ranges and closes and closes[-1] > 0:
-            avg_tr = sum(true_ranges) / len(true_ranges)
-            natr_pct = (avg_tr / closes[-1]) * 100 
-            weighted_natr += (natr_pct * weight)
-    return weighted_natr if weighted_natr > 0 else 1.5 
-
 def run_monte_carlo(holdings, historical_data, spy_today_return):
     current_symphony_return = sum(
         (h.get('last_percent_change', 0.0) * 100.0) * h.get('allocation', 0.0) 
@@ -216,7 +186,6 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
 # ==========================================
 # 5. MAIN EXECUTION LOOP
 # ==========================================
-
 def main():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...")
     print(f"MODE: {'LIVE EXECUTION (DANGER)' if LIVE_EXECUTION else 'DRY RUN (SAFE)'}")
@@ -229,7 +198,6 @@ def main():
         from zoneinfo import ZoneInfo
         current_et = datetime.now(ZoneInfo("America/New_York"))
     except Exception:
-        # Robust fallback for systems without tzdata installed
         if 3 <= utc_now.month <= 11:
             current_et = utc_now - timedelta(hours=4) # EDT approx
         else:
@@ -246,7 +214,6 @@ def main():
             return
         else:
             print(f"  -> Market closed, but --force flag detected! Bypassing gatekeeper...")
-    
     # --- END GATEKEEPER ---
 
     if not COMPOSER_KEY_ID or not ALPACA_KEY:
@@ -280,17 +247,11 @@ def main():
     if not historical_data: return
     
     latest_date = sorted(historical_data.keys())[-1]
-    latest_spy_data = historical_data[latest_date].get("SPY", {})
-    spy_today = latest_spy_data.get("daily_ret", 0.0) * 100 
-    spy_open = latest_spy_data.get('o', 1)
-    spy_prev_c = latest_spy_data.get('prev_c', 1)
-    spy_gap_ret = ((spy_open - spy_prev_c) / spy_prev_c) * 100 if spy_prev_c > 0 else 0.0
-    market_tone_red = spy_gap_ret < 0
+    spy_today = historical_data[latest_date].get("SPY", {}).get("daily_ret", 0.0) * 100 
     
-    print(f"Market Open Tone: {'RED' if market_tone_red else 'GREEN'} (Gap: {spy_gap_ret:.2f}%)\n")
+    print("\nEvaluating Symphonies...")
 
     for account, symphonies in symphony_data_cache.items():
-        print(f"Evaluating Account: {account}")
         for sym in symphonies:
             symphony_id = sym['id']
             symphony_name = sym.get('name', 'Unknown Symphony')
@@ -308,42 +269,37 @@ def main():
 
             high_water_mark = bot_state[symphony_id]["high_water_mark"]
             
-            # --- MATH CALCS ---
+            # --- 1. MC Arming Mechanism ---
             prob_beating = run_monte_carlo(holdings, historical_data, spy_today)
-            portfolio_natr = calculate_portfolio_natr(holdings, historical_data, ATR_LOOKBACK_DAYS)
             
-            # Calculate dynamic stop parameters for UI
-            active_multiplier = RED_DAY_ATR_MULTIPLIER if market_tone_red else BASE_ATR_MULTIPLIER
-            if high_water_mark > portfolio_natr and portfolio_natr > 0:
-                outlier_ratio = high_water_mark / portfolio_natr
-                active_multiplier = max(MIN_MULTIPLIER_FLOOR, active_multiplier / outlier_ratio)
-            
-            trailing_stop_distance = portfolio_natr * active_multiplier
+            # --- 2. Fixed Trailing Stop & Breakeven Lock Math ---
             safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
-            stop_trigger_level = safe_hwm - trailing_stop_distance
+            base_stop_level = safe_hwm - TRAILING_STOP_PCT
             
-            print(f"  -> {symphony_name}: Live Return = {current_return:.2f}% | High Water Mark = {high_water_mark:.2f}% | Prob Beating = {prob_beating:.1f}% | NATR = {portfolio_natr:.2f}%")
+            if safe_hwm >= BREAKEVEN_ACTIVATION_PCT:
+                stop_trigger_level = max(base_stop_level, 0.0)
+            else:
+                stop_trigger_level = base_stop_level
 
-            # --- SAVE FULL STATE FOR UI ---
+            print(f"  -> {symphony_name[:35]}: Ret: {current_return:.2f}% | HWM: {high_water_mark:.2f}% | Stop: {stop_trigger_level:.2f}% | ArmProb: {prob_beating:.1f}%")
+
             bot_state[symphony_id]["name"] = symphony_name
             bot_state[symphony_id]["account"] = account
             bot_state[symphony_id]["current_return"] = current_return
             bot_state[symphony_id]["mc_prob"] = prob_beating
-            bot_state[symphony_id]["natr"] = portfolio_natr
-            bot_state[symphony_id]["stop_distance"] = trailing_stop_distance
             bot_state[symphony_id]["stop_trigger"] = stop_trigger_level
             save_state(bot_state)
             
+            # --- 3. Arming ---
             if prob_beating < TRIGGER_THRESHOLD_PCT and not bot_state[symphony_id]["armed"]:
                 bot_state[symphony_id]["armed"] = True
                 save_state(bot_state)
-                print(f"  *** WARNING: {symphony_name} ARMED. ***")
+                print(f"  *** {symphony_name} ARMED ***")
                 
+            # --- 4. Execution Check ---
             if bot_state[symphony_id]["armed"]:
-                drawdown_from_peak = high_water_mark - current_return
-                
-                if drawdown_from_peak >= trailing_stop_distance:
-                    print(f"  *** TRAILING STOP HIT FOR {symphony_name} ***")
+                if current_return <= stop_trigger_level:
+                    print(f"  🚨 TRAILING STOP HIT FOR {symphony_name} 🚨")
                     
                     if LIVE_EXECUTION:
                         print("  -> [LIVE EXECUTION] Sending sell-to-cash command to Composer API...")
@@ -353,7 +309,7 @@ def main():
                     else:
                         print("  -> [DRY RUN] Execution bypassed.")
                     
-                    send_discord_alert(symphony_name, current_return, prob_beating, drawdown_from_peak, trailing_stop_distance, LIVE_EXECUTION)
+                    send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger_level, LIVE_EXECUTION)
                     
                     bot_state[symphony_id]["armed"] = False
                     bot_state[symphony_id]["high_water_mark"] = -999.0
