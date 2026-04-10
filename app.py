@@ -67,6 +67,34 @@ def manual_trigger():
     threading.Thread(target=trigger_alpha_bot, args=(True,)).start()
     return jsonify({"status": "success", "message": "Bot execution forced (bypassing gatekeeper)."})
 
+@app.route('/api/reset_symphony', methods=['POST'])
+def reset_symphony():
+    data = request.json
+    symphony_id = data.get('symphony_id')
+    if not symphony_id:
+        return jsonify({"status": "error", "message": "No symphony ID provided"}), 400
+        
+    try:
+        if os.path.exists('bot_state.json'):
+            with open('bot_state.json', 'r') as f:
+                state_data = json.load(f)
+                
+            if symphony_id in state_data:
+                # Wipe the memory for this specific symphony
+                state_data[symphony_id]['triggered'] = False
+                state_data[symphony_id]['armed'] = False
+                state_data[symphony_id]['high_water_mark'] = -999.0
+                
+                with open('bot_state.json', 'w') as f:
+                    json.dump(state_data, f, indent=4)
+                    
+                return jsonify({"status": "success", "message": "Symphony memory wiped. It will track fresh on the next run."})
+            else:
+                return jsonify({"status": "error", "message": "Symphony not found in memory."}), 404
+        return jsonify({"status": "error", "message": "State file not found."}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # --- 4. Account Liquidation Route ---
 def perform_account_liquidation(account_id, key, secret, live_mode):
     headers = {
@@ -84,11 +112,8 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
             
             for sym in symphonies:
                 if live_mode:
-                    # Enforces extraction of the precise symphony_id explicitly required by OpenAPI
                     actual_symphony_id = sym.get('symphony_id', sym['id'])
                     sell_url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{actual_symphony_id}/go-to-cash"
-                    
-                    # Passing json={} fulfills the OpenAPI requirement for a body on this specific POST endpoint
                     sell_resp = requests.post(sell_url, headers=headers, json={})
                     
                     if sell_resp.status_code in [200, 201, 202]:
