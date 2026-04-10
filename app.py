@@ -15,7 +15,6 @@ app = Flask(__name__)
 def trigger_alpha_bot(force=False):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Triggering Alpha Bot...")
     try:
-        # Updated to point to the new filename
         cmd = ["python", "alpha_bot_execution.py"]
         if force:
             cmd.append("--force")
