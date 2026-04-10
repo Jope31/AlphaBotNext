@@ -69,11 +69,27 @@ def fetch_symphony_stats(account_id):
     return []
 
 def execute_sell_to_cash(symphony_id, account_id):
-    # UPDATED: Correct Composer API endpoint for "Go to Cash"
     url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{symphony_id}/go-to-cash"
-    response = requests.post(url, headers=get_composer_headers())
-    time.sleep(1.5)
-    return response.status_code in [200, 201, 202]
+    try:
+        # Added json={} to satisfy the Content-Type header expectation
+        response = requests.post(url, headers=get_composer_headers(), json={})
+        print(f"     -> [API Status]: HTTP {response.status_code}")
+        
+        if response.status_code in [200, 201, 202]:
+            try:
+                print(f"     -> [Composer Receipt]: {response.json()}")
+            except:
+                pass
+            time.sleep(1.5)
+            return True
+        else:
+            # This will now print the exact reason Composer rejected it
+            print(f"     !!! [COMPOSER REJECTED]: {response.text}")
+            time.sleep(1.5)
+            return False
+    except Exception as e:
+        print(f"     !!! [API CRASH]: {str(e)}")
+        return False
 
 def send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger_level, is_live):
     if not DISCORD_WEBHOOK_URL:
