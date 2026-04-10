@@ -94,8 +94,19 @@ def send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger
     if not DISCORD_WEBHOOK_URL:
         return
         
-    title = "🚨 Profit Locked: Trailing Stop Triggered" if is_live else "⚠️ [DRY RUN] Profit Locked"
-    color = 15158332 if is_live else 16766720
+    # --- Context-Aware Discord Formatting ---
+    if current_return > 0:
+        base_title = "✅ Profit Locked"
+        live_color = 5763719  # Discord Green
+    elif current_return < 0:
+        base_title = "🛑 Bleed Stopped"
+        live_color = 15548997 # Discord Red
+    else:
+        base_title = "🛡️ Breakeven Locked"
+        live_color = 3447003  # Discord Blue
+        
+    title = f"{base_title}: Trailing Stop Triggered" if is_live else f"⚠️ [DRY RUN] {base_title}"
+    color = live_color if is_live else 16766720  # Yellow for dry runs
     action_text = "Executed 'Sell to Cash' via API. Trade queued for Composer execution window." if is_live else "Bypassed (Dry Run Mode)"
         
     payload = {
@@ -120,19 +131,16 @@ def fetch_alpaca_history(tickers, current_date_str):
     
     tickers_list = sorted(list(set(tickers)))
     
-    # 1. Check if we already downloaded the static 3-year history today
     if os.path.exists(HISTORY_CACHE_FILE):
         try:
             with open(HISTORY_CACHE_FILE, "r") as f:
                 cache = json.load(f)
-            # If the cache is from today AND has all the tickers we need, load it!
             if cache.get("date") == current_date_str and cache.get("tickers") == tickers_list:
                 print("  -> Loading static 3-year history from local cache.")
                 return cache.get("data", {})
         except Exception:
             pass
 
-    # 2. If no valid cache, do the heavy API download
     print(f"Fetching 3-year history from Alpaca for Monte Carlo ({len(tickers)} tickers)...")
     start_date = (datetime.now() - timedelta(days=365*3 + 30)).strftime('%Y-%m-%dT00:00:00Z')
     headers = {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
@@ -174,7 +182,6 @@ def fetch_alpaca_history(tickers, current_date_str):
             if not page_token:
                 break 
                 
-    # 3. Save to cache so we don't do this again today
     print("  -> History download complete. Saving to daily cache.")
     try:
         with open(HISTORY_CACHE_FILE, "w") as f:
@@ -189,7 +196,6 @@ def fetch_alpaca_history(tickers, current_date_str):
     return historical_data
 
 def get_live_spy_data():
-    """Fetches just SPY's live intraday price to feed the Monte Carlo engine"""
     start_date = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%dT00:00:00Z')
     headers = {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
     url = f"https://data.alpaca.markets/v2/stocks/bars?symbols=SPY&timeframe=1Day&start={start_date}&limit=10"
@@ -305,11 +311,9 @@ def main():
                     all_tickers.add(alpaca_ticker)
                     holding['working_ticker'] = alpaca_ticker
                     
-    # Load 3-Year History (Cached once per day)
     historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
     if not historical_data: return
     
-    # Grab live SPY performance right now to feed the MC engine
     spy_today = get_live_spy_data()
     print(f"  -> Live SPY Intraday Return: {spy_today:.2f}%")
     
@@ -317,7 +321,6 @@ def main():
 
     for account, symphonies in symphony_data_cache.items():
         for sym in symphonies:
-            # Use 'id' for the state dictionary mapping, but extract the true symphony_id for the API execution
             symphony_id = sym['id']
             actual_symphony_id = sym.get('symphony_id', symphony_id) 
             
@@ -385,7 +388,6 @@ def main():
                     
                     if LIVE_EXECUTION:
                         print("  -> [LIVE EXECUTION] Sending sell-to-cash command to Composer API...")
-                        # Pass the extracted true symphony_id here
                         success = execute_sell_to_cash(actual_symphony_id, account)
                         if not success:
                             print("     !!! ERROR: Composer API execution failed !!!")
