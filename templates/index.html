@@ -448,13 +448,7 @@
                         
                         let statusBadge = `<span class="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest">STANDBY</span>`;
                         if (isTriggered) {
-                            statusBadge = `
-                            <div class="flex items-center justify-center gap-2">
-                                <span class="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(244,63,94,0.15)]">TRIGGERED</span>
-                                <button onclick="resetSymphony('${sym.id}')" class="text-slate-400 hover:text-white transition-colors" title="Reset State">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                </button>
-                            </div>`;
+                            statusBadge = `<span class="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(244,63,94,0.15)]">TRIGGERED</span>`;
                         } else if (isArmed) {
                             statusBadge = `<span class="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(245,158,11,0.15)]">ARMED</span>`;
                         }
@@ -508,25 +502,6 @@
                 showNotification("⚠️ Failed to trigger bot.", "error");
             } finally {
                 setTimeout(() => { btn.disabled = false; btn.textContent = "Force Run Now"; }, 4000);
-            }
-        }
-
-        async function resetSymphony(symphonyId) {
-            try {
-                const response = await fetch('/api/reset_symphony', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symphony_id: symphonyId })
-                });
-                const result = await response.json();
-                if(result.status === 'success') {
-                    showNotification("♻️ " + result.message, "success");
-                    fetchState();
-                } else {
-                    showNotification("⚠️ " + result.message, "error");
-                }
-            } catch (error) {
-                showNotification("⚠️ Failed to reset symphony.", "error");
             }
         }
 
