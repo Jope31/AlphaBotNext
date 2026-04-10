@@ -82,7 +82,8 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
             symphonies = resp.json().get("symphonies", [])
             for sym in symphonies:
                 if live_mode:
-                    sell_url = f"https://api.composer.trade/api/v0.1/deploy/symphonies/{sym['id']}/sell-all"
+                    # UPDATED: Correct Composer API endpoint for "Go to Cash"
+                    sell_url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{sym['id']}/go-to-cash"
                     requests.post(sell_url, headers=headers)
                     time.sleep(1.5)  
     except Exception as e:
