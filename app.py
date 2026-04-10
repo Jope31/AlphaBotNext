@@ -84,8 +84,11 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
             
             for sym in symphonies:
                 if live_mode:
-                    sell_url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{sym['id']}/go-to-cash"
-                    # Added json={} to satisfy the Content-Type header expectation
+                    # Enforces extraction of the precise symphony_id explicitly required by OpenAPI
+                    actual_symphony_id = sym.get('symphony_id', sym['id'])
+                    sell_url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{actual_symphony_id}/go-to-cash"
+                    
+                    # Passing json={} fulfills the OpenAPI requirement for a body on this specific POST endpoint
                     sell_resp = requests.post(sell_url, headers=headers, json={})
                     
                     if sell_resp.status_code in [200, 201, 202]:
@@ -114,7 +117,7 @@ def sell_account():
         
     threading.Thread(target=perform_account_liquidation, args=(account_id, key, secret, live_mode)).start()
     mode_text = "LIVE EXECUTION" if live_mode else "DRY RUN"
-    return jsonify({"status": "success", "message": f"[{mode_text}] Initiated account liquidation."})
+    return jsonify({"status": "success", "message": f"[{mode_text}] Initiated account liquidation. Watch terminal for queue confirmations."})
 
 # --- 5. Settings/Control Panel Routes ---
 @app.route('/api/settings', methods=['GET'])
