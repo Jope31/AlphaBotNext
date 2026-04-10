@@ -80,11 +80,19 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
         resp = requests.get(url, headers=headers)
         if resp.status_code == 200:
             symphonies = resp.json().get("symphonies", [])
+            print(f"Found {len(symphonies)} symphonies to liquidate in account {account_id}...")
+            
             for sym in symphonies:
                 if live_mode:
-                    # UPDATED: Correct Composer API endpoint for "Go to Cash"
                     sell_url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{sym['id']}/go-to-cash"
-                    requests.post(sell_url, headers=headers)
+                    # Added json={} to satisfy the Content-Type header expectation
+                    sell_resp = requests.post(sell_url, headers=headers, json={})
+                    
+                    if sell_resp.status_code in [200, 201, 202]:
+                        print(f"✅ Liquidated {sym.get('name', sym['id'])} (HTTP {sell_resp.status_code})")
+                    else:
+                        print(f"❌ Failed to liquidate {sym.get('name', sym['id'])}: HTTP {sell_resp.status_code} - {sell_resp.text}")
+                    
                     time.sleep(1.5)  
     except Exception as e:
         print(f"Liquidation Error: {e}")
