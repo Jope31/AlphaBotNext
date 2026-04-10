@@ -35,6 +35,7 @@ NEIGHBOR_K = 150
 # 2. STATE MANAGEMENT & LOGGING
 # ==========================================
 STATE_FILE = "bot_state.json"
+HISTORY_CACHE_FILE = "history_cache.json"
 
 def load_state():
     if os.path.exists(STATE_FILE):
@@ -69,23 +70,19 @@ def fetch_symphony_stats(account_id):
     return []
 
 def execute_sell_to_cash(actual_symphony_id, account_id):
-    # Enforces the specific symphony-id path parameter identified in the OpenAPI docs
     url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{actual_symphony_id}/go-to-cash"
     try:
-        # json={} forces an empty JSON payload, satisfying strict application/json parsers
         response = requests.post(url, headers=get_composer_headers(), json={})
         print(f"     -> [API Status]: HTTP {response.status_code}")
         
         if response.status_code in [200, 201, 202]:
             try:
-                # Will print {"deploy_on_market_open": true} verifying Composer queued the trade
                 print(f"     -> [Composer Receipt]: {response.json()}")
             except:
                 pass
             time.sleep(1.5)
             return True
         else:
-            # Captures explicit OpenAPI schema rejections for debugging
             print(f"     !!! [COMPOSER REJECTED]: {response.text}")
             time.sleep(1.5)
             return False
@@ -117,19 +114,34 @@ def send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger
     }
     requests.post(DISCORD_WEBHOOK_URL, json=payload)
 
-def fetch_alpaca_history(tickers):
-    print(f"Fetching 3-year history from Alpaca for Monte Carlo ({len(tickers)} tickers)...")
+def fetch_alpaca_history(tickers, current_date_str):
     if "SPY" not in tickers:
         tickers.append("SPY")
-        
+    
+    tickers_list = sorted(list(set(tickers)))
+    
+    # 1. Check if we already downloaded the static 3-year history today
+    if os.path.exists(HISTORY_CACHE_FILE):
+        try:
+            with open(HISTORY_CACHE_FILE, "r") as f:
+                cache = json.load(f)
+            # If the cache is from today AND has all the tickers we need, load it!
+            if cache.get("date") == current_date_str and cache.get("tickers") == tickers_list:
+                print("  -> Loading static 3-year history from local cache.")
+                return cache.get("data", {})
+        except Exception:
+            pass
+
+    # 2. If no valid cache, do the heavy API download
+    print(f"Fetching 3-year history from Alpaca for Monte Carlo ({len(tickers)} tickers)...")
     start_date = (datetime.now() - timedelta(days=365*3 + 30)).strftime('%Y-%m-%dT00:00:00Z')
     headers = {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
     historical_data = {}
     batch_size = 30 
     
-    for i in range(0, len(tickers), batch_size):
-        batch = tickers[i:i + batch_size]
-        symbol_string = ",".join(list(set(batch)))
+    for i in range(0, len(tickers_list), batch_size):
+        batch = tickers_list[i:i + batch_size]
+        symbol_string = ",".join(batch)
         print(f"  -> Downloading batch {i//batch_size + 1}: {len(batch)} tickers...")
         
         page_token = None
@@ -162,7 +174,38 @@ def fetch_alpaca_history(tickers):
             if not page_token:
                 break 
                 
+    # 3. Save to cache so we don't do this again today
+    print("  -> History download complete. Saving to daily cache.")
+    try:
+        with open(HISTORY_CACHE_FILE, "w") as f:
+            json.dump({
+                "date": current_date_str,
+                "tickers": tickers_list,
+                "data": historical_data
+            }, f)
+    except Exception as e:
+        print(f"  -> Failed to write cache: {e}")
+        
     return historical_data
+
+def get_live_spy_data():
+    """Fetches just SPY's live intraday price to feed the Monte Carlo engine"""
+    start_date = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%dT00:00:00Z')
+    headers = {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
+    url = f"https://data.alpaca.markets/v2/stocks/bars?symbols=SPY&timeframe=1Day&start={start_date}&limit=10"
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            bars = response.json().get("bars", {}).get("SPY", [])
+            if len(bars) >= 2:
+                prev_c = bars[-2]['c']
+                curr_c = bars[-1]['c']
+                daily_ret = (curr_c - prev_c) / prev_c
+                return daily_ret * 100.0
+    except Exception as e:
+        print(f"Error fetching live SPY data: {e}")
+    return 0.0
 
 # ==========================================
 # 4. MATH ENGINE: MONTE CARLO ONLY
@@ -262,11 +305,13 @@ def main():
                     all_tickers.add(alpaca_ticker)
                     holding['working_ticker'] = alpaca_ticker
                     
-    historical_data = fetch_alpaca_history(list(all_tickers))
+    # Load 3-Year History (Cached once per day)
+    historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
     if not historical_data: return
     
-    latest_date = sorted(historical_data.keys())[-1]
-    spy_today = historical_data[latest_date].get("SPY", {}).get("daily_ret", 0.0) * 100 
+    # Grab live SPY performance right now to feed the MC engine
+    spy_today = get_live_spy_data()
+    print(f"  -> Live SPY Intraday Return: {spy_today:.2f}%")
     
     print("\nEvaluating Symphonies...")
 
