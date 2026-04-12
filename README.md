@@ -74,6 +74,6 @@ Clicking the "Force Run Now" button on the dashboard immediately bypasses the co
 1. **Scheduler:** ```app.py``` triggers ```alpha_bot_execution.py``` every 5 minutes during market hours.  
 2. **Data Fetching:** Retrieves live returns from Composer. Loads 3-year historical prices from the local cache, and makes one tiny Alpaca API call to get live SPY data.  
 3. **Evaluation:** Updates the local bot\_state.json with the High Water Mark.  
-4. **Arming Check:** Calculates the probability of beating the current return by end-of-day. If below ```TRIGGER_THRESHOLD_PCT``` OR if the return is negative, the symphony is marked "```ARMED": true```.  
+4. **Arming Check:** Calculates the probability of beating the current return by end-of-day. If below ```TRIGGER_THRESHOLD_PCT``` OR if the return is negative, the symphony is marked ```ARMED": true```.  
 5. **Execution:** If Armed, the bot calculates the Stop Level (HWM \- Trailing Stop). It applies the Breakeven lock if necessary. If the Current Return drops below this Stop Level, it executes an OpenAPI go-to-cash command via Composer.  
 6. **Triggered Lock:** Once a symphony is sold to cash, it is marked as ```TRIGGERED```. It halts all API execution checks and freezes its UI state until the memory wipes on the next trading day.
