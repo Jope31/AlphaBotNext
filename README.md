@@ -1,19 +1,20 @@
 # **Alpha Bot Control Center**
 
-Alpha Bot is an advanced, automated trading and risk management system built for Composer.trade. It uses a **Hybrid MC-Armed Fixed Trailing Stop** to protect profits, cut losses, and enforce risk-free trades without overcomplicating execution logic.
+Alpha Bot is an advanced, automated trading and risk management system built for Composer.trade. It uses a **Hybrid MC-Armed Dynamic Trailing Stop** to protect profits, cut losses, and enforce risk-free trades without overcomplicating execution logic.
 
 The system features a live web dashboard that allows you to monitor the state of your portfolio across multiple accounts, dynamically adjust your API credentials and algorithmic risk parameters on the fly, and manually liquidate entire accounts in emergencies.
 
 ## **🌟 Key Features**
 
 * **Live Web Dashboard:** Monitor all symphonies across your Composer accounts (Individual, Roth IRA, Trad. IRA) in real-time, complete with a live New York clock and countdown timer to the bot's next execution.  
+* **Live Execution & Dry Run Modes:** Safely test your parameters in "Dry Run" mode, which simulates trades and triggers without executing real API calls. Toggle "Live Execution" on the fly when you're ready for the bot to place real sell-to-cash orders.
 * **Dual-Arming Mechanism:** The trailing stop activates if the Monte Carlo probability of a positive return drops below your threshold, OR automatically if the symphony dips into the red (below 0.00%) to instantly cap bleeding.  
-* **Hybrid Trailing Stop:** Once armed, the bot follows the symphony's peak with a strict, predictable fixed percentage trailing stop, abandoning complex volatility math.  
+* **Dynamic Time-Decay Trailing Stop:** Once armed, the bot follows the symphony's peak. The trailing stop tightens dynamically as the market close approaches using a logarithmic squeeze, locking in more profits towards the end of the day.
 * **Breakeven Lock:** The moment your symphony achieves a specific "Activation %" run, the bot violently yanks the stop level up to 0.00%, mathematically forbidding the trade from closing in the red.  
 * **Account-Wide Liquidation (Panic Button):** A built-in "Go to Cash" button for every account that securely loops through the Composer API and liquidates all symphonies into cash instantly.  
 * **Context-Aware Discord Alerts:** Discord notifications dynamically adapt based on the execution context (e.g., 🟢 "Profit Locked", 🔵 "Breakeven Locked", or 🔴 "Bleed Stopped").  
 * **Smart API Caching:** The bot downloads heavy 3-year historical Alpaca data only *once* per day. Every 5 minutes, it only fetches live intraday SPY data, drastically reducing API load and execution time.  
-* **Post-Market Simulator:** Re-run the day's data with different trailing stops and breakeven locks to see exactly what would have triggered, allowing for perfect algorithmic tuning.
+* **Post-Market Simulator:** Re-run the day's data with different trailing stops, breakeven locks, and even a time-of-day scrubber to see exactly what would have triggered under different parameters, allowing for perfect algorithmic tuning.
 
 ## **📂 Project Structure**
 
@@ -65,8 +66,10 @@ Clicking the "Force Run Now" button on the dashboard immediately bypasses the co
 
 | Variable | Default | Description & Tuning |
 | :---- | :---- | :---- |
+| ```LIVE_EXECUTION``` | False | **Safety Switch.** If set to `False`, the bot runs in **Dry Run Mode**, updating the UI and sending Discord alerts without executing real API calls. Set to `True` for actual trading. |
 | ```TRIGGER_THRESHOLD_PCT``` | 15.0 | **The "Arming" switch.** The % of Monte Carlo paths needed to beat the current return. *Lower (5.0)* \= Aggressive/Patient. *Higher (25.0)* \= Conservative/Nervous. |
-| ```TRAILING_STOP_PCT``` | 1.5 | **The Leash.** Once the symphony is armed, the bot will trail the High Water Mark by this exact percentage. |
+| ```TRAILING_STOP_PCT``` | 1.5 | **Morning Leash.** Once the symphony is armed, the bot will trail the High Water Mark by this percentage at market open (9:30 AM). |
+| ```ENDING_STOP_PCT``` | 0.5 | **Afternoon Squeeze.** The trailing stop dynamically tightens towards this percentage as market close approaches (4:00 PM), protecting intraday gains. |
 | ```BREAKEVEN_ACTIVATION_PCT``` | 2.0 | **The Lock.** When the High Water Mark hits this exact percentage, the bot forces the Stop Level to 0.00%, guaranteeing a risk-free trade. |
 
 ## **🛠️ How It Works (The Execution Loop)**
