@@ -218,6 +218,8 @@ def get_settings():
             "TRIGGER_THRESHOLD_PCT": env_vars.get(
                 "TRIGGER_THRESHOLD_PCT", "15.0"
             ),
+            "BASE_ATR_MULTIPLIER": env_vars.get("BASE_ATR_MULTIPLIER", "2.0"),
+            "MIN_MULTIPLIER_FLOOR": env_vars.get("MIN_MULTIPLIER_FLOOR", "0.5"),
             "TRAILING_STOP_PCT": env_vars.get("TRAILING_STOP_PCT", "1.5"),
             "ENDING_STOP_PCT": env_vars.get("ENDING_STOP_PCT", "0.5"),
             "BREAKEVEN_ACTIVATION_PCT": env_vars.get(
@@ -225,7 +227,6 @@ def get_settings():
             ),
         }
     )
-
 
 @app.route("/api/settings", methods=["POST"])
 def save_settings():
@@ -244,6 +245,8 @@ def save_settings():
         "ACCOUNT_UUIDS",
         "DISCORD_WEBHOOK_URL",
         "TRIGGER_THRESHOLD_PCT",
+        "BASE_ATR_MULTIPLIER",
+        "MIN_MULTIPLIER_FLOOR",
         "TRAILING_STOP_PCT",
         "ENDING_STOP_PCT",
         "BREAKEVEN_ACTIVATION_PCT",
