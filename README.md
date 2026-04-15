@@ -1,4 +1,4 @@
-# **🤖 AlphaBot: Intelligent Composer API Guardian**
+# **🤖 AlphaBot: Intelligent Profit and Loss Guardian**
 
 AlphaBot is an automated, risk-management sidecar application designed to monitor your Composer.trade accounts. It utilizes historical Alpaca market data, a local Monte Carlo simulation engine, and per-symphony volatility metrics to execute dynamic "sell-to-cash" API calls when a symphony begins to break down.
 
