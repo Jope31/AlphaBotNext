@@ -52,7 +52,7 @@ Configure the bot by creating a ```.env``` file in the root directory. You can a
 
 1. **Clone the repository:**  
 ```
-git clone [https://github.com/yourusername/AlphaBot.git\](https://github.com/yourusername/AlphaBot.git)  
+git clone [https://github.com/yourusername/AlphaBot.git](https://github.com/yourusername/AlphaBot.git)  
 cd AlphaBot
 ```
 
