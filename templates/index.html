@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alpha Bot Dashboard</title>
+    <!-- Add Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -17,11 +18,13 @@
     
     <div class="max-w-7xl mx-auto relative">
         <header class="flex justify-between items-center mb-8 bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
+            <!-- Left: Branding & Clocks -->
             <div class="w-1/3">
                 <div class="flex items-center gap-3 mb-1">
                     <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
                         Alpha Bot Control
                     </h1>
+                    <!-- Mode Badge -->
                     <div id="dashboard-mode-badge" class="px-3 py-1 bg-slate-700 text-slate-400 border border-slate-600 rounded-full text-[10px] font-bold tracking-widest hidden">
                         DRY RUN
                     </div>
@@ -36,6 +39,7 @@
                 </div>
             </div>
             
+            <!-- Center: Stats -->
             <div class="w-1/3 flex justify-center gap-6">
                 <div class="text-center px-6 py-2 bg-slate-900 rounded-xl border border-slate-700">
                     <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-0.5">Tracked</p>
@@ -47,6 +51,7 @@
                 </div>
             </div>
 
+            <!-- Right: Controls -->
             <div class="w-1/3 flex flex-col items-end gap-3">
                 <div class="flex items-center gap-4">
                     <div class="flex flex-col items-center justify-center">
@@ -84,6 +89,7 @@
         </div>
     </div>
 
+    <!-- Confirm Liquidation Modal -->
     <div id="confirm-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-rose-500/50 w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300 p-6" id="confirm-modal-content">
             <h3 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
@@ -101,6 +107,7 @@
         </div>
     </div>
 
+    <!-- Edit Variables Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="settings-modal-content">
             
@@ -116,6 +123,7 @@
 
             <form id="settings-form" class="flex flex-col overflow-hidden h-full" onsubmit="saveSettings(event)">
                 <div class="p-6 overflow-y-auto space-y-8">
+                    <!-- SECTION 1: EXECUTION MODE -->
                     <div>
                         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Execution Mode</h4>
                         <div class="bg-slate-900 border border-slate-700 p-5 rounded-xl flex items-center justify-between transition-colors duration-300" id="mode-container">
@@ -130,6 +138,7 @@
                         </div>
                     </div>
 
+                    <!-- SECTION 2: API & ACCOUNTS -->
                     <div>
                         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">API Credentials & Accounts</h4>
                         <div class="grid grid-cols-2 gap-4 mb-4">
@@ -172,9 +181,11 @@
                         <div class="mt-5">
                             <label class="text-xs font-semibold text-slate-300 mb-1 block">Discord Server Webhook (Optional)</label>
                             <input type="text" id="env-discord" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 transition-colors mt-1 inline-block">How do I create a webhook?</a>
                         </div>
                     </div>
 
+                    <!-- SECTION 3: STRATEGY VARIABLES -->
                     <div>
                         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Strategy Variables</h4>
                         <div class="space-y-4">
@@ -187,14 +198,28 @@
                             </div>
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
-                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">TRAILING_STOP_PCT (Morning Start)</label>
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">BASE_ATR_MULTIPLIER</label>
+                                    <span class="text-xs text-slate-500">Default: 2.0</span>
+                                </div>
+                                <input type="number" step="0.1" id="env-atr" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">MIN_MULTIPLIER_FLOOR</label>
+                                    <span class="text-xs text-slate-500">Default: 0.5</span>
+                                </div>
+                                <input type="number" step="0.1" id="env-floor" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">TRAILING_STOP_PCT (Fallback Start)</label>
                                     <span class="text-xs text-slate-500">Default: 1.5</span>
                                 </div>
                                 <input type="number" step="0.1" id="env-trailing-stop" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
-                                    <label class="text-sm font-semibold text-emerald-400 flex items-center gap-1.5 cursor-help">ENDING_STOP_PCT (Afternoon Close)</label>
+                                    <label class="text-sm font-semibold text-emerald-400 flex items-center gap-1.5 cursor-help">ENDING_STOP_PCT (Fallback End)</label>
                                     <span class="text-xs text-slate-500">Default: 0.5</span>
                                 </div>
                                 <input type="number" step="0.1" id="env-ending-stop" required class="w-full bg-slate-900 border border-emerald-600/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
@@ -218,6 +243,7 @@
         </div>
     </div>
 
+    <!-- Post-Market Simulator Modal -->
     <div id="sim-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-5xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="sim-modal-content">
             
@@ -234,17 +260,17 @@
             <div class="p-6 bg-slate-800 border-b border-slate-700 shrink-0 grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-semibold text-slate-300">Start Stop (9:30 AM)</label>
-                        <span class="text-sm font-mono text-emerald-400 font-bold" id="sim-trailing-val">1.50</span>
+                        <label class="text-xs font-semibold text-slate-300">ATR Multiplier</label>
+                        <span class="text-sm font-mono text-emerald-400 font-bold" id="sim-atr-val">2.00</span>
                     </div>
-                    <input type="range" id="sim-trailing-slider" min="0.1" max="5.0" step="0.1" value="1.5" class="w-full accent-emerald-500" oninput="runSimulation()">
+                    <input type="range" id="sim-atr-slider" min="0.5" max="5.0" step="0.1" value="2.0" class="w-full accent-emerald-500" oninput="runSimulation()">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-semibold text-slate-300">End Stop (4:00 PM)</label>
-                        <span class="text-sm font-mono text-emerald-400 font-bold" id="sim-ending-val">0.50</span>
+                        <label class="text-xs font-semibold text-slate-300">Min Stop Floor</label>
+                        <span class="text-sm font-mono text-emerald-400 font-bold" id="sim-floor-val">0.50</span>
                     </div>
-                    <input type="range" id="sim-ending-slider" min="0.1" max="5.0" step="0.1" value="0.5" class="w-full accent-emerald-500" oninput="runSimulation()">
+                    <input type="range" id="sim-floor-slider" min="0.1" max="2.0" step="0.1" value="0.5" class="w-full accent-emerald-500" oninput="runSimulation()">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
@@ -267,11 +293,11 @@
                     <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Time of Day (Simulates Logarithmic Squeeze)</label>
                     <span class="text-sm font-mono text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20" id="sim-time-val">4:00 PM</span>
                 </div>
-                <input type="range" id="sim-time-slider" min="0" max="390" step="1" value="390" class="w-full accent-blue-500" oninput="runSimulation()">
+                <input type="range" id="sim-time-slider" min="0" max="370" step="1" value="370" class="w-full accent-blue-500" oninput="runSimulation()">
                 <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 font-bold">
-                    <span>9:30 AM</span>
-                    <span>12:45 PM</span>
-                    <span>4:00 PM</span>
+                    <span>9:50 AM (Open)</span>
+                    <span>1:00 PM</span>
+                    <span>4:00 PM (Close)</span>
                 </div>
             </div>
 
@@ -291,7 +317,8 @@
                         </tr>
                     </thead>
                     <tbody id="sim-table-body" class="divide-y divide-slate-800">
-                        </tbody>
+                        <!-- Simulated Rows -->
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -413,6 +440,7 @@
                     const displayLabel = accountLabels[accId] || "Account";
                     const displayId = accId !== 'Unknown Account' ? `(${accId.substring(0,8)}...)` : '';
 
+                    // Calculate average return across all symphonies in this account
                     let totalReturn = 0;
                     if (syms.length > 0) {
                         const sum = syms.reduce((acc, sym) => acc + (sym.current_return || 0), 0);
@@ -472,6 +500,7 @@
                         const mcProb = sym.mc_prob !== undefined ? `${sym.mc_prob.toFixed(1)}%` : '---';
                         const curRet = sym.current_return !== undefined ? `${sym.current_return.toFixed(2)}%` : '---';
                         
+                        // If triggered, wipe the stop level and HWM from UI view to prevent weird negative numbers
                         const hwm = sym.high_water_mark !== undefined && sym.high_water_mark !== -999.0 ? `${sym.high_water_mark.toFixed(2)}%` : '---';
                         const stopLevel = sym.stop_trigger !== undefined && sym.stop_trigger !== -999.0 ? `${sym.stop_trigger.toFixed(2)}%` : '---';
                         
@@ -589,6 +618,8 @@
                 toggleModeUI(toggle);
 
                 document.getElementById('env-trigger').value = vars.TRIGGER_THRESHOLD_PCT || 15.0;
+                document.getElementById('env-atr').value = vars.BASE_ATR_MULTIPLIER || 2.0;
+                document.getElementById('env-floor').value = vars.MIN_MULTIPLIER_FLOOR || 0.5;
                 document.getElementById('env-trailing-stop').value = vars.TRAILING_STOP_PCT || 1.5;
                 document.getElementById('env-ending-stop').value = vars.ENDING_STOP_PCT || 0.5;
                 document.getElementById('env-breakeven').value = vars.BREAKEVEN_ACTIVATION_PCT || 2.0;
@@ -640,6 +671,8 @@
                 ACCOUNT_UUIDS: accountsStr,
                 DISCORD_WEBHOOK_URL: document.getElementById('env-discord').value.trim(),
                 TRIGGER_THRESHOLD_PCT: document.getElementById('env-trigger').value,
+                BASE_ATR_MULTIPLIER: document.getElementById('env-atr').value,
+                MIN_MULTIPLIER_FLOOR: document.getElementById('env-floor').value,
                 TRAILING_STOP_PCT: document.getElementById('env-trailing-stop').value,
                 ENDING_STOP_PCT: document.getElementById('env-ending-stop').value,
                 BREAKEVEN_ACTIVATION_PCT: document.getElementById('env-breakeven').value
@@ -678,8 +711,8 @@
                 const response = await fetch('/api/settings');
                 const vars = await response.json();
                 
-                if(vars.TRAILING_STOP_PCT) document.getElementById('sim-trailing-slider').value = vars.TRAILING_STOP_PCT;
-                if(vars.ENDING_STOP_PCT) document.getElementById('sim-ending-slider').value = vars.ENDING_STOP_PCT;
+                if(vars.BASE_ATR_MULTIPLIER) document.getElementById('sim-atr-slider').value = vars.BASE_ATR_MULTIPLIER;
+                if(vars.MIN_MULTIPLIER_FLOOR) document.getElementById('sim-floor-slider').value = vars.MIN_MULTIPLIER_FLOOR;
                 if(vars.BREAKEVEN_ACTIVATION_PCT) document.getElementById('sim-breakeven-slider').value = vars.BREAKEVEN_ACTIVATION_PCT;
                 if(vars.TRIGGER_THRESHOLD_PCT) document.getElementById('sim-trigger-slider').value = vars.TRIGGER_THRESHOLD_PCT;
 
@@ -687,8 +720,8 @@
                 console.error("Failed to load live settings for simulator.", error);
             }
 
-            // Default time to end of day (390 mins)
-            document.getElementById('sim-time-slider').value = 390;
+            // Default time to end of day (370 mins)
+            document.getElementById('sim-time-slider').value = 370;
             runSimulation();
 
             simModal.classList.remove('hidden');
@@ -705,7 +738,8 @@
         }
 
         function formatTimeLabel(minutesFromOpen) {
-            const totalMinutes = 9 * 60 + 30 + parseInt(minutesFromOpen);
+            // Updated to reflect the 9:50 AM open grace period
+            const totalMinutes = 9 * 60 + 50 + parseInt(minutesFromOpen);
             const hours = Math.floor(totalMinutes / 60);
             const mins = totalMinutes % 60;
             const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -715,22 +749,21 @@
         }
 
         function runSimulation() {
-            const simTrailing = parseFloat(document.getElementById('sim-trailing-slider').value);
-            const simEnding = parseFloat(document.getElementById('sim-ending-slider').value);
+            const simAtr = parseFloat(document.getElementById('sim-atr-slider').value);
+            const simFloor = parseFloat(document.getElementById('sim-floor-slider').value);
             const simBreakeven = parseFloat(document.getElementById('sim-breakeven-slider').value);
             const simTrigger = parseFloat(document.getElementById('sim-trigger-slider').value);
             const simMinutes = parseInt(document.getElementById('sim-time-slider').value);
             
-            document.getElementById('sim-trailing-val').innerText = simTrailing.toFixed(2);
-            document.getElementById('sim-ending-val').innerText = simEnding.toFixed(2);
+            document.getElementById('sim-atr-val').innerText = simAtr.toFixed(2);
+            document.getElementById('sim-floor-val').innerText = simFloor.toFixed(2);
             document.getElementById('sim-breakeven-val').innerText = simBreakeven.toFixed(2);
             document.getElementById('sim-trigger-val').innerText = simTrigger.toFixed(1);
             document.getElementById('sim-time-val').innerText = formatTimeLabel(simMinutes);
 
-            // Calculate Dynamic Stop based on the Time Scrubber
-            const timeRatio = Math.max(0.0, Math.min(1.0, simMinutes / 390.0));
+            // Calculate Decay Curve based on the new 370 minute window (9:50 -> 4:00)
+            const timeRatio = Math.max(0.0, Math.min(1.0, simMinutes / 370.0));
             const decayCurve = Math.log10(1 + 9 * timeRatio);
-            const dynamicStop = simTrailing - ((simTrailing - simEnding) * decayCurve);
 
             let html = '';
             let triggerCount = 0;
@@ -750,6 +783,12 @@
                 const curRet = sym.current_return !== undefined ? sym.current_return : 0.0;
                 const drawdown = Math.max(0, hwm - curRet);
 
+                // Calculate per-symphony vol-adjusted dynamic stop
+                const vol = sym.symphony_vol || 1.0; // fallback if state hasn't updated
+                const morningStop = Math.max(vol * simAtr, simFloor);
+                const afternoonStop = Math.max(vol * (simAtr * 0.33), simFloor * 0.5);
+                const dynamicStop = morningStop - ((morningStop - afternoonStop) * decayCurve);
+
                 // Use the newly calculated logarithmic stop from the scrubber
                 let baseStopLevel = hwm - dynamicStop;
                 let stopLevel = baseStopLevel;
@@ -759,7 +798,7 @@
                 }
                 
                 // Evaluate arming dynamically against the sandbox threshold
-                const isSimArmed = (sym.mc_prob !== undefined && sym.mc_prob < simTrigger) || curRet < 0.0;
+                const isSimArmed = (sym.mc_prob !== undefined && sym.mc_prob < simTrigger) || curRet < -0.50;
                 const isTriggered = curRet <= stopLevel && isSimArmed;
 
                 if (isTriggered) triggerCount++;
