@@ -1,82 +1,85 @@
 # **🤖 AlphaBot: Intelligent Profit and Loss Guardian**
 
-AlphaBot is an automated, risk-management sidecar application designed to monitor your Composer.trade accounts. It utilizes historical Alpaca market data, a local Monte Carlo simulation engine, and per-symphony volatility metrics to execute dynamic "sell-to-cash" API calls when a symphony begins to break down.
+Alpha Bot is an advanced, automated risk-management and trailing-stop execution engine designed to interface directly with Composer.trade portfolios. By combining real-time intraday data from Alpaca with K-Nearest Neighbor Monte Carlo simulations, Alpha Bot dynamically protects your capital and locks in profits based on statistical probabilities rather than standard static price drops.
 
-It acts as an intelligent safety net, protecting your profits and cutting your losses before Composer's end-of-day rebalance window.
+## **🌟 Core Features**
 
-## **✨ Key Features**
+### **🧠 The Monte Carlo "Strangler" (New!)**
 
-* **Volatility-Adjusted Stops:** Stop-loss distances are uniquely calibrated to each individual symphony based on its weighted 20-day historical standard deviation. High-volatility symphonies get more breathing room; low-volatility symphonies get tighter leashes.  
-* **Monte Carlo Probability Engine:** Runs 5,000 simulations against historical data (using K-Nearest Neighbors based on the current day's SPY return) to determine the statistical probability that a symphony will close higher than its current intraday return.  
-* **Time-Decay "Squeeze" Logic:** The dynamic trailing stop logarithmically tightens as the trading day progresses, locking in profits tighter as we approach the closing bell.  
-* **Hysteresis Disarming:** If a symphony recovers from a morning dip (probability doubles and returns go positive), the bot will stand down and disarm, preventing premature sell-offs on healthy pullbacks.  
-* **Morning Grace Period:** Ignores the extreme volatility and price-discovery of the first 20 minutes of the market open (starts evaluating at 9:50 AM ET).  
-* **Local Web Dashboard & Sandbox:** Features a beautifully designed local control center (```localhost:5000```) with a real-time ledger, live variable tuning, and a **Post-Market Simulator** to backtest your settings.  
-* **Discord Integration:** Sends rich webhooks detailing executed trades, exit returns, probabilities, and triggers.
+Alpha Bot now employs a **5-Period Moving Average (25-minute memory)** of Monte Carlo probabilities to evaluate the actual health of an active run.
 
-## **🧠 How the Logic Works (The Pipeline)**
+* **The Choke Mechanism:** When a symphony's statistical outlook drops below your target threshold, the bot "arms" and dynamically tightens (strangles) the trailing stop distance relative to how far the probability has fallen.  
+* **Intraday Noise Reduction:** By using a smoothed moving average, the bot ignores 5-minute flash crashes and standard lunch-hour volume lulls, preventing premature stop-outs and keeping you in the trade for the afternoon continuation.  
+* **Dynamic Squeeze Floor:** You control how tight the noose gets via the ```MAX_SQUEEZE_FLOOR``` variable. A floor of ```0.20``` means the stop shrinks to exactly 20% of its normal volatility distance when a trend fully breaks down, locking in the "meat of the move".
 
-AlphaBot evaluates every symphony in your Composer account on a 5-minute loop between 9:50 AM ET and 4:00 PM ET (excluding the 3:54 PM \- 4:00 PM rebalance blackout window).
+### **📉 Volatility-Adjusted & Time-Decayed Stops**
 
-1. **High-Water Mark (HWM) Tracking:** It records the highest intraday return a symphony achieves.  
-2. **Arming Condition:** The bot "Arms" a symphony (putting it on high alert) if:  
-   * The Monte Carlo probability of finishing strong drops below your ```TRIGGER_THRESHOLD_PCT``` (e.g., 15%).  
-   * *OR* the symphony experiences a sustained negative return (drops below ```-0.50%```).  
-3. **Volatility Calibration:** It calculates a dynamic trailing stop distance based on ```volatility * BASE_ATR_MULTIPLIER```.  
-4. **Execution Check:** If an armed symphony's current return drops below the HWM minus the dynamic trailing stop distance, the bot triggers a Composer API command to liquidate that specific symphony to cash immediately.  
-5. **Breakeven Lock:** If a symphony achieves a high enough return (e.g., ```> 2.0%```), the dynamic stop is hard-floored at ```0.0%```, ensuring a winning trade cannot turn into a losing trade.
+* **ATR Volatility Scaling:** Stop distances automatically widen for high-volatility symphonies and tighten for stable ones based on a rolling 20-day standard deviation calculation.  
+* **Logarithmic Time Decay:** Stops start wide in the morning to survive the opening chop and logarithmically squeeze tighter as the day approaches the 4:00 PM ET close.
 
-## **⚙️ Environment Variables (```.env```)**
+### **🛡️ Breakeven Defense**
 
-Configure the bot by creating a ```.env``` file in the root directory. You can also edit these live via the Web Dashboard.
+* The bot automatically shifts the trailing stop to a hard 0.0% profit floor once a symphony crosses your defined ```BREAKEVEN_ACTIVATION_PCT``` (e.g., 2.0% profit), guaranteeing a green trade.
 
-### **Core Credentials**
+### **🎛️ Interactive Web Dashboard**
 
-* ```LIVE_EXECUTION```: Set to True to allow actual API calls. False will only simulate and log triggers.  
-* ```COMPOSER_KEY_ID```: Your Composer API Key.  
-* ```COMPOSER_SECRET```: Your Composer API Secret.  
-* ```ACCOUNT_UUIDS```: Comma-separated list of Composer Account UUIDs to monitor.  
-* ```ALPACA_KEY```: Alpaca Market Data API Key.  
-* ```ALPACA_SECRET```: Alpaca Market Data API Secret.  
-* ```DISCORD_WEBHOOK_URL```: (Optional) Discord webhook for alert notifications.
+* **Live Monitoring:** Track all your accounts, real-time High-Water Marks, armed statuses, active stop distances, and live MC probabilities from a unified interface.  
+* **Post-Market Sandbox Simulator:** A built-in visualization table that lets you replay the day's price action using interactive sliders. Backtest how different ATR multipliers, MC thresholds, and Strangler Squeeze Floors would have impacted your actual exits.  
+* **Settings UI:** Update your core strategy variables directly from the web interface. Changes instantly write back to your .env file and apply to the next execution loop.  
+* **Account Liquidation:** Built-in modal to execute manual "Sell to Cash" overrides for entire accounts simultaneously.
+
+## **⚙️ Environment Variables (.env)**
+
+Configure the following variables in your ```.env``` file (or edit them directly via the Web Dashboard's **Edit Variables** panel):
+
+### **API Credentials**
+
+* ```LIVE_EXECUTION``` - Set to True to allow actual sell orders. False enables Dry Run mode.  
+* ```COMPOSER_KEY_ID``` - Your Composer API Key ID.  
+* ```COMPOSER_SECRET``` - Your Composer API Secret.  
+* ```ACCOUNT_UUIDS``` - Comma-separated list of Composer Account UUIDs to track.  
+* ```ALPACA_KEY``` - Alpaca Data API Key.  
+* ```ALPACA_SECRET``` - Alpaca Data API Secret.  
+* ```DISCORD_WEBHOOK_URL``` - (Optional) Webhook URL for execution and alerting logs.
 
 ### **Strategy Parameters**
 
-* ```TRIGGER_THRESHOLD_PCT```: (Default ```15.0```) The Monte Carlo probability threshold that "arms" the bot.  
-* ```BASE_ATR_MULTIPLIER```: (Default ```2.0```) The multiplier applied to a symphony's 20-day volatility to calculate the morning trailing stop distance.  
-* ```MIN_MULTIPLIER_FLOOR```: (Default ```0.5```) The absolute minimum percentage distance allowed for a stop, regardless of how low volatility gets.  
-* ```BREAKEVEN_ACTIVATION_PCT```: (Default ```2.0```) Once a symphony hits this intraday return, the trailing stop will never be allowed to drop below 0.0% (guaranteeing a breakeven exit).  
-* *(Legacy)* ```TRAILING_STOP_PCT``` & ```ENDING_STOP_PCT```: Fallback flat percentages used only if Alpaca historical data fails to download.
+* ```TRIGGER_THRESHOLD_PCT``` - (Default: ```15.0```) The Monte Carlo probability threshold that "arms" the bot and triggers the Strangler.  
+* ```BASE_ATR_MULTIPLIER``` - (Default: ```2.0```) Controls the width of the volatility-adjusted trailing stop.  
+* ```MIN_MULTIPLIER_FLOOR``` - (Default: ```0.5```) The tightest the normal ATR stop is allowed to get before the Strangler kicks in.  
+* ```MAX_SQUEEZE_FLOOR``` - (Default: ```0.20```) The Strangler limit. When armed, the stop will shrink up to this percentage (e.g., 20%) of its original distance.  
+* ```TRAILING_STOP_PCT``` - (Default: ```1.5```) Fallback starting stop percentage if historical volatility data is missing.  
+* ```ENDING_STOP_PCT``` - (Default: ```0.5```) Fallback ending stop percentage.  
+* ```BREAKEVEN_ACTIVATION_PCT``` - (Default: ```2.0```) The profit percentage required to lock the trailing stop at 0.0%.
 
-## **🚀 Installation & Usage**
+## **🚀 Setup & Installation**
 
-1. **Clone the repository:**  
+1. **Clone the Repository:**  
 ```
-git clone [https://github.com/yourusername/AlphaBot.git](https://github.com/yourusername/AlphaBot.git)  
-cd AlphaBot
-```
-
-2. **Install requirements:**  
-```
-pip install flask requests numpy python-dotenv schedule
+   git clone \<repository-url\>  
+   cd AlphaBot
 ```
 
-   *(Requires: ```flask```, ```requests```, ```numpy```, ```python-dotenv```, ```schedule```)*  
-4. **Set up your ```.env``` file:**  
-   Use the provided ```.env``` as a template and fill in your API keys.  
-5. **Run the Control Center:**  
+3. **Install Dependencies:**  
 ```
-python app.py
+   pip install flask python-dotenv requests numpy schedule
 ```
 
-   This will boot the background scheduler and the Flask web server.  
-6. **Access the Dashboard:**  
-   Open your web browser and go to ```http://localhost:5000```.
+4. **Configure Environment:**  
+   Create a ```.env``` file in the root directory and populate it with the variables listed in the Environment section above.  
+5. **Launch the Control Center:**  
+```
+   python app.py
+```
 
-## **🛑 Important Disclaimer**
+   *The Flask server will start on ```http://127.0.0.1:5000``` and automatically spawn the background execution scheduler.*
 
-**Use at your own risk.** AlphaBot interacts directly with your live brokerage/Composer accounts when ```LIVE_EXECUTION=True```.
+## **🕒 Scheduling Details**
 
-* Always test your parameters in ```LIVE_EXECUTION=False``` (Dry Run Mode) first.  
-* Use the built-in Post-Market Simulator to understand how your ATR and threshold variables affect different symphonies.  
-* The author is not responsible for financial losses, missed executions due to API rate limits, or unexpected bot behavior.
+AlphaBot utilizes a background schedule thread running via ```app.py```.
+
+* **Grace Period:** The bot skips the highly volatile market open and schedules its first run for **9:50 AM ET**.  
+* **Intraday Execution:** The bot runs precisely every 5 minutes (e.g., 10:00, 10:05, 10:10) to align with standard 5-minute candle closes.  
+* **Rebalance Blackout:** Executions are automatically paused just before 3:55 PM ET to prevent API collisions with Composer's daily rebalancing routines.
+
+*Disclaimer: Alpha Bot is an automated execution tool. Algorithmic trading carries significant risk. Always test parameters in Dry Run mode before enabling LIVE\_EXECUTION.*
