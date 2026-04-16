@@ -15,7 +15,7 @@
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-8 font-sans relative">
-    
+
     <div class="max-w-7xl mx-auto relative">
         <header class="flex justify-between items-center mb-8 bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
             <!-- Left: Branding & Clocks -->
@@ -38,7 +38,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Center: Stats -->
             <div class="w-1/3 flex justify-center gap-6">
                 <div class="text-center px-6 py-2 bg-slate-900 rounded-xl border border-slate-700">
@@ -110,7 +110,7 @@
     <!-- Edit Variables Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="settings-modal-content">
-            
+
             <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800 shrink-0">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
@@ -198,6 +198,13 @@
                             </div>
                             <div class="relative group">
                                 <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">MAX_SQUEEZE_FLOOR</label>
+                                    <span class="text-xs text-slate-500">Default: 0.20</span>
+                                </div>
+                                <input type="number" step="0.05" id="env-squeeze-floor" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div class="relative group">
+                                <div class="flex justify-between items-center mb-1">
                                     <label class="text-sm font-semibold text-slate-300 flex items-center gap-1.5 cursor-help">BASE_ATR_MULTIPLIER</label>
                                     <span class="text-xs text-slate-500">Default: 2.0</span>
                                 </div>
@@ -246,7 +253,7 @@
     <!-- Post-Market Simulator Modal -->
     <div id="sim-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-5xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="sim-modal-content">
-            
+
             <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 shrink-0">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
@@ -257,7 +264,7 @@
                 </button>
             </div>
 
-            <div class="p-6 bg-slate-800 border-b border-slate-700 shrink-0 grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="p-6 bg-slate-800 border-b border-slate-700 shrink-0 grid grid-cols-2 md:grid-cols-5 gap-6">
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <label class="text-xs font-semibold text-slate-300">ATR Multiplier</label>
@@ -285,6 +292,13 @@
                         <span class="text-sm font-mono text-amber-400 font-bold" id="sim-trigger-val">15.0</span>
                     </div>
                     <input type="range" id="sim-trigger-slider" min="0.0" max="50.0" step="1.0" value="15.0" class="w-full accent-amber-500" oninput="runSimulation()">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-semibold text-slate-300">MC Squeeze Fl.</label>
+                        <span class="text-sm font-mono text-amber-400 font-bold" id="sim-squeeze-val">0.20</span>
+                    </div>
+                    <input type="range" id="sim-squeeze-slider" min="0.05" max="1.0" step="0.05" value="0.20" class="w-full accent-amber-500" oninput="runSimulation()">
                 </div>
             </div>
 
@@ -328,7 +342,7 @@
         // --- Globals ---
         let accountLabels = {};
         let globalStateCache = {};
-        let pendingAccountId = null; 
+        let pendingAccountId = null;
         let countdownSeconds = 0;
 
         // --- Clocks & Timers ---
@@ -364,7 +378,7 @@
             const title = document.getElementById('mode-title');
             const desc = document.getElementById('mode-desc');
             const container = document.getElementById('mode-container');
-            
+
             if (checkbox.checked) {
                 title.textContent = "Live Execution Mode";
                 title.classList.replace("text-white", "text-rose-400");
@@ -400,7 +414,7 @@
             try {
                 const response = await fetch('/api/state');
                 const data = await response.json();
-                
+
                 if (data.status === 'error' || data.status === 'waiting') return;
 
                 countdownSeconds = data.next_run_seconds || 0;
@@ -419,7 +433,7 @@
                 globalStateCache = stateObj; // Cache for simulator
 
                 document.getElementById('state-date').innerHTML = `<span class="font-semibold text-slate-500">Ledger:</span> ${stateObj.date || 'Unknown'}`;
-                
+
                 const symphonyKeys = Object.keys(stateObj).filter(k => k !== 'date');
                 let armedCount = 0;
                 const accountsMap = {};
@@ -488,7 +502,7 @@
                     syms.forEach(sym => {
                         const isArmed = sym.armed;
                         const isTriggered = sym.triggered;
-                        
+
                         let statusBadge = `<span class="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest">STANDBY</span>`;
                         if (isTriggered) {
                             statusBadge = `<span class="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(244,63,94,0.15)]">TRIGGERED</span>`;
@@ -510,17 +524,17 @@
                         if (isTriggered) {
                             // Safely retrieve the frozen values. (Fallback to live if triggered on an older bot version)
                             const fRet = sym.triggered_at_return !== undefined ? sym.triggered_at_return : (sym.current_return || 0);
-                            
+
                             // Prevent displaying legacy -999 HWMs
                             const fallbackHWM = sym.high_water_mark === -999.0 ? undefined : sym.high_water_mark;
                             const fHwm = sym.triggered_at_hwm !== undefined ? sym.triggered_at_hwm : fallbackHWM;
-                            
+
                             const fStop = sym.triggered_at_stop !== undefined ? sym.triggered_at_stop : sym.stop_trigger;
 
                             // Format Frozen Return (with padlock)
                             curRetStr = `<span class="opacity-70 text-[10px] mr-1" title="Frozen Exit Return">🔒</span>${fRet.toFixed(2)}%`;
                             curRetColor = fRet >= 0 ? 'text-emerald-500' : 'text-rose-500';
-                            
+
                             // Format Frozen HWM & Stop
                             hwmStr = fHwm !== undefined ? `${fHwm.toFixed(2)}%` : '---';
                             hwmColor = fHwm !== undefined && fHwm > 0 ? 'text-emerald-500/70' : 'text-slate-400';
@@ -530,10 +544,10 @@
                             // Normal Live Rendering
                             curRetStr = sym.current_return !== undefined ? `${sym.current_return.toFixed(2)}%` : '---';
                             curRetColor = sym.current_return >= 0 ? 'text-emerald-400' : 'text-rose-400';
-                            
+
                             hwmStr = sym.high_water_mark !== undefined && sym.high_water_mark !== -999.0 ? `${sym.high_water_mark.toFixed(2)}%` : '---';
                             hwmColor = sym.high_water_mark > 0 ? 'text-emerald-400' : 'text-slate-300';
-                            
+
                             stopLevelStr = sym.stop_trigger !== undefined && sym.stop_trigger !== -999.0 ? `${sym.stop_trigger.toFixed(2)}%` : '---';
                         }
 
@@ -550,7 +564,7 @@
                     });
                     html += `</tbody></table></div></div>`;
                 }
-                
+
                 document.getElementById('accounts-container').innerHTML = html;
                 document.getElementById('last-updated').textContent = `Last Updated: ${new Date().toLocaleTimeString()}`;
 
@@ -564,7 +578,7 @@
             const btn = document.getElementById('trigger-btn');
             btn.disabled = true;
             btn.textContent = "Executing...";
-            
+
             try {
                 const response = await fetch('/api/trigger', { method: 'POST' });
                 const result = await response.json();
@@ -582,10 +596,10 @@
             pendingAccountId = accId;
             const displayLabel = accountLabels[accId] || accId;
             document.getElementById('confirm-account-name').textContent = displayLabel;
-            
+
             const modal = document.getElementById('confirm-modal');
             const content = document.getElementById('confirm-modal-content');
-            
+
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
@@ -597,7 +611,7 @@
             pendingAccountId = null;
             const modal = document.getElementById('confirm-modal');
             const content = document.getElementById('confirm-modal-content');
-            
+
             modal.classList.add('opacity-0');
             content.classList.add('scale-95');
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
@@ -606,10 +620,10 @@
         document.getElementById('confirm-execute-btn').addEventListener('click', async () => {
             if(!pendingAccountId) return;
             const btn = document.getElementById('confirm-execute-btn');
-            
+
             btn.disabled = true;
             btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Executing...`;
-            
+
             try {
                 const response = await fetch('/api/sell_account', {
                     method: 'POST',
@@ -617,7 +631,7 @@
                     body: JSON.stringify({ account_id: pendingAccountId })
                 });
                 const result = await response.json();
-                
+
                 if(result.status === 'success') {
                     showNotification("✅ " + result.message, "success");
                 } else {
@@ -640,13 +654,14 @@
             try {
                 const response = await fetch('/api/settings');
                 const vars = await response.json();
-                
+
                 const isLive = vars.LIVE_EXECUTION.toLowerCase() === 'true';
                 const toggle = document.getElementById('env-live-mode');
                 toggle.checked = isLive;
                 toggleModeUI(toggle);
 
                 document.getElementById('env-trigger').value = vars.TRIGGER_THRESHOLD_PCT || 15.0;
+                document.getElementById('env-squeeze-floor').value = vars.MAX_SQUEEZE_FLOOR || 0.20;
                 document.getElementById('env-atr').value = vars.BASE_ATR_MULTIPLIER || 2.0;
                 document.getElementById('env-floor').value = vars.MIN_MULTIPLIER_FLOOR || 0.5;
                 document.getElementById('env-trailing-stop').value = vars.TRAILING_STOP_PCT || 1.5;
@@ -700,6 +715,7 @@
                 ACCOUNT_UUIDS: accountsStr,
                 DISCORD_WEBHOOK_URL: document.getElementById('env-discord').value.trim(),
                 TRIGGER_THRESHOLD_PCT: document.getElementById('env-trigger').value,
+                MAX_SQUEEZE_FLOOR: document.getElementById('env-squeeze-floor').value,
                 BASE_ATR_MULTIPLIER: document.getElementById('env-atr').value,
                 MIN_MULTIPLIER_FLOOR: document.getElementById('env-floor').value,
                 TRAILING_STOP_PCT: document.getElementById('env-trailing-stop').value,
@@ -714,7 +730,7 @@
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-                
+
                 if (result.status === 'success') {
                     showNotification("✅ " + result.message, "success");
                     await initAccountLabels();
@@ -739,11 +755,12 @@
             try {
                 const response = await fetch('/api/settings');
                 const vars = await response.json();
-                
+
                 if(vars.BASE_ATR_MULTIPLIER) document.getElementById('sim-atr-slider').value = vars.BASE_ATR_MULTIPLIER;
                 if(vars.MIN_MULTIPLIER_FLOOR) document.getElementById('sim-floor-slider').value = vars.MIN_MULTIPLIER_FLOOR;
                 if(vars.BREAKEVEN_ACTIVATION_PCT) document.getElementById('sim-breakeven-slider').value = vars.BREAKEVEN_ACTIVATION_PCT;
                 if(vars.TRIGGER_THRESHOLD_PCT) document.getElementById('sim-trigger-slider').value = vars.TRIGGER_THRESHOLD_PCT;
+                if(vars.MAX_SQUEEZE_FLOOR) document.getElementById('sim-squeeze-slider').value = vars.MAX_SQUEEZE_FLOOR;
 
             } catch (error) {
                 console.error("Failed to load live settings for simulator.", error);
@@ -782,12 +799,14 @@
             const simFloor = parseFloat(document.getElementById('sim-floor-slider').value);
             const simBreakeven = parseFloat(document.getElementById('sim-breakeven-slider').value);
             const simTrigger = parseFloat(document.getElementById('sim-trigger-slider').value);
+            const simSqueeze = parseFloat(document.getElementById('sim-squeeze-slider').value);
             const simMinutes = parseInt(document.getElementById('sim-time-slider').value);
-            
+
             document.getElementById('sim-atr-val').innerText = simAtr.toFixed(2);
             document.getElementById('sim-floor-val').innerText = simFloor.toFixed(2);
             document.getElementById('sim-breakeven-val').innerText = simBreakeven.toFixed(2);
             document.getElementById('sim-trigger-val').innerText = simTrigger.toFixed(1);
+            document.getElementById('sim-squeeze-val').innerText = simSqueeze.toFixed(2);
             document.getElementById('sim-time-val').innerText = formatTimeLabel(simMinutes);
 
             // Calculate Decay Curve based on the new 370 minute window (9:50 -> 4:00)
@@ -826,24 +845,23 @@
                 if (isSimArmed) {
                     const safeSimTrigger = simTrigger > 0 ? simTrigger : 0.1; // Prevent division by zero
                     const mcHealthRatio = Math.max(0.0, Math.min(1.0, (sym.mc_prob || 0) / safeSimTrigger));
-                    const MAX_SQUEEZE_FLOOR = 0.20;
-                    const strangleMultiplier = MAX_SQUEEZE_FLOOR + (mcHealthRatio * (1.0 - MAX_SQUEEZE_FLOOR));
+                    const strangleMultiplier = simSqueeze + (mcHealthRatio * (1.0 - simSqueeze));
                     activeStopDistance = dynamicStop * strangleMultiplier;
                 }
 
                 // Use the newly calculated logarithmic stop from the scrubber
                 let baseStopLevel = hwm - activeStopDistance;
                 let stopLevel = baseStopLevel;
-                
+
                 if (hwm >= simBreakeven) {
                     stopLevel = Math.max(baseStopLevel, 0.0);
                 }
-                
+
                 const isTriggered = curRet <= stopLevel && isSimArmed;
 
                 if (isTriggered) triggerCount++;
 
-                const statusBadge = isTriggered 
+                const statusBadge = isTriggered
                     ? `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(244,63,94,0.2)]">TRIGGERED</span>`
                     : `<span class="text-slate-500 text-[10px] font-bold tracking-widest">SAFE</span>`;
 

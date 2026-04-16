@@ -1,4 +1,5 @@
 """Core execution logic for Alpha Bot."""
+
 import os
 import sys
 import time
@@ -17,9 +18,7 @@ load_dotenv()
 COMPOSER_KEY_ID = os.getenv("COMPOSER_KEY_ID")
 COMPOSER_SECRET = os.getenv("COMPOSER_SECRET")
 ACCOUNT_UUIDS = [
-    uid.strip()
-    for uid in os.getenv("ACCOUNT_UUIDS", "").split(",")
-    if uid.strip()
+    uid.strip() for uid in os.getenv("ACCOUNT_UUIDS", "").split(",") if uid.strip()
 ]
 
 ALPACA_KEY = os.getenv("ALPACA_KEY")
@@ -27,14 +26,13 @@ ALPACA_SECRET = os.getenv("ALPACA_SECRET")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # --- EXECUTION MODE ---
-LIVE_EXECUTION = os.getenv("LIVE_EXECUTION", "False").lower() in (
-    "true", "1", "yes"
-)
+LIVE_EXECUTION = os.getenv("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
 
 # --- STRATEGY PARAMETERS ---
 TRIGGER_THRESHOLD_PCT = float(os.getenv("TRIGGER_THRESHOLD_PCT", "15.0"))
-TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", "1.5")) # Fallback Start Stop
-ENDING_STOP_PCT = float(os.getenv("ENDING_STOP_PCT", "0.5"))     # Fallback End Stop
+MAX_SQUEEZE_FLOOR = float(os.getenv("MAX_SQUEEZE_FLOOR", "0.20"))
+TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", "1.5"))  # Fallback Start Stop
+ENDING_STOP_PCT = float(os.getenv("ENDING_STOP_PCT", "0.5"))  # Fallback End Stop
 BREAKEVEN_ACTIVATION_PCT = float(os.getenv("BREAKEVEN_ACTIVATION_PCT", "2.0"))
 
 # --- VOLATILITY PARAMETERS ---
@@ -87,13 +85,14 @@ def fetch_symphony_stats(account_id):
         f"https://api.composer.trade/api/v0.1/portfolio/accounts/"
         f"{account_id}/symphony-stats-meta"
     )
-    response = requests.get(
-        url, headers=get_composer_headers(), timeout=10
-    )
-    time.sleep(1.5)
-    if response.status_code == 200:
-        return response.json().get("symphonies", [])
-    print(f"Error fetching account {account_id}: {response.text}")
+    try:
+        response = requests.get(url, headers=get_composer_headers(), timeout=15)
+        time.sleep(1.5)
+        if response.status_code == 200:
+            return response.json().get("symphonies", [])
+        print(f"Error fetching account {account_id}: {response.text}")
+    except requests.RequestException as e:
+        print(f"Exception fetching account {account_id}: {e}")
     return []
 
 
@@ -162,31 +161,23 @@ def send_discord_alert(
                 "title": title,
                 "color": color,
                 "fields": [
-                    {
-                        "name": "Symphony",
-                        "value": symphony_name,
-                        "inline": True
-                    },
+                    {"name": "Symphony", "value": symphony_name, "inline": True},
                     {
                         "name": "Exit Return",
                         "value": f"{current_return:.2f}%",
-                        "inline": True
+                        "inline": True,
                     },
                     {
                         "name": "Stop Level",
                         "value": f"{stop_trigger_level:.2f}%",
-                        "inline": True
+                        "inline": True,
                     },
                     {
                         "name": "MC Probability",
                         "value": f"{prob_beating:.1f}%",
-                        "inline": True
+                        "inline": True,
                     },
-                    {
-                        "name": "Action Taken",
-                        "value": action_text,
-                        "inline": False
-                    },
+                    {"name": "Action Taken", "value": action_text, "inline": False},
                 ],
                 "footer": {"text": "Alpha Bot • Hybrid Trailing Stop"},
             }
@@ -206,9 +197,10 @@ def fetch_alpaca_history(tickers, current_date_str):
         try:
             with open(HISTORY_CACHE_FILE, "r", encoding="utf-8") as f:
                 cache = json.load(f)
-            if cache.get("date") == current_date_str and cache.get(
-                "tickers"
-            ) == tickers_list:
+            if (
+                cache.get("date") == current_date_str
+                and cache.get("tickers") == tickers_list
+            ):
                 print("  -> Loading static 3-year history from local cache.")
                 return cache.get("data", {})
         except json.JSONDecodeError:
@@ -221,18 +213,16 @@ def fetch_alpaca_history(tickers, current_date_str):
     start_date = (datetime.now() - timedelta(days=365 * 3 + 30)).strftime(
         "%Y-%m-%dT00:00:00Z"
     )
-    headers = {
-        "APCA-API-KEY-ID": ALPACA_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET
-    }
+    headers = {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
     historical_data = {}
     batch_size = 30
 
     for i in range(0, len(tickers_list), batch_size):
-        batch = tickers_list[i:i + batch_size]
+        batch = tickers_list[i : i + batch_size]
         symbol_string = ",".join(batch)
-        print(f"  -> Downloading batch {i // batch_size + 1}: "
-              f"{len(batch)} tickers...")
+        print(
+            f"  -> Downloading batch {i // batch_size + 1}: " f"{len(batch)} tickers..."
+        )
 
         page_token = None
         while True:
@@ -244,9 +234,26 @@ def fetch_alpaca_history(tickers, current_date_str):
             if page_token:
                 url += f"&page_token={page_token}"
 
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code != 200:
-                print(f"Alpaca API Error on batch: {response.text}")
+            max_retries = 3
+            success = False
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(url, headers=headers, timeout=30)
+                    if response.status_code == 200:
+                        success = True
+                        break
+                    else:
+                        print(
+                            f"Alpaca API Error on batch (attempt {attempt+1}/{max_retries}): HTTP {response.status_code} - {response.text}"
+                        )
+                except requests.RequestException as e:
+                    print(
+                        f"Alpaca API Request Exception (attempt {attempt+1}/{max_retries}): {e}"
+                    )
+                time.sleep(2 * (attempt + 1))
+
+            if not success:
+                print("Failed to download batch after multiple retries.")
                 break
 
             data = response.json()
@@ -288,13 +295,8 @@ def fetch_alpaca_history(tickers, current_date_str):
 
 def get_live_spy_data():
     """Fetches the latest SPY return data."""
-    start_date = (datetime.now() - timedelta(days=10)).strftime(
-        "%Y-%m-%dT00:00:00Z"
-    )
-    headers = {
-        "APCA-API-KEY-ID": ALPACA_KEY,
-        "APCA-API-SECRET-KEY": ALPACA_SECRET
-    }
+    start_date = (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%dT00:00:00Z")
+    headers = {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
     url = (
         f"https://data.alpaca.markets/v2/stocks/bars?"
         f"symbols=SPY&timeframe=1Day&start={start_date}&limit=10"
@@ -338,8 +340,7 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
     weights = {h["ticker"]: h.get("allocation", 0.0) for h in holdings}
     latest_valid_day = valid_dates[-1]
     missing_tickers = [
-        t for t in weights.keys()
-        if t not in historical_data.get(latest_valid_day, {})
+        t for t in weights.keys() if t not in historical_data.get(latest_valid_day, {})
     ]
 
     sim_results = np.zeros(SIMULATION_PATHS)
@@ -349,15 +350,11 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
         for ticker, weight in weights.items():
             if ticker in missing_tickers:
                 daily_ret = (
-                    historical_data[random_day]
-                    .get("SPY", {})
-                    .get("daily_ret", 0.0)
+                    historical_data[random_day].get("SPY", {}).get("daily_ret", 0.0)
                 )
             else:
                 daily_ret = (
-                    historical_data[random_day]
-                    .get(ticker, {})
-                    .get("daily_ret", 0.0)
+                    historical_data[random_day].get(ticker, {}).get("daily_ret", 0.0)
                 )
             path_return += (daily_ret * 100.0) * weight
         sim_results[i] = path_return
@@ -371,7 +368,7 @@ def calculate_20d_vol(holdings, historical_data):
     """Calculates the weighted 20-day standard deviation of a symphony's holdings."""
     valid_dates = sorted(list(historical_data.keys()))[-20:]
     if len(valid_dates) < 20:
-        return 0.0 
+        return 0.0
 
     daily_returns = []
     for date in valid_dates:
@@ -380,16 +377,18 @@ def calculate_20d_vol(holdings, historical_data):
             ticker = h.get("ticker")
             weight = h.get("allocation", 0.0)
             if ticker in historical_data[date]:
-                day_return += (historical_data[date][ticker].get("daily_ret", 0.0) * 100.0) * weight
+                day_return += (
+                    historical_data[date][ticker].get("daily_ret", 0.0) * 100.0
+                ) * weight
             else:
                 # Fallback to SPY if specific ticker is missing on that historical day
                 spy_ret = historical_data[date].get("SPY", {}).get("daily_ret", 0.0)
                 day_return += (spy_ret * 100.0) * weight
         daily_returns.append(day_return)
-    
+
     if not daily_returns:
         return 0.0
-    
+
     return float(np.std(daily_returns))
 
 
@@ -402,6 +401,7 @@ def get_current_et():
     try:
         # pylint: disable=import-outside-toplevel
         from zoneinfo import ZoneInfo
+
         return datetime.now(ZoneInfo("America/New_York"))
     except Exception:
         # Fallback if tzdata is missing
@@ -413,9 +413,7 @@ def get_current_et():
 def main():
     """Main execution entry point."""
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...")
-    mode_text = (
-        'LIVE EXECUTION (DANGER)' if LIVE_EXECUTION else 'DRY RUN (SAFE)'
-    )
+    mode_text = "LIVE EXECUTION (DANGER)" if LIVE_EXECUTION else "DRY RUN (SAFE)"
     print(f"MODE: {mode_text}")
 
     # --- MARKET HOURS GATEKEEPER ---
@@ -424,9 +422,9 @@ def main():
 
     is_weekday = current_et.weekday() < 5
     current_time = current_et.time()
-    market_open = dt_time(9, 50) # Updated: 20-minute Grace Period
+    market_open = dt_time(9, 50)  # Updated: 20-minute Grace Period
     market_close = dt_time(16, 0)
-    rebalance_blackout = dt_time(15, 54) # Start blocking just before 3:55 PM ET
+    rebalance_blackout = dt_time(15, 54)  # Start blocking just before 3:55 PM ET
 
     if not is_weekday or current_time < market_open or current_time > market_close:
         if not force_run:
@@ -436,8 +434,7 @@ def main():
             )
             return
         print(
-            "  -> Market closed, but --force flag detected! "
-            "Bypassing gatekeeper..."
+            "  -> Market closed, but --force flag detected! " "Bypassing gatekeeper..."
         )
 
     # --- COMPOSER REBALANCE BLACKOUT ---
@@ -449,8 +446,7 @@ def main():
             )
             return
         print(
-            "  -> Rebalance blackout active, but --force flag detected! "
-            "Bypassing..."
+            "  -> Rebalance blackout active, but --force flag detected! " "Bypassing..."
         )
     # --- END GATEKEEPER ---
 
@@ -473,10 +469,10 @@ def main():
     # Calculates how far into the trading day we are (0.0 to 1.0)
     m_open_dt = current_et.replace(hour=9, minute=50, second=0, microsecond=0)
     m_close_dt = current_et.replace(hour=16, minute=0, second=0, microsecond=0)
-    
+
     total_trading_minutes = (m_close_dt - m_open_dt).total_seconds() / 60.0
     elapsed_minutes = (current_et - m_open_dt).total_seconds() / 60.0
-    
+
     time_ratio = max(0.0, min(1.0, elapsed_minutes / total_trading_minutes))
     decay_curve = math.log10(1 + 9 * time_ratio)
     # --- END TIME RATIO ---
@@ -522,10 +518,14 @@ def main():
                     "high_water_mark": current_return,
                     "armed": False,
                     "triggered": False,
+                    "mc_history": [],
                 }
 
             if "triggered" not in bot_state[symphony_id]:
                 bot_state[symphony_id]["triggered"] = False
+
+            if "mc_history" not in bot_state[symphony_id]:
+                bot_state[symphony_id]["mc_history"] = []
 
             if (
                 current_return > bot_state[symphony_id]["high_water_mark"]
@@ -536,31 +536,81 @@ def main():
             high_water_mark = bot_state[symphony_id]["high_water_mark"]
 
             # --- 1. MC Probability & Volatility Engine ---
-            prob_beating = run_monte_carlo(
-                holdings, historical_data, spy_today
-            )
+            prob_beating = run_monte_carlo(holdings, historical_data, spy_today)
             symphony_vol = calculate_20d_vol(holdings, historical_data)
 
             # Calculate Vol-Adjusted Dynamic Stop
             if symphony_vol > 0:
-                morning_stop = max(symphony_vol * BASE_ATR_MULTIPLIER, MIN_MULTIPLIER_FLOOR)
+                morning_stop = max(
+                    symphony_vol * BASE_ATR_MULTIPLIER, MIN_MULTIPLIER_FLOOR
+                )
                 # Afternoon stop tighten by 33% of base
-                afternoon_stop = max(symphony_vol * (BASE_ATR_MULTIPLIER * 0.33), MIN_MULTIPLIER_FLOOR * 0.5)
+                afternoon_stop = max(
+                    symphony_vol * (BASE_ATR_MULTIPLIER * 0.33),
+                    MIN_MULTIPLIER_FLOOR * 0.5,
+                )
             else:
                 # Fallback to UI static variables if history missing
                 morning_stop = TRAILING_STOP_PCT
                 afternoon_stop = ENDING_STOP_PCT
 
-            dynamic_trailing_stop = morning_stop - ((morning_stop - afternoon_stop) * decay_curve)
-
-            # --- 2. Dynamic Trailing Stop & Breakeven Lock Math ---
-            safe_hwm = (
-                high_water_mark
-                if high_water_mark != -999.0
-                else current_return
+            dynamic_trailing_stop = morning_stop - (
+                (morning_stop - afternoon_stop) * decay_curve
             )
-            
-            base_stop_level = safe_hwm - dynamic_trailing_stop
+
+            # --- 2. Arming & Disarming Mechanism ---
+            should_arm = False
+            arm_reason = ""
+
+            # Using -0.50% instead of 0.0% to filter noise
+            if prob_beating < TRIGGER_THRESHOLD_PCT:
+                should_arm = True
+                arm_reason = f"MC Prob {prob_beating:.1f}%"
+            elif current_return < -0.50:
+                should_arm = True
+                arm_reason = "Sustained Negative Return (<-0.50%)"
+
+            if (
+                should_arm
+                and not bot_state[symphony_id]["armed"]
+                and not bot_state[symphony_id]["triggered"]
+            ):
+                bot_state[symphony_id]["armed"] = True
+                print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
+
+            # HYSTERESIS: Disarm if conditions significantly recover
+            elif (
+                bot_state[symphony_id]["armed"]
+                and not bot_state[symphony_id]["triggered"]
+            ):
+                if prob_beating > (TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
+                    bot_state[symphony_id]["armed"] = False
+                    print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***")
+
+            # --- 3. Strangler (SMA + Multiplier) ---
+            bot_state[symphony_id]["mc_history"].append(prob_beating)
+            if len(bot_state[symphony_id]["mc_history"]) > 5:
+                bot_state[symphony_id]["mc_history"].pop(0)
+
+            smoothed_mc = sum(bot_state[symphony_id]["mc_history"]) / len(
+                bot_state[symphony_id]["mc_history"]
+            )
+
+            if bot_state[symphony_id]["armed"]:
+                mc_health_ratio = max(
+                    0.0, min(1.0, smoothed_mc / TRIGGER_THRESHOLD_PCT)
+                )
+                strangle_multiplier = MAX_SQUEEZE_FLOOR + (
+                    mc_health_ratio * (1.0 - MAX_SQUEEZE_FLOOR)
+                )
+                active_trailing_stop = dynamic_trailing_stop * strangle_multiplier
+            else:
+                active_trailing_stop = dynamic_trailing_stop
+
+            # --- 4. Dynamic Trailing Stop & Breakeven Lock Math ---
+            safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
+
+            base_stop_level = safe_hwm - active_trailing_stop
 
             if safe_hwm >= BREAKEVEN_ACTIVATION_PCT:
                 stop_trigger_level = max(base_stop_level, 0.0)
@@ -573,8 +623,8 @@ def main():
             print(
                 f"  -> {symphony_name[:35]}: Ret: {current_return:.2f}% | "
                 f"HWM: {high_water_mark:.2f}% | "
-                f"Stop Dist: {dynamic_trailing_stop:.2f}% | "
-                f"ArmProb: {prob_beating:.1f}%"
+                f"Stop Dist: {active_trailing_stop:.2f}% | "
+                f"ArmProb: {prob_beating:.1f}% (SMA: {smoothed_mc:.1f}%)"
             )
 
             bot_state[symphony_id]["name"] = symphony_name
@@ -582,39 +632,11 @@ def main():
             bot_state[symphony_id]["current_return"] = current_return
             bot_state[symphony_id]["mc_prob"] = prob_beating
             bot_state[symphony_id]["stop_trigger"] = stop_trigger_level
-            bot_state[symphony_id]["active_stop_distance"] = dynamic_trailing_stop
+            bot_state[symphony_id]["active_stop_distance"] = active_trailing_stop
             bot_state[symphony_id]["symphony_vol"] = symphony_vol
             save_state(bot_state)
 
-            # --- 3. Arming & Disarming Mechanism ---
-            should_arm = False
-            arm_reason = ""
-            
-            # Using -0.50% instead of 0.0% to filter noise
-            if prob_beating < TRIGGER_THRESHOLD_PCT:
-                should_arm = True
-                arm_reason = f"MC Prob {prob_beating:.1f}%"
-            elif current_return < -0.50: 
-                should_arm = True
-                arm_reason = "Sustained Negative Return (<-0.50%)"
-
-            if (
-                should_arm
-                and not bot_state[symphony_id]["armed"]
-                and not bot_state[symphony_id]["triggered"]
-            ):
-                bot_state[symphony_id]["armed"] = True
-                save_state(bot_state)
-                print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
-            
-            # HYSTERESIS: Disarm if conditions significantly recover
-            elif bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
-                if prob_beating > (TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
-                    bot_state[symphony_id]["armed"] = False
-                    save_state(bot_state)
-                    print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***")
-
-            # --- 4. Execution Check ---
+            # --- 5. Execution Check ---
             if bot_state[symphony_id]["armed"]:
                 if current_return <= stop_trigger_level:
                     print(f"  🚨 TRAILING STOP HIT FOR {symphony_name} 🚨")
@@ -624,22 +646,24 @@ def main():
                             "  -> [LIVE EXECUTION] Sending sell-to-cash "
                             "command to Composer API..."
                         )
-                        success = execute_sell_to_cash(
-                            actual_symphony_id, account
-                        )
-                        
+                        success = execute_sell_to_cash(actual_symphony_id, account)
+
                         if success:
                             bot_state[symphony_id]["armed"] = False
                             bot_state[symphony_id]["triggered"] = True
-                            
+
                             # FREEZE THE METRICS FOR THE DASHBOARD
-                            bot_state[symphony_id]["triggered_at_return"] = current_return
+                            bot_state[symphony_id][
+                                "triggered_at_return"
+                            ] = current_return
                             bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
-                            bot_state[symphony_id]["triggered_at_stop"] = stop_trigger_level
-                            
+                            bot_state[symphony_id][
+                                "triggered_at_stop"
+                            ] = stop_trigger_level
+
                             bot_state[symphony_id]["high_water_mark"] = -999.0
                             save_state(bot_state)
-                            
+
                             send_discord_alert(
                                 symphony_name,
                                 current_return,
@@ -648,17 +672,19 @@ def main():
                                 LIVE_EXECUTION,
                             )
                         else:
-                            print("     !!! EXECUTION FAILED. Keeping state active to retry next loop !!!")
+                            print(
+                                "     !!! EXECUTION FAILED. Keeping state active to retry next loop !!!"
+                            )
                     else:
                         print("  -> [DRY RUN] Execution bypassed.")
                         bot_state[symphony_id]["armed"] = False
                         bot_state[symphony_id]["triggered"] = True
-                        
+
                         # FREEZE THE METRICS FOR THE DASHBOARD
                         bot_state[symphony_id]["triggered_at_return"] = current_return
                         bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
                         bot_state[symphony_id]["triggered_at_stop"] = stop_trigger_level
-                        
+
                         bot_state[symphony_id]["high_water_mark"] = -999.0
                         save_state(bot_state)
 
@@ -669,6 +695,7 @@ def main():
                             stop_trigger_level,
                             LIVE_EXECUTION,
                         )
+
 
 if __name__ == "__main__":
     main()

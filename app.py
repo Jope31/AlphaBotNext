@@ -1,4 +1,5 @@
 """Flask application for the Alpha Bot Control Center."""
+
 import os
 import json
 import time
@@ -30,12 +31,24 @@ def trigger_alpha_bot(force=False):
 def run_scheduler():
     """Runs the scheduler with a 20-minute grace period from market open."""
     # 1. Schedule the first run for 9:50:00 AM ET (Avoids morning chop)
-    schedule.every().day.at("09:50:00", "America/New_York").do(trigger_alpha_bot, force=False)
-    
+    schedule.every().day.at("09:50:00", "America/New_York").do(
+        trigger_alpha_bot, force=False
+    )
+
     # 2. Schedule recurring runs at exact 5-minute marks every hour
     minute_marks = [
-        "00:00", "05:00", "10:00", "15:00", "20:00", "25:00", 
-        "30:00", "35:00", "40:00", "45:00", "50:00", "55:00"
+        "00:00",
+        "05:00",
+        "10:00",
+        "15:00",
+        "20:00",
+        "25:00",
+        "30:00",
+        "35:00",
+        "40:00",
+        "45:00",
+        "50:00",
+        "55:00",
     ]
     for mark in minute_marks:
         schedule.every().hour.at(mark).do(trigger_alpha_bot, force=False)
@@ -58,10 +71,7 @@ def get_state():
     try:
         if not os.path.exists("bot_state.json"):
             return jsonify(
-                {
-                    "status": "waiting",
-                    "message": "bot_state.json not created yet."
-                }
+                {"status": "waiting", "message": "bot_state.json not created yet."}
             )
 
         with open("bot_state.json", "r", encoding="utf-8") as f:
@@ -100,10 +110,7 @@ def manual_trigger():
     """Manually triggers the bot execution."""
     threading.Thread(target=trigger_alpha_bot, args=(True,)).start()
     return jsonify(
-        {
-            "status": "success",
-            "message": "Bot execution forced (bypassing gatekeeper)."
-        }
+        {"status": "success", "message": "Bot execution forced (bypassing gatekeeper)."}
     )
 
 
@@ -165,24 +172,17 @@ def sell_account():
     data = request.json
     account_id = data.get("account_id")
     if not account_id:
-        return jsonify(
-            {"status": "error", "message": "No account ID provided"}
-        ), 400
+        return jsonify({"status": "error", "message": "No account ID provided"}), 400
 
     env_vars = dotenv_values(".env")
     key = env_vars.get("COMPOSER_KEY_ID")
     secret = env_vars.get("COMPOSER_SECRET")
-    live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in (
-        "true", "1", "yes"
-    )
+    live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
 
     if not key or not secret:
         return (
             jsonify(
-                {
-                    "status": "error",
-                    "message": "Composer API keys missing in settings."
-                }
+                {"status": "error", "message": "Composer API keys missing in settings."}
             ),
             400,
         )
@@ -215,18 +215,16 @@ def get_settings():
             "ALPACA_SECRET": env_vars.get("ALPACA_SECRET", ""),
             "ACCOUNT_UUIDS": env_vars.get("ACCOUNT_UUIDS", ""),
             "DISCORD_WEBHOOK_URL": env_vars.get("DISCORD_WEBHOOK_URL", ""),
-            "TRIGGER_THRESHOLD_PCT": env_vars.get(
-                "TRIGGER_THRESHOLD_PCT", "15.0"
-            ),
+            "TRIGGER_THRESHOLD_PCT": env_vars.get("TRIGGER_THRESHOLD_PCT", "15.0"),
+            "MAX_SQUEEZE_FLOOR": env_vars.get("MAX_SQUEEZE_FLOOR", "0.20"),
             "BASE_ATR_MULTIPLIER": env_vars.get("BASE_ATR_MULTIPLIER", "2.0"),
             "MIN_MULTIPLIER_FLOOR": env_vars.get("MIN_MULTIPLIER_FLOOR", "0.5"),
             "TRAILING_STOP_PCT": env_vars.get("TRAILING_STOP_PCT", "1.5"),
             "ENDING_STOP_PCT": env_vars.get("ENDING_STOP_PCT", "0.5"),
-            "BREAKEVEN_ACTIVATION_PCT": env_vars.get(
-                "BREAKEVEN_ACTIVATION_PCT", "2.0"
-            ),
+            "BREAKEVEN_ACTIVATION_PCT": env_vars.get("BREAKEVEN_ACTIVATION_PCT", "2.0"),
         }
     )
+
 
 @app.route("/api/settings", methods=["POST"])
 def save_settings():
@@ -245,6 +243,7 @@ def save_settings():
         "ACCOUNT_UUIDS",
         "DISCORD_WEBHOOK_URL",
         "TRIGGER_THRESHOLD_PCT",
+        "MAX_SQUEEZE_FLOOR",
         "BASE_ATR_MULTIPLIER",
         "MIN_MULTIPLIER_FLOOR",
         "TRAILING_STOP_PCT",
@@ -259,8 +258,7 @@ def save_settings():
         return jsonify(
             {
                 "status": "success",
-                "message": "Variables updated successfully! "
-                "Applied to next run.",
+                "message": "Variables updated successfully! " "Applied to next run.",
             }
         )
     except OSError as e:
