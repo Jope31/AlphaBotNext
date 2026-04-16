@@ -339,9 +339,10 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
 
     weights = {h["ticker"]: h.get("allocation", 0.0) for h in holdings}
     latest_valid_day = valid_dates[-1]
-    missing_tickers = [
-        t for t in weights.keys() if t not in historical_data.get(latest_valid_day, {})
-    ]
+    missing_tickers = {
+        t for t in weights.keys()
+        if t not in historical_data.get(latest_valid_day, {})
+    }
 
     sim_results = np.zeros(SIMULATION_PATHS)
     for i in range(SIMULATION_PATHS):
