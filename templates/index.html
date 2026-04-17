@@ -252,18 +252,19 @@
 
     <!-- Post-Market Simulator Modal -->
     <div id="sim-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-5xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="sim-modal-content">
+        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-6xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="sim-modal-content">
 
             <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 shrink-0">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    Post-Market Sandbox
+                    Post-Market Sandbox & Stress Test
                 </h3>
                 <button onclick="closeSimulatorModal()" class="text-slate-400 hover:text-white transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
+            <!-- Parameters Grid -->
             <div class="p-6 bg-slate-800 border-b border-slate-700 shrink-0 grid grid-cols-2 md:grid-cols-5 gap-6">
                 <div>
                     <div class="flex justify-between items-center mb-2">
@@ -302,32 +303,74 @@
                 </div>
             </div>
 
-            <div class="px-6 py-4 bg-slate-900 border-b border-slate-700 shrink-0">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Time of Day (Simulates Logarithmic Squeeze)</label>
-                    <span class="text-sm font-mono text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20" id="sim-time-val">4:00 PM</span>
+            <!-- Simulation Controls (Time & Market Drop) -->
+            <div class="px-6 py-4 bg-slate-900 border-b border-slate-700 shrink-0 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Time of Day (Logarithmic Squeeze)</label>
+                        <span class="text-sm font-mono text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20" id="sim-time-val">4:00 PM</span>
+                    </div>
+                    <input type="range" id="sim-time-slider" min="0" max="370" step="1" value="370" class="w-full accent-blue-500" oninput="runSimulation()">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 font-bold">
+                        <span>9:50 AM</span>
+                        <span>4:00 PM</span>
+                    </div>
                 </div>
-                <input type="range" id="sim-time-slider" min="0" max="370" step="1" value="370" class="w-full accent-blue-500" oninput="runSimulation()">
-                <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 font-bold">
-                    <span>9:50 AM (Open)</span>
-                    <span>1:00 PM</span>
-                    <span>4:00 PM (Close)</span>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1.5" title="Simulates the asset climbing to a new intraday high before any drop.">
+                            <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                            1. Intraday Run-up
+                        </label>
+                        <span class="text-sm font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20" id="sim-runup-val">+0.0%</span>
+                    </div>
+                    <input type="range" id="sim-runup-slider" min="0.0" max="15.0" step="0.1" value="0.0" class="w-full accent-emerald-500" oninput="runSimulation()">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 font-bold">
+                        <span>0.0%</span>
+                        <span>+15.0% (New Peak)</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1.5" title="Simulates the asset falling from its highest point.">
+                            <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+                            2. Intraday Pullback
+                        </label>
+                        <span class="text-sm font-mono text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20" id="sim-pullback-val">0.0%</span>
+                    </div>
+                    <input type="range" id="sim-pullback-slider" min="-15.0" max="0.0" step="0.1" value="0.0" class="w-full accent-rose-500" oninput="runSimulation()">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 font-bold">
+                        <span>-15.0% (Drop)</span>
+                        <span>0.0%</span>
+                    </div>
                 </div>
             </div>
 
+            <!-- Results Table -->
             <div class="flex-1 overflow-auto bg-slate-900 p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Simulation Results</h4>
+                    <div class="flex items-center gap-6">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Simulation Results</h4>
+                        <div class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sim-force-arm" class="sr-only peer" onchange="runSimulation()" checked>
+                                <div class="w-7 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500 shadow-inner"></div>
+                            </label>
+                            <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest cursor-help" title="Force all symphonies to be 'Armed' to test trailing stop behaviors on profitable runs.">Force Arm All</span>
+                        </div>
+                    </div>
                     <span class="text-xs font-bold px-3 py-1 bg-rose-500/20 text-rose-400 rounded-full border border-rose-500/30" id="sim-trigger-count">0 Triggers</span>
                 </div>
                 <table class="w-full text-left text-sm whitespace-nowrap">
                     <thead class="text-slate-500 text-xs uppercase tracking-wider border-b border-slate-700">
                         <tr>
-                            <th class="pb-3 font-medium w-1/3">Symphony Name</th>
-                            <th class="pb-3 font-medium text-right">Drawdown</th>
-                            <th class="pb-3 font-medium text-right">Active Stop Dist.</th>
-                            <th class="pb-3 font-medium text-right">Trigger Level</th>
-                            <th class="pb-3 font-medium text-center">Sim. Result</th>
+                            <th class="pb-3 pl-3 font-medium w-1/4">Symphony Name</th>
+                            <th class="pb-3 pr-4 font-medium text-right" title="Current Return minus Simulated Drop">Sim. Return</th>
+                            <th class="pb-3 pr-4 font-medium text-right">HWM</th>
+                            <th class="pb-3 pr-4 font-medium text-right">Stop Dist.</th>
+                            <th class="pb-3 pr-4 font-medium text-right">Trigger Level</th>
+                            <th class="pb-3 pr-4 font-medium text-right">Dist. to Stop</th>
+                            <th class="pb-3 font-medium text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody id="sim-table-body" class="divide-y divide-slate-800">
@@ -766,8 +809,12 @@
                 console.error("Failed to load live settings for simulator.", error);
             }
 
-            // Default time to end of day (370 mins)
-            document.getElementById('sim-time-slider').value = 370;
+            // Defaults
+            document.getElementById('sim-time-slider').value = 370; // EOD
+            document.getElementById('sim-runup-slider').value = 0.0; 
+            document.getElementById('sim-pullback-slider').value = 0.0;
+            document.getElementById('sim-force-arm').checked = true;
+            
             runSimulation();
 
             simModal.classList.remove('hidden');
@@ -784,7 +831,7 @@
         }
 
         function formatTimeLabel(minutesFromOpen) {
-            // Updated to reflect the 9:50 AM open grace period
+            // Reflects the 9:50 AM open grace period
             const totalMinutes = 9 * 60 + 50 + parseInt(minutesFromOpen);
             const hours = Math.floor(totalMinutes / 60);
             const mins = totalMinutes % 60;
@@ -800,16 +847,23 @@
             const simBreakeven = parseFloat(document.getElementById('sim-breakeven-slider').value);
             const simTrigger = parseFloat(document.getElementById('sim-trigger-slider').value);
             const simSqueeze = parseFloat(document.getElementById('sim-squeeze-slider').value);
+            
             const simMinutes = parseInt(document.getElementById('sim-time-slider').value);
+            const simRunUp = parseFloat(document.getElementById('sim-runup-slider').value);
+            const simPullback = parseFloat(document.getElementById('sim-pullback-slider').value);
+            const forceArm = document.getElementById('sim-force-arm').checked;
 
             document.getElementById('sim-atr-val').innerText = simAtr.toFixed(2);
             document.getElementById('sim-floor-val').innerText = simFloor.toFixed(2);
             document.getElementById('sim-breakeven-val').innerText = simBreakeven.toFixed(2);
             document.getElementById('sim-trigger-val').innerText = simTrigger.toFixed(1);
             document.getElementById('sim-squeeze-val').innerText = simSqueeze.toFixed(2);
+            
             document.getElementById('sim-time-val').innerText = formatTimeLabel(simMinutes);
+            document.getElementById('sim-runup-val').innerText = `+${simRunUp.toFixed(1)}%`;
+            document.getElementById('sim-pullback-val').innerText = `${simPullback.toFixed(1)}%`;
 
-            // Calculate Decay Curve based on the new 370 minute window (9:50 -> 4:00)
+            // Calculate Decay Curve
             const timeRatio = Math.max(0.0, Math.min(1.0, simMinutes / 370.0));
             const decayCurve = Math.log10(1 + 9 * timeRatio);
 
@@ -820,36 +874,46 @@
                 .filter(([k, v]) => k !== 'date' && v.name)
                 .map(([k, v]) => ({ id: k, ...v }));
 
+            // Sort by simulated distance to trigger (closest first)
             syms.sort((a, b) => {
-                const aDraw = Math.max(0, a.high_water_mark - a.current_return);
-                const bDraw = Math.max(0, b.high_water_mark - b.current_return);
-                return bDraw - aDraw;
+                const aDist = (a.current_return !== undefined ? a.current_return : 0.0) - (a.stop_trigger !== undefined ? a.stop_trigger : 0.0);
+                const bDist = (b.current_return !== undefined ? b.current_return : 0.0) - (b.stop_trigger !== undefined ? b.stop_trigger : 0.0);
+                return aDist - bDist;
             });
 
             syms.forEach(sym => {
-                const hwm = sym.high_water_mark !== -999.0 ? sym.high_water_mark : sym.current_return;
-                const curRet = sym.current_return !== undefined ? sym.current_return : 0.0;
-                const drawdown = Math.max(0, hwm - curRet);
+                // Actual static variables
+                const actualCurRet = sym.current_return !== undefined ? sym.current_return : 0.0;
+                const actualHwm = sym.high_water_mark !== undefined && sym.high_water_mark !== -999.0 ? sym.high_water_mark : actualCurRet;
 
-                // Calculate per-symphony vol-adjusted dynamic stop
-                const vol = sym.symphony_vol || 1.0; // fallback if state hasn't updated
+                // --- APPLY SIMULATED PRICE ACTION ---
+                // 1. Simulate the run-up to a new peak
+                const simulatedPeak = actualCurRet + simRunUp;
+                const hwm = Math.max(actualHwm, simulatedPeak); 
+                
+                // 2. Simulate the pullback from that peak
+                const simCurRet = simulatedPeak + simPullback;
+                
+                // Volatility calculation
+                const vol = sym.symphony_vol || 1.0; 
                 const morningStop = Math.max(vol * simAtr, simFloor);
                 const afternoonStop = Math.max(vol * (simAtr * 0.33), simFloor * 0.5);
                 const dynamicStop = morningStop - ((morningStop - afternoonStop) * decayCurve);
 
-                // Evaluate arming dynamically against the sandbox threshold
-                const isSimArmed = (sym.mc_prob !== undefined && sym.mc_prob < simTrigger) || curRet < -0.50;
+                // Arming logic (uses simulated return so a big enough drop automatically arms it)
+                let isSimArmed = (sym.mc_prob !== undefined && sym.mc_prob < simTrigger) || simCurRet < -0.50;
+                if (forceArm) isSimArmed = true;
 
-                // --- NEW STRANGLER LOGIC FOR SIMULATOR ---
+                // Strangler logic
                 let activeStopDistance = dynamicStop;
                 if (isSimArmed) {
-                    const safeSimTrigger = simTrigger > 0 ? simTrigger : 0.1; // Prevent division by zero
+                    const safeSimTrigger = simTrigger > 0 ? simTrigger : 0.1; // Prevent div by zero
                     const mcHealthRatio = Math.max(0.0, Math.min(1.0, (sym.mc_prob || 0) / safeSimTrigger));
                     const strangleMultiplier = simSqueeze + (mcHealthRatio * (1.0 - simSqueeze));
                     activeStopDistance = dynamicStop * strangleMultiplier;
                 }
 
-                // Use the newly calculated logarithmic stop from the scrubber
+                // Stop level & Breakeven math
                 let baseStopLevel = hwm - activeStopDistance;
                 let stopLevel = baseStopLevel;
 
@@ -857,31 +921,48 @@
                     stopLevel = Math.max(baseStopLevel, 0.0);
                 }
 
-                const isTriggered = curRet <= stopLevel && isSimArmed;
+                // Final trigger check
+                const distToStop = simCurRet - stopLevel;
+                const isTriggered = distToStop <= 0 && isSimArmed;
 
                 if (isTriggered) triggerCount++;
 
-                const statusBadge = isTriggered
-                    ? `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(244,63,94,0.2)]">TRIGGERED</span>`
-                    : `<span class="text-slate-500 text-[10px] font-bold tracking-widest">SAFE</span>`;
+                let statusBadge = `<span class="text-slate-500 text-[10px] font-bold tracking-widest">UNARMED</span>`;
+                if (isTriggered) {
+                    statusBadge = `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(244,63,94,0.2)]">TRIGGERED</span>`;
+                } else if (isSimArmed) {
+                    statusBadge = `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(245,158,11,0.2)]">ARMED</span>`;
+                }
 
-                const rowClass = isTriggered ? "bg-rose-950/10 hover:bg-rose-900/20 transition-colors" : "hover:bg-slate-800 transition-colors";
+                const rowClass = isTriggered ? "bg-rose-950/20 hover:bg-rose-900/30 transition-colors border-l-2 border-rose-500" : "hover:bg-slate-800 transition-colors border-l-2 border-transparent";
+                
+                const distColor = isTriggered ? "text-rose-400 font-bold" : (distToStop < 0.5 ? "text-amber-400" : "text-emerald-400");
+                const distText = distToStop > 0 ? `+${distToStop.toFixed(2)}%` : `${distToStop.toFixed(2)}%`;
 
                 html += `
                     <tr class="${rowClass}">
-                        <td class="py-3 text-slate-200">
-                            <div class="max-w-[350px] truncate" title="${sym.name}">${sym.name}</div>
+                        <td class="py-3 pl-3 text-slate-200">
+                            <div class="max-w-[280px] truncate" title="${sym.name}">${sym.name}</div>
                         </td>
-                        <td class="py-3 text-right font-mono text-slate-300">${drawdown.toFixed(2)}%</td>
-                        <td class="py-3 text-right font-mono text-slate-400">${activeStopDistance.toFixed(2)}%</td>
-                        <td class="py-3 text-right font-mono font-bold ${isTriggered ? 'text-rose-400' : 'text-emerald-400'}">${stopLevel.toFixed(2)}%</td>
-                        <td class="py-3 text-center">${isSimArmed ? statusBadge : '<span class="text-slate-600 text-[10px]">UNARMED</span>'}</td>
+                        <td class="py-3 pr-4 text-right font-mono ${simCurRet >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${simCurRet > 0 ? '+' : ''}${simCurRet.toFixed(2)}%</td>
+                        <td class="py-3 pr-4 text-right font-mono text-slate-300">${hwm.toFixed(2)}%</td>
+                        <td class="py-3 pr-4 text-right font-mono text-slate-400">${activeStopDistance.toFixed(2)}%</td>
+                        <td class="py-3 pr-4 text-right font-mono font-bold text-slate-200">${stopLevel.toFixed(2)}%</td>
+                        <td class="py-3 pr-4 text-right font-mono ${distColor}">${distText}</td>
+                        <td class="py-3 text-center">${statusBadge}</td>
                     </tr>
                 `;
             });
 
             document.getElementById('sim-table-body').innerHTML = html;
             document.getElementById('sim-trigger-count').innerText = `${triggerCount} Triggers`;
+            if(triggerCount > 0) {
+                document.getElementById('sim-trigger-count').classList.replace('text-rose-400', 'text-white');
+                document.getElementById('sim-trigger-count').classList.replace('bg-rose-500/20', 'bg-rose-600');
+            } else {
+                document.getElementById('sim-trigger-count').classList.replace('text-white', 'text-rose-400');
+                document.getElementById('sim-trigger-count').classList.replace('bg-rose-600', 'bg-rose-500/20');
+            }
         }
 
         // --- Utils ---
