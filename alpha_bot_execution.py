@@ -125,7 +125,7 @@ def execute_sell_to_cash(actual_symphony_id, account_id):
 
 
 def send_discord_alert(
-    symphony_name, current_return, prob_beating, stop_trigger_level, is_live
+    symphony_name, current_return, prob_beating, stop_trigger_level, high_water_mark, is_live
 ):
     """Sends a discord alert about trade execution."""
     if not DISCORD_WEBHOOK_URL:
@@ -165,6 +165,11 @@ def send_discord_alert(
                     {
                         "name": "Exit Return",
                         "value": f"{current_return:.2f}%",
+                        "inline": True,
+                    },
+                    {
+                        "name": "High Water Mark",
+                        "value": f"{high_water_mark:.2f}%",
                         "inline": True,
                     },
                     {
@@ -670,6 +675,7 @@ def main():
                                 current_return,
                                 prob_beating,
                                 stop_trigger_level,
+                                safe_hwm,
                                 LIVE_EXECUTION,
                             )
                         else:
@@ -694,6 +700,7 @@ def main():
                             current_return,
                             prob_beating,
                             stop_trigger_level,
+                            safe_hwm,
                             LIVE_EXECUTION,
                         )
 
