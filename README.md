@@ -55,8 +55,9 @@ Configure the following variables in your ```.env``` file (or edit them directly
 ## **🚀 Setup & Installation**
 
 1. **Clone the Repository:**  
+Alphabot is available here: ```https://github.com/Jope31/AlphaBot```
 ```
-   git clone \<repository-url\>  
+   git clone https://github.com/Jope31/AlphaBot.git  
    cd AlphaBot
 ```
 
