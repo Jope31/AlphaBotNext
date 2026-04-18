@@ -88,6 +88,22 @@ def get_state():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/chart/<symphony_id>")
+def get_chart_data(symphony_id):
+    """Returns the intraday timeseries chart data for a specific symphony."""
+    try:
+        if not os.path.exists("chart_history.json"):
+            return jsonify({"status": "waiting", "data": []})
+        
+        with open("chart_history.json", "r", encoding="utf-8") as f:
+            chart_data = json.load(f)
+        
+        symphony_data = chart_data.get("symphonies", {}).get(symphony_id, [])
+        return jsonify({"status": "success", "data": symphony_data})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/trigger", methods=["POST"])
 def manual_trigger():
     """Manually triggers the bot execution."""
