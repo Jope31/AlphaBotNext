@@ -31,10 +31,10 @@ LIVE_EXECUTION = os.getenv("LIVE_EXECUTION", "False").lower() in ("true", "1", "
 # --- STRATEGY PARAMETERS ---
 TRIGGER_THRESHOLD_PCT = float(os.getenv("TRIGGER_THRESHOLD_PCT", "15.0"))
 MAX_SQUEEZE_FLOOR = float(os.getenv("MAX_SQUEEZE_FLOOR", "0.20"))
-TAKE_PROFIT_MC_PCT = float(os.getenv("TAKE_PROFIT_MC_PCT", "5.0")) 
-LOSS_ARM_PCT = float(os.getenv("LOSS_ARM_PCT", "1.5")) # Vol-Scaled Flash Crash Floor
+TAKE_PROFIT_MC_PCT = float(os.getenv("TAKE_PROFIT_MC_PCT", "5.0"))
+LOSS_ARM_PCT = float(os.getenv("LOSS_ARM_PCT", "1.5"))  # Vol-Scaled Flash Crash Floor
 TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", "1.5"))
-ENDING_STOP_PCT = float(os.getenv("ENDING_STOP_PCT", "0.5"))  
+ENDING_STOP_PCT = float(os.getenv("ENDING_STOP_PCT", "0.5"))
 BREAKEVEN_ACTIVATION_PCT = float(os.getenv("BREAKEVEN_ACTIVATION_PCT", "2.0"))
 
 # --- VOLATILITY PARAMETERS ---
@@ -84,7 +84,7 @@ def load_chart_history():
 def save_chart_history(history):
     """Saves the intraday chart history."""
     with open(CHART_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, separators=(',', ':')) # Compressed JSON
+        json.dump(history, f, separators=(",", ":"))  # Compressed JSON
 
 
 # ==========================================
@@ -150,7 +150,13 @@ def execute_sell_to_cash(actual_symphony_id, account_id):
 
 
 def send_discord_alert(
-    symphony_name, current_return, prob_beating, stop_trigger_level, high_water_mark, is_live, exit_reason="Trailing Stop"
+    symphony_name,
+    current_return,
+    prob_beating,
+    stop_trigger_level,
+    high_water_mark,
+    is_live,
+    exit_reason="Trailing Stop",
 ):
     """Sends a discord alert about trade execution."""
     if not DISCORD_WEBHOOK_URL:
@@ -275,10 +281,10 @@ def fetch_alpaca_history(tickers, current_date_str):
                     if response.status_code == 200:
                         success = True
                         break
-                    else:
-                        print(
-                            f"Alpaca API Error on batch (attempt {attempt+1}/{max_retries}): HTTP {response.status_code} - {response.text}"
-                        )
+                    print(
+                        f"Alpaca API Error on batch (attempt {attempt+1}/{max_retries}): "
+                        f"HTTP {response.status_code} - {response.text}"
+                    )
                 except requests.RequestException as e:
                     print(
                         f"Alpaca API Request Exception (attempt {attempt+1}/{max_retries}): {e}"
@@ -373,8 +379,7 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
     weights = {h["ticker"]: h.get("allocation", 0.0) for h in holdings}
     latest_valid_day = valid_dates[-1]
     missing_tickers = {
-        t for t in weights.keys()
-        if t not in historical_data.get(latest_valid_day, {})
+        t for t in weights.keys() if t not in historical_data.get(latest_valid_day, {})
     }
 
     sim_results = np.zeros(SIMULATION_PATHS)
@@ -456,9 +461,9 @@ def main():
 
     is_weekday = current_et.weekday() < 5
     current_time = current_et.time()
-    
+
     # 10:30 AM Post-Mortem Extension: Skips Opening Auction entirely
-    market_open = dt_time(10, 30)  
+    market_open = dt_time(10, 30)
     market_close = dt_time(16, 0)
     rebalance_blackout = dt_time(15, 54)  # Start blocking just before 3:55 PM ET
 
@@ -567,7 +572,7 @@ def main():
                     "mc_history": [],
                     "below_stop_count": 0,
                     "above_tp_count": 0,
-                    "breakeven_locked": False
+                    "breakeven_locked": False,
                 }
 
             # Tracking previous state to determine Chart Events
@@ -623,7 +628,7 @@ def main():
             # Flash Crash Volatility Scale Fix (Prevents over-arming leveraged assets)
             effective_loss_threshold = max(LOSS_ARM_PCT, symphony_vol)
 
-            if prob_beating < TRIGGER_THRESHOLD_PCT and prob_beating >= TAKE_PROFIT_MC_PCT:
+            if TAKE_PROFIT_MC_PCT <= prob_beating < TRIGGER_THRESHOLD_PCT:
                 should_arm = True
                 arm_reason = f"MC Prob {prob_beating:.1f}%"
             elif current_return < -effective_loss_threshold:
@@ -672,7 +677,7 @@ def main():
             safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
             base_stop_level = safe_hwm - active_trailing_stop
 
-            # Sticky Vol-Scaled Breakeven Lock 
+            # Sticky Vol-Scaled Breakeven Lock
             effective_breakeven_activation = max(BREAKEVEN_ACTIVATION_PCT, symphony_vol)
             if safe_hwm >= effective_breakeven_activation:
                 bot_state[symphony_id]["breakeven_locked"] = True
@@ -687,42 +692,68 @@ def main():
 
             # --- 4.5 2-Tick Confirmation Trailing Stop Logic ---
             is_trailing_stop_hit = False
-            if bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
+            if (
+                bot_state[symphony_id]["armed"]
+                and not bot_state[symphony_id]["triggered"]
+            ):
                 if current_return <= stop_trigger_level:
                     bot_state[symphony_id]["below_stop_count"] += 1
                     if bot_state[symphony_id]["below_stop_count"] == 1:
-                        print(f"  ⚠️ {symphony_name[:35]} dipped below stop. Awaiting 2nd tick confirmation...")
+                        print(
+                            f"  ⚠️ {symphony_name[:35]} dipped below stop. "
+                            f"Awaiting 2nd tick confirmation..."
+                        )
                     elif bot_state[symphony_id]["below_stop_count"] >= 2:
                         is_trailing_stop_hit = True
                 else:
                     if bot_state[symphony_id]["below_stop_count"] > 0:
-                        print(f"  ✅ {symphony_name[:35]} recovered above stop. Confirmation reset.")
+                        print(
+                            f"  ✅ {symphony_name[:35]} recovered above stop. "
+                            f"Confirmation reset."
+                        )
                     bot_state[symphony_id]["below_stop_count"] = 0
 
             # --- 4.6 Take-Profit Smart Trailing Exit Math (With 2-Tick Confirmation) ---
             tp_triggered_now = False
             if prob_beating < TAKE_PROFIT_MC_PCT:
-                if not bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
+                if (
+                    not bot_state[symphony_id]["tp_armed"]
+                    and not bot_state[symphony_id]["triggered"]
+                ):
                     bot_state[symphony_id]["tp_armed"] = True
                     bot_state[symphony_id]["above_tp_count"] = 0
-                    print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {TAKE_PROFIT_MC_PCT}%) ***")
-            elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
+                    print(
+                        f"  *** {symphony_name} TP-ARMED "
+                        f"(Exceptional Gain: MC Prob {prob_beating:.1f}% "
+                        f"< {TAKE_PROFIT_MC_PCT}%) ***"
+                    )
+            elif (
+                bot_state[symphony_id]["tp_armed"]
+                and not bot_state[symphony_id]["triggered"]
+            ):
                 if prob_beating >= TAKE_PROFIT_MC_PCT:
                     bot_state[symphony_id]["above_tp_count"] += 1
                     if bot_state[symphony_id]["above_tp_count"] == 1:
-                        print(f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation...")
+                        print(
+                            f"  ⚠️ {symphony_name[:35]} TP signal flashed. "
+                            f"Awaiting 2nd tick confirmation..."
+                        )
                     elif bot_state[symphony_id]["above_tp_count"] >= 2:
                         if current_return > 0:
                             tp_triggered_now = True
                         else:
                             bot_state[symphony_id]["tp_armed"] = False
                             bot_state[symphony_id]["above_tp_count"] = 0
-                            print(f"  *** {symphony_name} TP-DISARMED (MC Rose but Return <= 0) ***")
+                            print(
+                                f"  *** {symphony_name} TP-DISARMED "
+                                f"(MC Rose but Return <= 0) ***"
+                            )
                 else:
                     if bot_state[symphony_id]["above_tp_count"] > 0:
-                        print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.")
+                        print(
+                            f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking."
+                        )
                     bot_state[symphony_id]["above_tp_count"] = 0
-
 
             print(
                 f"  -> {symphony_name[:35]}: Ret: {current_return:.2f}% | "
@@ -750,19 +781,31 @@ def main():
                 chart_event = "TP-Armed"
 
             # We only track the stop line if the bot is actually armed.
-            tracked_stop = stop_trigger_level if (bot_state[symphony_id]["armed"] or bot_state[symphony_id]["tp_armed"] or bot_state[symphony_id]["triggered"] or prev_triggered) else None
+            tracked_stop = (
+                stop_trigger_level
+                if (
+                    bot_state[symphony_id]["armed"]
+                    or bot_state[symphony_id]["tp_armed"]
+                    or bot_state[symphony_id]["triggered"]
+                    or prev_triggered
+                )
+                else None
+            )
             # If triggered previously, lock the stop value in the chart to the exit return
             if prev_triggered:
                 tracked_stop = bot_state[symphony_id].get("triggered_at_stop", -999.0)
-                if tracked_stop == -999.0: tracked_stop = None
+                if tracked_stop == -999.0:
+                    tracked_stop = None
 
             sym_chart_data = chart_history["symphonies"].setdefault(symphony_id, [])
-            sym_chart_data.append({
-                "time": current_time_str,
-                "return": current_return,
-                "stop": tracked_stop,
-                "event": chart_event
-            })
+            sym_chart_data.append(
+                {
+                    "time": current_time_str,
+                    "return": current_return,
+                    "stop": tracked_stop,
+                    "event": chart_event,
+                }
+            )
 
             # --- 5. Execution Check ---
             if is_trailing_stop_hit or tp_triggered_now:
@@ -784,13 +827,17 @@ def main():
                         # FREEZE THE METRICS FOR THE DASHBOARD
                         bot_state[symphony_id]["triggered_at_return"] = current_return
                         bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
-                        bot_state[symphony_id]["triggered_at_stop"] = current_return if tp_triggered_now else stop_trigger_level
+                        bot_state[symphony_id]["triggered_at_stop"] = (
+                            current_return if tp_triggered_now else stop_trigger_level
+                        )
 
                         bot_state[symphony_id]["high_water_mark"] = -999.0
                         save_state(bot_state)
 
                         # Update Chart to reflect exact freeze
-                        sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
+                        sym_chart_data[-1]["stop"] = bot_state[symphony_id][
+                            "triggered_at_stop"
+                        ]
 
                         send_discord_alert(
                             symphony_name,
@@ -799,7 +846,7 @@ def main():
                             stop_trigger_level,
                             safe_hwm,
                             LIVE_EXECUTION,
-                            exit_reason=reason
+                            exit_reason=reason,
                         )
                     else:
                         print(
@@ -814,13 +861,17 @@ def main():
                     # FREEZE THE METRICS FOR THE DASHBOARD
                     bot_state[symphony_id]["triggered_at_return"] = current_return
                     bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
-                    bot_state[symphony_id]["triggered_at_stop"] = current_return if tp_triggered_now else stop_trigger_level
+                    bot_state[symphony_id]["triggered_at_stop"] = (
+                        current_return if tp_triggered_now else stop_trigger_level
+                    )
 
                     bot_state[symphony_id]["high_water_mark"] = -999.0
                     save_state(bot_state)
 
                     # Update Chart to reflect exact freeze
-                    sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
+                    sym_chart_data[-1]["stop"] = bot_state[symphony_id][
+                        "triggered_at_stop"
+                    ]
 
                     send_discord_alert(
                         symphony_name,
@@ -829,9 +880,9 @@ def main():
                         stop_trigger_level,
                         safe_hwm,
                         LIVE_EXECUTION,
-                        exit_reason=reason
+                        exit_reason=reason,
                     )
-    
+
     # Save the aggregated chart history at the end of the evaluation loop
     save_chart_history(chart_history)
 
