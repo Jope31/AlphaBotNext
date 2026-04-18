@@ -9,8 +9,8 @@ from datetime import datetime
 import schedule
 import requests
 from flask import Flask, render_template, jsonify, request
-from alpha_bot_execution import get_composer_headers
 from dotenv import dotenv_values, set_key, find_dotenv
+from alpha_bot_execution import get_composer_headers
 
 app = Flask(__name__)
 
@@ -94,10 +94,10 @@ def get_chart_data(symphony_id):
     try:
         if not os.path.exists("chart_history.json"):
             return jsonify({"status": "waiting", "data": []})
-        
+
         with open("chart_history.json", "r", encoding="utf-8") as f:
             chart_data = json.load(f)
-        
+
         symphony_data = chart_data.get("symphonies", {}).get(symphony_id, [])
         return jsonify({"status": "success", "data": symphony_data})
     except Exception as e:
