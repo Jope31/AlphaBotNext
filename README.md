@@ -90,4 +90,4 @@ AlphaBot utilizes a background schedule thread running via ```app.py```.
 * **10:30 AM Grace Period:** The bot explicitly ignores the highly volatile market open and begins its daily execution loop at **10:30 AM ET**.  
 * **Rebalance Blackout:** Executions are automatically paused just before 3:55 PM ET to prevent API collisions with Composer's daily rebalancing routines.
 
-*Disclaimer: AlphaBot is an automated execution tool. Algorithmic trading carries significant risk. Always test parameters in Dry Run mode before enabling LIVE\_EXECUTION.*
+*Disclaimer: AlphaBot is an automated execution tool. Algorithmic trading carries significant risk. Always test parameters in Dry Run mode before enabling ```LIVE_EXECUTION```.*
