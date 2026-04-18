@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaBot Dashboard</title>
+    <title>Alpha Bot Dashboard</title>
     <!-- Add Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -263,7 +264,50 @@
         </div>
     </div>
 
-    <!-- Post-Market Simulator Modal -->
+    <!-- Chart Modal -->
+    <div id="chart-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-4xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="chart-modal-content">
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 shrink-0">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2" id="chart-modal-title">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                    Intraday Trailing Stop Visualizer
+                </h3>
+                <button onclick="closeChartModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 bg-slate-900 flex-1 relative min-h-[400px]">
+                <canvas id="intradayChart"></canvas>
+            </div>
+
+            <!-- Custom Legend -->
+            <div class="px-6 py-4 border-t border-slate-700 bg-slate-800 shrink-0 flex items-center justify-center gap-8">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-1 bg-emerald-500 rounded"></div>
+                    <span class="text-xs font-semibold text-slate-300">Current Return</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-1 border-t-2 border-dashed border-orange-500"></div>
+                    <span class="text-xs font-semibold text-slate-300">Trailing Stop Floor</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-amber-500 clip-triangle"></div>
+                    <span class="text-xs font-semibold text-slate-300">Armed Event</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-rose-600 rounded-sm transform rotate-45"></div>
+                    <span class="text-xs font-semibold text-slate-300">Triggered / Exit</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- CSS for Custom Triangle in Legend -->
+    <style>
+        .clip-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+    </style>
+
+    <!-- Post-Market Simulator Modal (Existing Code) -->
     <div id="sim-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-6xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="sim-modal-content">
 
@@ -414,6 +458,7 @@
         let globalStateCache = {};
         let pendingAccountId = null;
         let countdownSeconds = 0;
+        let activeChart = null; // Holds the Chart.js instance
 
         // --- Clocks & Timers ---
         function startNYClock() {
@@ -560,8 +605,9 @@
                                         <th class="px-5 py-3 font-medium text-right">MC Prob</th>
                                         <th class="px-5 py-3 font-medium text-center">Status</th>
                                         <th class="px-5 py-3 font-medium text-right">Stop Level</th>
-                                        <th class="px-5 py-3 font-medium text-right">Current Return</th>
+                                        <th class="px-5 py-3 font-medium text-right">Exit / Current Ret</th>
                                         <th class="px-5 py-3 font-medium text-right">High Water Mark</th>
+                                        <th class="px-5 py-3 font-medium text-right" title="The current live return of the symphony model. Shows what you would have if the bot didn't trigger.">If Held (Shadow)</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-800">
@@ -588,12 +634,14 @@
                         }
 
                         const name = sym.name || sym.id;
+                        const safeName = name.replace(/'/g, "\\'");
                         const mcProb = sym.mc_prob !== undefined ? `${sym.mc_prob.toFixed(1)}%` : '---';
                         const mcColor = isTpArmed ? 'text-fuchsia-400 font-bold' : (sym.mc_prob < 15.0 ? 'text-amber-400 font-medium' : 'text-slate-400');
 
                         let curRetStr = '---';
                         let hwmStr = '---';
                         let stopLevelStr = '---';
+                        let shadowStr = '<span class="text-slate-600">---</span>';
                         let curRetColor = 'text-slate-400';
                         let hwmColor = 'text-slate-400';
                         let isLocked = sym.breakeven_locked;
@@ -610,7 +658,7 @@
                             const fStop = sym.triggered_at_stop !== undefined ? sym.triggered_at_stop : sym.stop_trigger;
 
                             // Format Frozen Return (with padlock)
-                            curRetStr = `<span class="opacity-70 text-[10px] mr-1" title="Frozen Exit Return">🔒</span>${fRet.toFixed(2)}%`;
+                            curRetStr = `<span class="opacity-70 text-[10px] mr-1" title="Frozen Exit Return">🔒</span>${fRet > 0 ? '+' : ''}${fRet.toFixed(2)}%`;
                             curRetColor = fRet >= 0 ? 'text-emerald-500' : 'text-rose-500';
 
                             // Format Frozen HWM & Stop
@@ -618,9 +666,21 @@
                             hwmColor = fHwm !== undefined && fHwm > 0 ? 'text-emerald-500/70' : 'text-slate-400';
                             stopLevelStr = fStop !== undefined && fStop !== -999.0 ? `${fStop.toFixed(2)}%` : '---';
 
+                            // --- SHADOW RETURN (GUARD ALPHA) LOGIC ---
+                            const liveRet = sym.current_return !== undefined ? sym.current_return : 0;
+                            const diff = fRet - liveRet; // Positive diff = saved money
+                            
+                            const diffSign = diff > 0 ? '+' : '';
+                            const diffColor = diff > 0 ? 'text-emerald-400' : (diff < 0 ? 'text-rose-400' : 'text-slate-500');
+
+                            shadowStr = `<div class="flex flex-col items-end leading-tight">
+                                            <span class="${liveRet >= 0 ? 'text-emerald-500/50' : 'text-rose-500/50'}" title="Live theoretical return of the symphony">${liveRet > 0 ? '+' : ''}${liveRet.toFixed(2)}%</span>
+                                            <span class="text-[10px] ${diffColor} font-bold mt-0.5" title="Guard Alpha (How much % you saved or lost by triggering)">${diffSign}${diff.toFixed(2)}% α</span>
+                                         </div>`;
+
                         } else {
                             // Normal Live Rendering
-                            curRetStr = sym.current_return !== undefined ? `${sym.current_return.toFixed(2)}%` : '---';
+                            curRetStr = sym.current_return !== undefined ? `${sym.current_return > 0 ? '+' : ''}${sym.current_return.toFixed(2)}%` : '---';
                             curRetColor = sym.current_return >= 0 ? 'text-emerald-400' : 'text-rose-400';
 
                             hwmStr = sym.high_water_mark !== undefined && sym.high_water_mark !== -999.0 ? `${sym.high_water_mark.toFixed(2)}%` : '---';
@@ -632,12 +692,20 @@
 
                         html += `
                                     <tr class="hover:bg-slate-800 transition-colors">
-                                        <td class="px-5 py-3 text-slate-200"><div class="max-w-[400px] truncate" title="${name}">${name}</div></td>
+                                        <td class="px-5 py-3 text-slate-200">
+                                            <div class="flex items-center gap-2 max-w-[350px]">
+                                                <button onclick="openChartModal('${sym.id}', '${safeName}')" class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="View Intraday Chart">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                                                </button>
+                                                <div class="truncate" title="${name}">${name}</div>
+                                            </div>
+                                        </td>
                                         <td class="px-5 py-3 text-right font-mono ${mcColor}">${mcProb}</td>
                                         <td class="px-5 py-3 text-center">${statusBadge}</td>
                                         <td class="px-5 py-3 text-right font-mono text-slate-400">${stopLevelStr}</td>
                                         <td class="px-5 py-3 text-right font-mono ${curRetColor}">${curRetStr}</td>
                                         <td class="px-5 py-3 text-right font-mono ${hwmColor}">${hwmStr}</td>
+                                        <td class="px-5 py-3 text-right font-mono">${shadowStr}</td>
                                     </tr>
                         `;
                     });
@@ -724,6 +792,155 @@
                 closeConfirmModal();
             }
         });
+
+        // --- Intraday Chart Modal Logic ---
+        async function openChartModal(symphonyId, symphonyName) {
+            try {
+                // 1. Fetch data FIRST before opening the modal.
+                const response = await fetch(`/api/chart/${symphonyId}`);
+                const resData = await response.json();
+                
+                let data = resData.data || [];
+                if(data.length === 0) {
+                    showNotification("Awaiting first minute-tick. No chart data available yet.", "error");
+                    return; // Abort entirely. Prevents the empty modal from flashing on screen.
+                }
+
+                // 2. Only proceed with rendering the modal if we have data
+                const modal = document.getElementById('chart-modal');
+                const content = document.getElementById('chart-modal-content');
+                
+                document.getElementById('chart-modal-title').innerHTML = `
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                    <div class="truncate max-w-[400px]" title="${symphonyName}">${symphonyName}</div>
+                `;
+
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    content.classList.remove('scale-95');
+                }, 10);
+
+                // Process Chart.js Data Arrays
+                const labels = data.map(d => d.time);
+                const returns = data.map(d => d.return);
+                const stops = data.map(d => d.stop);
+
+                // Create custom point shapes for events
+                const pointStyles = data.map(d => {
+                    if (d.event === 'Armed' || d.event === 'TP-Armed') return 'triangle';
+                    if (d.event === 'Triggered') return 'rectRot'; 
+                    return 'circle';
+                });
+                
+                const pointRadii = data.map(d => {
+                    if (d.event === 'Armed' || d.event === 'TP-Armed') return 8;
+                    if (d.event === 'Triggered') return 10;
+                    return 0; // Hide normal points for clean line
+                });
+                
+                const pointColors = data.map(d => {
+                    if (d.event === 'Armed' || d.event === 'TP-Armed') return '#eab308'; // amber-500
+                    if (d.event === 'Triggered') return '#e11d48'; // rose-600
+                    return '#10b981';
+                });
+
+                const ctx = document.getElementById('intradayChart').getContext('2d');
+                
+                // Destroy old instance if exists
+                if (activeChart) { activeChart.destroy(); }
+
+                activeChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Current Return (%)',
+                                data: returns,
+                                borderColor: '#10b981', // Emerald
+                                borderWidth: 3,
+                                tension: 0.3, // smooth curve
+                                fill: true,
+                                backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                                pointStyle: pointStyles,
+                                pointRadius: pointRadii,
+                                pointBackgroundColor: pointColors,
+                                pointBorderColor: pointColors,
+                                order: 2
+                            },
+                            {
+                                label: 'Trailing Stop Floor (%)',
+                                data: stops,
+                                borderColor: '#f97316', // Orange
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                stepped: true,
+                                spanGaps: false, // Breaks the line when stop is null (unarmed)
+                                pointRadius: 0,
+                                order: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: { display: false }, // Using custom HTML legend below
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                titleColor: '#e2e8f0',
+                                bodyColor: '#94a3b8',
+                                borderColor: '#334155',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y.toFixed(2) + '%';
+                                        }
+                                        return label;
+                                    },
+                                    afterBody: function(context) {
+                                        const event = data[context[0].dataIndex].event;
+                                        if(event) { return `\nEvent: ${event}`; }
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: '#334155', drawBorder: false },
+                                ticks: { color: '#94a3b8', maxTicksLimit: 12 }
+                            },
+                            y: {
+                                grid: { color: '#334155', drawBorder: false },
+                                ticks: { 
+                                    color: '#94a3b8',
+                                    callback: function(value) { return value + '%'; }
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                showNotification("Failed to load chart data. Ensure bot has completed its first tick.", "error");
+            }
+        }
+
+        function closeChartModal() {
+            const modal = document.getElementById('chart-modal');
+            const content = document.getElementById('chart-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
 
         // --- Settings Modal Logic ---
         const settingsModal = document.getElementById('settings-modal');
