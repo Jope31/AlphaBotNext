@@ -87,6 +87,76 @@ def save_chart_history(history):
         json.dump(history, f, separators=(',', ':')) # Compressed JSON
 
 
+def generate_eod_snapshot(bot_state, current_date_str):
+    """Generates a daily post-mortem JSON snapshot, including tomorrow's target holdings."""
+    report_file = f"post_mortem_{current_date_str}.json"
+    if os.path.exists(report_file):
+        return  # Already generated today
+
+    print(f"  -> Generating EOD Post-Mortem Snapshot: {report_file}")
+    
+    # Aggregate tomorrow's holdings across the entire portfolio
+    portfolio_holdings_summary = {}
+
+    report = {
+        "date": current_date_str,
+        "summary": {
+            "total_monitored": 0,
+            "total_triggered": 0,
+            "positive_guard_alpha_count": 0
+        },
+        "tomorrow_target_holdings": {},
+        "triggers": []
+    }
+
+    for sym_id, sym in bot_state.items():
+        if sym_id == "date":
+            continue
+        
+        report["summary"]["total_monitored"] += 1
+        
+        # Aggregate holdings (at 15:54 ET, Composer has executed the daily rebalance)
+        # These are the holdings carried overnight into tomorrow.
+        for holding in sym.get("current_holdings", []):
+            ticker = holding.get("ticker", "UNKNOWN")
+            weight = holding.get("allocation", 0.0)
+            if ticker not in portfolio_holdings_summary:
+                portfolio_holdings_summary[ticker] = 0.0
+            portfolio_holdings_summary[ticker] += weight
+        
+        if sym.get("triggered"):
+            report["summary"]["total_triggered"] += 1
+            
+            f_ret = sym.get("triggered_at_return", 0.0)
+            live_ret = sym.get("current_return", 0.0)
+            saved_pct = f_ret - live_ret  # Guard Alpha
+            
+            if saved_pct > 0:
+                report["summary"]["positive_guard_alpha_count"] += 1
+            
+            # Identify if it was a Take-Profit or Stop-Loss
+            exit_reason = "Take-Profit" if f_ret == sym.get("triggered_at_stop") else "Trailing Stop"
+            
+            report["triggers"].append({
+                "symphony_name": sym.get("name", "Unknown"),
+                "exit_reason": exit_reason,
+                "exit_return": round(f_ret, 2),
+                "shadow_return": round(live_ret, 2),
+                "saved_pct_guard_alpha": round(saved_pct, 2),
+                "hwm_at_trigger": round(sym.get("triggered_at_hwm", 0.0), 2),
+                "time_triggered": sym.get("triggered_at_time", ""),
+                "symphony_vol": round(sym.get("symphony_vol", 0.0), 2),
+                "next_day_holdings": [h.get("ticker") for h in sym.get("current_holdings", [])]
+            })
+    
+    # Sort portfolio holdings by weight to give the Gem a clean summary
+    sorted_holdings = dict(sorted(portfolio_holdings_summary.items(), key=lambda item: item[1], reverse=True))
+    report["tomorrow_target_holdings"] = sorted_holdings
+    
+    with open(report_file, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=4)
+
+
 # ==========================================
 # 3. API CONNECTORS & RATE LIMIT HANDLING
 # ==========================================
@@ -461,8 +531,9 @@ def main():
     market_open = dt_time(10, 30)  
     market_close = dt_time(16, 0)
     rebalance_blackout = dt_time(15, 54)  # Start blocking just before 3:55 PM ET
+    post_mortem_cutoff = dt_time(16, 5)   # 5-min window post-close to fetch tomorrow's holdings
 
-    if not is_weekday or current_time < market_open or current_time > market_close:
+    if not is_weekday or current_time < market_open or current_time > post_mortem_cutoff:
         if not force_run:
             print(
                 f"  -> Market closed or in Grace Period (ET: {current_et.strftime('%a %H:%M')}). "
@@ -474,14 +545,14 @@ def main():
         )
 
     # --- COMPOSER REBALANCE BLACKOUT ---
-    if rebalance_blackout <= current_time <= market_close:
-	
-       # NEW: Generate post-mortem right as the blackout begins (15:54 ET)
-       bot_state = load_state()
-       current_date_str = current_et.strftime("%Y-%m-%d")
-       generate_eod_snapshot(bot_state, current_date_str) 
+    if rebalance_blackout <= current_time < market_close:
+        
+        # NEW: Generate post-mortem right as the blackout begins (15:54 ET)
+        bot_state = load_state()
+        current_date_str = current_et.strftime("%Y-%m-%d")
+        generate_eod_snapshot(bot_state, current_date_str)
 
-       if not force_run:
+        if not force_run:
             print(
                 f"  -> 🛑 COMPOSER REBALANCE BLACKOUT (ET: {current_et.strftime('%H:%M')}). "
                 "Pausing to prevent false triggers during Composer's end-of-day rebalance..."
@@ -541,6 +612,25 @@ def main():
                 if alpaca_ticker:
                     all_tickers.add(alpaca_ticker)
                     holding["working_ticker"] = alpaca_ticker
+
+    # --- EOD POST-MORTEM SNAPSHOT (16:00 - 16:05 ET) ---
+    if market_close <= current_time <= post_mortem_cutoff:
+        current_date_str = current_et.strftime("%Y-%m-%d")
+        
+        # Update holdings in bot_state to reflect the newly rebalanced assets from 15:55
+        for account, symphonies in symphony_data_cache.items():
+            for sym in symphonies:
+                s_id = sym["id"]
+                if s_id in bot_state:
+                    bot_state[s_id]["current_holdings"] = [
+                        {"ticker": h.get("working_ticker", h.get("ticker")), "allocation": h.get("allocation", 0.0)} 
+                        for h in sym.get("holdings", [])
+                    ]
+        save_state(bot_state)
+        
+        generate_eod_snapshot(bot_state, current_date_str)
+        print("  -> EOD Post-Mortem Snapshot complete. Ending execution for the day.")
+        return
 
     historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
     if not historical_data:
@@ -744,6 +834,13 @@ def main():
             bot_state[symphony_id]["stop_trigger"] = stop_trigger_level
             bot_state[symphony_id]["active_stop_distance"] = active_trailing_stop
             bot_state[symphony_id]["symphony_vol"] = symphony_vol
+            
+            # Store current holdings so EOD snapshot knows what is carrying into tomorrow
+            bot_state[symphony_id]["current_holdings"] = [
+                {"ticker": h.get("ticker"), "allocation": h.get("allocation", 0.0)} 
+                for h in holdings
+            ]
+            
             save_state(bot_state)
 
             # --- Chart Visualization Logging ---
@@ -844,59 +941,6 @@ def main():
     # Save the aggregated chart history at the end of the evaluation loop
     save_chart_history(chart_history)
 
-# ==========================================
-# 6. POST MORTEM REPORT CREATION
-# ==========================================
-
-def generate_eod_snapshot(bot_state, current_date_str):
-    """Generates a daily post-mortem JSON snapshot."""
-    report_file = f"post_mortem_{current_date_str}.json"
-    if os.path.exists(report_file):
-        return  # Already generated today
-
-    print(f"  -> Generating EOD Post-Mortem Snapshot: {report_file}")
-    report = {
-        "date": current_date_str,
-        "summary": {
-            "total_monitored": 0,
-            "total_triggered": 0,
-            "positive_guard_alpha_count": 0
-        },
-        "triggers": []
-    }
-
-    for sym_id, sym in bot_state.items():
-        if sym_id == "date":
-            continue
-        
-        report["summary"]["total_monitored"] += 1
-        
-        if sym.get("triggered"):
-            report["summary"]["total_triggered"] += 1
-            
-            f_ret = sym.get("triggered_at_return", 0.0)
-            live_ret = sym.get("current_return", 0.0)
-            saved_pct = f_ret - live_ret  # Guard Alpha
-            
-            if saved_pct > 0:
-                report["summary"]["positive_guard_alpha_count"] += 1
-            
-            # Identify if it was a Take-Profit or Stop-Loss
-            exit_reason = "Take-Profit" if f_ret == sym.get("triggered_at_stop") else "Trailing Stop"
-            
-            report["triggers"].append({
-                "symphony_name": sym.get("name", "Unknown"),
-                "exit_reason": exit_reason,
-                "exit_return": round(f_ret, 2),
-                "shadow_return": round(live_ret, 2),
-                "saved_pct_guard_alpha": round(saved_pct, 2),
-                "hwm_at_trigger": round(sym.get("triggered_at_hwm", 0.0), 2),
-                "time_triggered": sym.get("triggered_at_time", ""),
-                "symphony_vol": round(sym.get("symphony_vol", 0.0), 2)
-            })
-    
-    with open(report_file, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=4)
 
 if __name__ == "__main__":
     main()
