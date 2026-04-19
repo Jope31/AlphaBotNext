@@ -16,9 +16,11 @@ Theoretical safety nets often trigger on market microstructure noise. AlphaBot v
 
 Because Composer executes its daily rebalances at 15:55 ET (must be user requested to Composer), AlphaBot utilizes a two-stage end-of-day pipeline to accurately capture both performance metrics and tomorrow's target allocations.
 
-1. **Stage 1 (15:54 ET) \- The Math Freeze:** Right before the Composer rebalance blackout, AlphaBot locks in the "Shadow Returns" (the theoretical return if the bot hadn't intervened). It calculates the **Guard Alpha** (Saved Percentage) for every triggered symphony.  
-2. **Stage 2 (16:00 ET) \- The Holdings Injection:** After the Composer rebalance completes, AlphaBot wakes up briefly to fetch the newly purchased assets from the API and injects them into the daily snapshot.
-### 6. **Gemini "Quant Analyst" Integration (NEW)**
+**Stage 1 (15:54 ET) \- The Math Freeze:** Right before the Composer rebalance blackout, AlphaBot locks in the "Shadow Returns" (the theoretical return if the bot hadn't intervened). It calculates the **Guard Alpha** (Saved Percentage) for every triggered symphony.  
+
+**Stage 2 (16:00 ET) \- The Holdings Injection:** After the Composer rebalance completes, AlphaBot wakes up briefly to fetch the newly purchased assets from the API and injects them into the daily snapshot.<br>
+
+6. ### Gemini "Quant Analyst" Integration (NEW)**
 
 The post\_mortem\_YYYY-MM-DD.json file is specifically structured to be analyzed by a Large Language Model (like Google Gemini).
 
