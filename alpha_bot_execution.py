@@ -87,74 +87,106 @@ def save_chart_history(history):
         json.dump(history, f, separators=(',', ':')) # Compressed JSON
 
 
-def generate_eod_snapshot(bot_state, current_date_str):
-    """Generates a daily post-mortem JSON snapshot, including tomorrow's target holdings."""
+def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
+    """Generates a two-stage daily post-mortem JSON snapshot."""
     report_file = f"post_mortem_{current_date_str}.json"
-    if os.path.exists(report_file):
-        return  # Already generated today
-
-    print(f"  -> Generating EOD Post-Mortem Snapshot: {report_file}")
     
-    # Aggregate tomorrow's holdings across the entire portfolio
-    portfolio_holdings_summary = {}
+    if not is_post_rebalance:
+        # ========================================================
+        # STAGE 1 (15:54 ET): Freeze Math & Shadow Returns
+        # ========================================================
+        if os.path.exists(report_file):
+            return  # Already generated Stage 1 today
 
-    report = {
-        "date": current_date_str,
-        "summary": {
-            "total_monitored": 0,
-            "total_triggered": 0,
-            "positive_guard_alpha_count": 0
-        },
-        "tomorrow_target_holdings": {},
-        "triggers": []
-    }
+        print(f"  -> Generating Stage 1 Post-Mortem (Locking Math): {report_file}")
+        
+        report = {
+            "date": current_date_str,
+            "summary": {
+                "total_monitored": 0,
+                "total_triggered": 0,
+                "positive_guard_alpha_count": 0
+            },
+            "tomorrow_target_holdings": {"STATUS": "Pending Composer Rebalance"},
+            "triggers": []
+        }
 
-    for sym_id, sym in bot_state.items():
-        if sym_id == "date":
-            continue
+        for sym_id, sym in bot_state.items():
+            if sym_id == "date":
+                continue
+            
+            report["summary"]["total_monitored"] += 1
+            
+            if sym.get("triggered"):
+                report["summary"]["total_triggered"] += 1
+                
+                f_ret = sym.get("triggered_at_return", 0.0)
+                live_ret = sym.get("current_return", 0.0)
+                saved_pct = f_ret - live_ret  # Guard Alpha Math locked before API wiped
+                
+                if saved_pct > 0:
+                    report["summary"]["positive_guard_alpha_count"] += 1
+                
+                exit_reason = "Take-Profit" if f_ret == sym.get("triggered_at_stop") else "Trailing Stop"
+                
+                report["triggers"].append({
+                    "symphony_name": sym.get("name", "Unknown"),
+                    "exit_reason": exit_reason,
+                    "exit_return": round(f_ret, 2),
+                    "shadow_return": round(live_ret, 2),
+                    "saved_pct_guard_alpha": round(saved_pct, 2),
+                    "hwm_at_trigger": round(sym.get("triggered_at_hwm", 0.0), 2),
+                    "time_triggered": sym.get("triggered_at_time", ""),
+                    "symphony_vol": round(sym.get("symphony_vol", 0.0), 2),
+                    "next_day_holdings": ["Pending..."]
+                })
         
-        report["summary"]["total_monitored"] += 1
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=4)
+
+    else:
+        # ========================================================
+        # STAGE 2 (16:00 ET): Inject Tomorrow's Holdings
+        # ========================================================
+        if not os.path.exists(report_file):
+            print("  -> Warning: Stage 1 snapshot missing. Cannot inject new holdings.")
+            return
+            
+        with open(report_file, "r", encoding="utf-8") as f:
+            report = json.load(f)
+            
+        if "STATUS" not in report.get("tomorrow_target_holdings", {}):
+            return  # Already completed Stage 2 today
+            
+        print(f"  -> Generating Stage 2 Post-Mortem (Injecting Holdings): {report_file}")
         
-        # Aggregate holdings (at 15:54 ET, Composer has executed the daily rebalance)
-        # These are the holdings carried overnight into tomorrow.
-        for holding in sym.get("current_holdings", []):
-            ticker = holding.get("ticker", "UNKNOWN")
-            weight = holding.get("allocation", 0.0)
-            if ticker not in portfolio_holdings_summary:
-                portfolio_holdings_summary[ticker] = 0.0
-            portfolio_holdings_summary[ticker] += weight
+        # Aggregate tomorrow's holdings from the updated bot_state
+        portfolio_holdings_summary = {}
+
+        for sym_id, sym in bot_state.items():
+            if sym_id == "date":
+                continue
+            
+            # 1. Update individual trigger next_day_holdings
+            sym_holdings = [h.get("ticker") for h in sym.get("current_holdings", [])]
+            for trigger in report.get("triggers", []):
+                if trigger.get("symphony_name") == sym.get("name"):
+                    trigger["next_day_holdings"] = sym_holdings
+            
+            # 2. Update portfolio-wide aggregate map
+            for holding in sym.get("current_holdings", []):
+                ticker = holding.get("ticker", "UNKNOWN")
+                weight = holding.get("allocation", 0.0)
+                if ticker not in portfolio_holdings_summary:
+                    portfolio_holdings_summary[ticker] = 0.0
+                portfolio_holdings_summary[ticker] += weight
         
-        if sym.get("triggered"):
-            report["summary"]["total_triggered"] += 1
-            
-            f_ret = sym.get("triggered_at_return", 0.0)
-            live_ret = sym.get("current_return", 0.0)
-            saved_pct = f_ret - live_ret  # Guard Alpha
-            
-            if saved_pct > 0:
-                report["summary"]["positive_guard_alpha_count"] += 1
-            
-            # Identify if it was a Take-Profit or Stop-Loss
-            exit_reason = "Take-Profit" if f_ret == sym.get("triggered_at_stop") else "Trailing Stop"
-            
-            report["triggers"].append({
-                "symphony_name": sym.get("name", "Unknown"),
-                "exit_reason": exit_reason,
-                "exit_return": round(f_ret, 2),
-                "shadow_return": round(live_ret, 2),
-                "saved_pct_guard_alpha": round(saved_pct, 2),
-                "hwm_at_trigger": round(sym.get("triggered_at_hwm", 0.0), 2),
-                "time_triggered": sym.get("triggered_at_time", ""),
-                "symphony_vol": round(sym.get("symphony_vol", 0.0), 2),
-                "next_day_holdings": [h.get("ticker") for h in sym.get("current_holdings", [])]
-            })
-    
-    # Sort portfolio holdings by weight to give the Gem a clean summary
-    sorted_holdings = dict(sorted(portfolio_holdings_summary.items(), key=lambda item: item[1], reverse=True))
-    report["tomorrow_target_holdings"] = sorted_holdings
-    
-    with open(report_file, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=4)
+        # Sort portfolio holdings by weight for the Gem
+        sorted_holdings = dict(sorted(portfolio_holdings_summary.items(), key=lambda item: item[1], reverse=True))
+        report["tomorrow_target_holdings"] = sorted_holdings
+        
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=4)
 
 
 # ==========================================
@@ -544,13 +576,13 @@ def main():
             "  -> Market closed, but --force flag detected! " "Bypassing gatekeeper..."
         )
 
-    # --- COMPOSER REBALANCE BLACKOUT ---
+    # --- COMPOSER REBALANCE BLACKOUT (STAGE 1 SNAPSHOT) ---
     if rebalance_blackout <= current_time < market_close:
         
-        # NEW: Generate post-mortem right as the blackout begins (15:54 ET)
+        # STAGE 1: Generate post-mortem snapshot before API is wiped by Composer at 15:55
         bot_state = load_state()
         current_date_str = current_et.strftime("%Y-%m-%d")
-        generate_eod_snapshot(bot_state, current_date_str)
+        generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False)
 
         if not force_run:
             print(
@@ -587,7 +619,6 @@ def main():
         save_chart_history(chart_history)
 
     # --- LOGARITHMIC TIME DECAY RATIO CALCULATION ---
-    # Calculates how far into the trading day we are (0.0 to 1.0)
     m_open_dt = current_et.replace(hour=10, minute=30, second=0, microsecond=0)
     m_close_dt = current_et.replace(hour=16, minute=0, second=0, microsecond=0)
 
@@ -596,7 +627,6 @@ def main():
 
     time_ratio = max(0.0, min(1.0, elapsed_minutes / total_trading_minutes))
     decay_curve = math.log10(1 + 9 * time_ratio)
-    # --- END TIME RATIO ---
 
     all_tickers = set()
     symphony_data_cache = {}
@@ -613,11 +643,11 @@ def main():
                     all_tickers.add(alpaca_ticker)
                     holding["working_ticker"] = alpaca_ticker
 
-    # --- EOD POST-MORTEM SNAPSHOT (16:00 - 16:05 ET) ---
+    # --- EOD POST-MORTEM SNAPSHOT STAGE 2 (16:00 - 16:05 ET) ---
     if market_close <= current_time <= post_mortem_cutoff:
         current_date_str = current_et.strftime("%Y-%m-%d")
         
-        # Update holdings in bot_state to reflect the newly rebalanced assets from 15:55
+        # Update holdings in bot_state to reflect the newly rebalanced assets fetched from API
         for account, symphonies in symphony_data_cache.items():
             for sym in symphonies:
                 s_id = sym["id"]
@@ -628,9 +658,11 @@ def main():
                     ]
         save_state(bot_state)
         
-        generate_eod_snapshot(bot_state, current_date_str)
+        # STAGE 2: Inject tomorrow's holdings into the Stage 1 file
+        generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=True)
         print("  -> EOD Post-Mortem Snapshot complete. Ending execution for the day.")
         return
+
 
     historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
     if not historical_data:
@@ -698,13 +730,11 @@ def main():
                 morning_stop = max(
                     symphony_vol * BASE_ATR_MULTIPLIER, MIN_MULTIPLIER_FLOOR
                 )
-                # Afternoon stop tighten by 33% of base
                 afternoon_stop = max(
                     symphony_vol * (BASE_ATR_MULTIPLIER * 0.33),
                     MIN_MULTIPLIER_FLOOR * 0.5,
                 )
             else:
-                # Fallback to UI static variables if history missing
                 morning_stop = TRAILING_STOP_PCT
                 afternoon_stop = ENDING_STOP_PCT
 
@@ -712,11 +742,9 @@ def main():
                 (morning_stop - afternoon_stop) * decay_curve
             )
 
-            # --- 2. Arming & Disarming Mechanism (Strangler & Vol-Scaled Flash Crash) ---
+            # --- 2. Arming & Disarming Mechanism ---
             should_arm = False
             arm_reason = ""
-
-            # Flash Crash Volatility Scale Fix (Prevents over-arming leveraged assets)
             effective_loss_threshold = max(LOSS_ARM_PCT, symphony_vol)
 
             if prob_beating < TRIGGER_THRESHOLD_PCT and prob_beating >= TAKE_PROFIT_MC_PCT:
@@ -734,7 +762,6 @@ def main():
                 bot_state[symphony_id]["armed"] = True
                 print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
 
-            # HYSTERESIS: Disarm if conditions significantly recover
             elif (
                 bot_state[symphony_id]["armed"]
                 and not bot_state[symphony_id]["triggered"]
@@ -768,7 +795,6 @@ def main():
             safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
             base_stop_level = safe_hwm - active_trailing_stop
 
-            # Sticky Vol-Scaled Breakeven Lock 
             effective_breakeven_activation = max(BREAKEVEN_ACTIVATION_PCT, symphony_vol)
             if safe_hwm >= effective_breakeven_activation:
                 bot_state[symphony_id]["breakeven_locked"] = True
@@ -819,7 +845,6 @@ def main():
                         print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.")
                     bot_state[symphony_id]["above_tp_count"] = 0
 
-
             print(
                 f"  -> {symphony_name[:35]}: Ret: {current_return:.2f}% | "
                 f"HWM: {high_water_mark:.2f}% | "
@@ -835,7 +860,7 @@ def main():
             bot_state[symphony_id]["active_stop_distance"] = active_trailing_stop
             bot_state[symphony_id]["symphony_vol"] = symphony_vol
             
-            # Store current holdings so EOD snapshot knows what is carrying into tomorrow
+            # Store current holdings so 16:00 ET loop knows what to carry over into tomorrow
             bot_state[symphony_id]["current_holdings"] = [
                 {"ticker": h.get("ticker"), "allocation": h.get("allocation", 0.0)} 
                 for h in holdings
@@ -852,9 +877,7 @@ def main():
             elif bot_state[symphony_id]["tp_armed"] and not prev_tp_armed:
                 chart_event = "TP-Armed"
 
-            # We only track the stop line if the bot is actually armed.
             tracked_stop = stop_trigger_level if (bot_state[symphony_id]["armed"] or bot_state[symphony_id]["tp_armed"] or bot_state[symphony_id]["triggered"] or prev_triggered) else None
-            # If triggered previously, lock the stop value in the chart to the exit return
             if prev_triggered:
                 tracked_stop = bot_state[symphony_id].get("triggered_at_stop", -999.0)
                 if tracked_stop == -999.0: tracked_stop = None
@@ -865,7 +888,7 @@ def main():
                 "return": current_return,
                 "stop": tracked_stop,
                 "event": chart_event,
-                "mc_prob": prob_beating # Added for bottom-axis volume-style rendering
+                "mc_prob": prob_beating 
             })
 
             # --- 5. Execution Check ---
@@ -885,60 +908,39 @@ def main():
                         bot_state[symphony_id]["tp_armed"] = False
                         bot_state[symphony_id]["triggered"] = True
 
-                        # FREEZE THE METRICS FOR THE DASHBOARD
                         bot_state[symphony_id]["triggered_at_return"] = current_return
                         bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
                         bot_state[symphony_id]["triggered_at_stop"] = current_return if tp_triggered_now else stop_trigger_level
                         bot_state[symphony_id]["triggered_at_time"] = current_time_str
-
                         bot_state[symphony_id]["high_water_mark"] = -999.0
                         save_state(bot_state)
 
-                        # Update Chart to reflect exact freeze
                         sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
 
                         send_discord_alert(
-                            symphony_name,
-                            current_return,
-                            prob_beating,
-                            stop_trigger_level,
-                            safe_hwm,
-                            LIVE_EXECUTION,
-                            exit_reason=reason
+                            symphony_name, current_return, prob_beating, stop_trigger_level, safe_hwm, LIVE_EXECUTION, exit_reason=reason
                         )
                     else:
-                        print(
-                            "     !!! EXECUTION FAILED. Keeping state active to retry next loop !!!"
-                        )
+                        print("     !!! EXECUTION FAILED. Keeping state active to retry next loop !!!")
                 else:
                     print("  -> [DRY RUN] Execution bypassed.")
                     bot_state[symphony_id]["armed"] = False
                     bot_state[symphony_id]["tp_armed"] = False
                     bot_state[symphony_id]["triggered"] = True
 
-                    # FREEZE THE METRICS FOR THE DASHBOARD
                     bot_state[symphony_id]["triggered_at_return"] = current_return
                     bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
                     bot_state[symphony_id]["triggered_at_stop"] = current_return if tp_triggered_now else stop_trigger_level
                     bot_state[symphony_id]["triggered_at_time"] = current_time_str
-
                     bot_state[symphony_id]["high_water_mark"] = -999.0
                     save_state(bot_state)
 
-                    # Update Chart to reflect exact freeze
                     sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
 
                     send_discord_alert(
-                        symphony_name,
-                        current_return,
-                        prob_beating,
-                        stop_trigger_level,
-                        safe_hwm,
-                        LIVE_EXECUTION,
-                        exit_reason=reason
+                        symphony_name, current_return, prob_beating, stop_trigger_level, safe_hwm, LIVE_EXECUTION, exit_reason=reason
                     )
     
-    # Save the aggregated chart history at the end of the evaluation loop
     save_chart_history(chart_history)
 
 
