@@ -9,8 +9,8 @@ from datetime import datetime
 import schedule
 import requests
 from flask import Flask, render_template, jsonify, request
-from alpha_bot_execution import get_composer_headers
 from dotenv import dotenv_values, set_key, find_dotenv
+from alpha_bot_execution import get_composer_headers
 
 app = Flask(__name__)
 
@@ -53,9 +53,7 @@ def get_state():
     """Returns the current state of the bot."""
     try:
         if not os.path.exists("bot_state.json"):
-            return jsonify(
-                {"status": "waiting", "message": "bot_state.json not created yet."}
-            )
+            return jsonify({"status": "waiting", "message": "bot_state.json not created yet."})
 
         with open("bot_state.json", "r", encoding="utf-8") as f:
             state_data = json.load(f)
@@ -94,10 +92,10 @@ def get_chart_data(symphony_id):
     try:
         if not os.path.exists("chart_history.json"):
             return jsonify({"status": "waiting", "data": []})
-        
+
         with open("chart_history.json", "r", encoding="utf-8") as f:
             chart_data = json.load(f)
-        
+
         symphony_data = chart_data.get("symphonies", {}).get(symphony_id, [])
         return jsonify({"status": "success", "data": symphony_data})
     except Exception as e:
@@ -108,9 +106,7 @@ def get_chart_data(symphony_id):
 def manual_trigger():
     """Manually triggers the bot execution."""
     threading.Thread(target=trigger_alpha_bot, args=(True,)).start()
-    return jsonify(
-        {"status": "success", "message": "Bot execution forced (bypassing gatekeeper)."}
-    )
+    return jsonify({"status": "success", "message": "Bot execution forced (bypassing gatekeeper)."})
 
 
 # --- 4. Account Liquidation Route ---
@@ -126,10 +122,7 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
         resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
             symphonies = resp.json().get("symphonies", [])
-            print(
-                f"Found {len(symphonies)} symphonies to liquidate "
-                f"in account {account_id}..."
-            )
+            print(f"Found {len(symphonies)} symphonies to liquidate " f"in account {account_id}...")
 
             for sym in symphonies:
                 if live_mode:
@@ -139,16 +132,11 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
                         f"{account_id}/symphonies/{act_sym_id}/go-to-cash"
                     )
 
-                    sell_resp = requests.post(
-                        sell_url, headers=headers, json={}, timeout=10
-                    )
+                    sell_resp = requests.post(sell_url, headers=headers, json={}, timeout=10)
 
                     sym_name = sym.get("name", sym["id"])
                     if sell_resp.status_code in [200, 201, 202]:
-                        print(
-                            f"✅ Liquidated {sym_name} "
-                            f"(HTTP {sell_resp.status_code})"
-                        )
+                        print(f"✅ Liquidated {sym_name} " f"(HTTP {sell_resp.status_code})")
                     else:
                         print(
                             f"❌ Failed to liquidate {sym_name}: "
@@ -176,9 +164,7 @@ def sell_account():
 
     if not key or not secret:
         return (
-            jsonify(
-                {"status": "error", "message": "Composer API keys missing in settings."}
-            ),
+            jsonify({"status": "error", "message": "Composer API keys missing in settings."}),
             400,
         )
 
