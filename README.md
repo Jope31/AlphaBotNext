@@ -4,7 +4,7 @@ AlphaBot is an advanced, automated risk-management and trailing-stop execution e
 
 Recently upgraded with empirical data from live-market "Risk Guard" post-mortems, AlphaBot (v2.0) has evolved from a static script into a highly sophisticated, noise-resistant execution engine.
 
-## **🌟 Key Upgrades (v2.0 "Risk Guard" Mechanics)**
+## **🌟 Key Upgrades**
 
 Theoretical safety nets often trigger on market microstructure noise. AlphaBot v2.0 introduces four core features designed specifically to eliminate false positives and keep you in the trade:
 
@@ -12,6 +12,46 @@ Theoretical safety nets often trigger on market microstructure noise. AlphaBot v
 2. **Multi-Tick Noise Confirmation:** To prevent execution on momentary bid/ask spread noise or single-tick flashes, a symphony must breach its stop level (or take-profit threshold) for **2 consecutive 1-minute ticks** before an API sell order is dispatched.  
 3. **Extended Morning Grace Period:** The opening hour is a slaughterhouse of volatility and false trend breakdowns. AlphaBot now completely ignores the market from 9:30 AM to **10:30 AM ET**, ensuring the market establishes a true directional trend before trailing stops engage.  
 4. **Vol-Scaled Sticky Breakeven Lock:** Once a symphony's High Water Mark (HWM) reaches ```max(BREAKEVEN_ACTIVATION_PCT, Daily_Volatility)```, the stop loss is permanently locked at ```0.0%``` for the remainder of the day, guaranteeing a risk-free trade regardless of afternoon volatility.
+5. ### **The Two-Stage Post-Mortem Pipeline (NEW)**
+
+Because Composer executes its daily rebalances at 15:55 ET (must be user requested to Composer), AlphaBot utilizes a two-stage end-of-day pipeline to accurately capture both performance metrics and tomorrow's target allocations.
+
+1. **Stage 1 (15:54 ET) \- The Math Freeze:** Right before the Composer rebalance blackout, AlphaBot locks in the "Shadow Returns" (the theoretical return if the bot hadn't intervened). It calculates the **Guard Alpha** (Saved Percentage) for every triggered symphony.  
+2. **Stage 2 (16:00 ET) \- The Holdings Injection:** After the Composer rebalance completes, AlphaBot wakes up briefly to fetch the newly purchased assets from the API and injects them into the daily snapshot.
+### 6. **Gemini "Quant Analyst" Integration (NEW)**
+
+The post\_mortem\_YYYY-MM-DD.json file is specifically structured to be analyzed by a Large Language Model (like Google Gemini).
+
+**How to set up your AI Analyst:**
+
+1. Create a new custom Persona/Gem in Gemini.  
+2. Name it "AlphaBot Quant Analyst".  
+3. Paste the following into the system instructions:
+```
+You are a Quantitative Risk Analyst evaluating the daily performance of "AlphaBot," an intraday trailing stop-loss execution system.
+
+Every day, I will provide you with:
+
+1. The daily "post\_mortem\_YYYY-MM-DD.json" file.  
+2. The closing context of the market (e.g., "SPY \+1.2%, QQQ \+0.8%, head-fake morning recovery").
+
+Your job is to generate a structured post-mortem report mirroring standard quant desk formatting.
+
+Required Sections:
+
+1. **Market Context:** Briefly summarize the trading day regime based on my input.  
+2. **Activity Summary:** State how many symphonies were monitored vs. triggered.  
+3. **Guard Alpha Analysis:** Calculate the overall Win Rate (what percentage of triggers had a positive saved\_pct\_guard\_alpha). Calculate the median and average saved\_pct\_guard\_alpha.  
+4. **Trigger Breakdown:** Differentiate between "Take-Profit" triggers and "Trailing Stop" triggers. Note which one performed better.  
+5. **Noise & Microstructure Analysis:** Look at the time\_triggered values. Did a large cluster trigger at the same time? Look at triggers with a saved\_pct\_guard\_alpha between \-0.10% and 0.0%. Call these out as potential "Noise Crossings."  
+6. **Forward-Looking Recommendations:** Review the "tomorrow\_target\_holdings" object in the JSON file.  
+   * Identify the dominant asset classes carrying over into tomorrow.  
+   * If the portfolio is rotating into highly volatile/leveraged assets (like TQQQ or SOXL), assess if LOSS\_ARM\_PCT needs to be raised to account for larger intraday swings.  
+   * If the portfolio is rotating into safe/low-volatility assets, assess if TRIGGER\_THRESHOLD\_PCT should be tightened.  
+   * Provide 1 or 2 specific strategy parameter adjustments for the next trading session.
+```
+**Daily Workflow:** Simply drop the generated JSON file into the chat at 4:05 PM ET and provide a 1-sentence market summary. The AI will provide a complete statistical breakdown and parameter tuning advice for tomorrow.
+
 
 ## **🧠 Core Strategy Mechanics**
 
