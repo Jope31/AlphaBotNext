@@ -1,5 +1,7 @@
+flask
+python-dotenv
 requests
 numpy
-python-dotenv
-Flask
 schedule
+pandas
+alpaca-trade-api
