@@ -4,9 +4,9 @@ from datetime import datetime, timezone, timedelta
 import sys
 
 # Mock modules that are missing
-sys.modules["requests"] = MagicMock()
-sys.modules["numpy"] = MagicMock()
-sys.modules["dotenv"] = MagicMock()
+# sys.modules["requests"] = MagicMock()
+# sys.modules["numpy"] = MagicMock() # Removed mock for numpy, it is installed and needed by pandas
+# sys.modules["dotenv"] = MagicMock()
 
 # pylint: disable=wrong-import-position
 import alpha_bot_execution
