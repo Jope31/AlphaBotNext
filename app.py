@@ -9,8 +9,8 @@ from datetime import datetime
 import schedule
 import requests
 from flask import Flask, render_template, jsonify, request
-from alpha_bot_execution import get_composer_headers
 from dotenv import dotenv_values, set_key, find_dotenv
+from alpha_bot_execution import get_composer_headers
 
 app = Flask(__name__)
 
@@ -32,6 +32,7 @@ def trigger_alpha_bot(force=False):
 def threaded_trigger():
     """Launches the bot execution in a background thread to prevent scheduler blocking."""
     threading.Thread(target=trigger_alpha_bot, daemon=True).start()
+
 
 def run_scheduler():
     """Runs the scheduler every 1-minute to support Multi-Tick confirmations."""
@@ -63,12 +64,14 @@ def get_state():
             try:
                 with open("bot_state.json", "r", encoding="utf-8") as f:
                     state_data = json.load(f)
-                    break 
+                    break
             except (json.JSONDecodeError, ValueError):
-                time.sleep(0.1) # Wait 100ms for atomic swap to finish
+                time.sleep(0.1)  # Wait 100ms for atomic swap to finish
 
         if state_data is None:
-            return jsonify({"status": "waiting", "message": "State file busy or corrupted. Retrying..."})
+            return jsonify(
+                {"status": "waiting", "message": "State file busy or corrupted. Retrying..."}
+            )
 
         env_vars = dotenv_values(".env")
         live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in (
