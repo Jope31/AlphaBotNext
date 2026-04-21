@@ -1,21 +1,66 @@
-# **🤖 AlphaBot: Intelligent Profit and Loss Guardian (v2.0 "Risk Guard")**
+# **🤖 AlphaBot: Multi-Factor Volatility Engine (v3.0)**
 
-AlphaBot is an advanced, automated risk-management and trailing-stop execution engine designed to interface directly with Composer.trade portfolios. By combining real-time intraday data from Alpaca with K-Nearest Neighbor Monte Carlo simulations, AlphaBot acts as an intelligent circuit breaker—defending your portfolio against sudden intraday breakdowns and locking in parabolic gains.
+AlphaBot is a high-performance quantitative risk-management framework and automated execution engine designed to interface directly with **Composer.trade** portfolios. By synthesizing real-time market sentiment (VIX), intraday time decay, and individual asset velocity, AlphaBot acts as an intelligent circuit breaker—protecting capital during systemic breakdowns while aggressively locking in gains during parabolic runs.
 
-Recently upgraded with empirical data from live-market "Risk Guard" post-mortems, AlphaBot (v2.0) has evolved from a static script into a highly sophisticated, noise-resistant execution engine.
+AlphaBot (v3.0) marks a fundamental shift from a reactive script to a **context-aware risk engine**, built for high-reliability execution across large, complex portfolios.
 
-## **🌟 Key Upgrades & Core Features**
+## **🌟 The 3-Tier Execution Logic**
 
-Theoretical safety nets often trigger on market microstructure noise. AlphaBot introduces several core features designed specifically to eliminate false positives and keep you in the trade:
+AlphaBot no longer uses a "one-size-fits-all" trailing stop. It layers three distinct forces to calculate the optimal stop distance every minute:
 
-1. **Volatility-Scaled Loss Arming (The "Flash Crash" Filter):** Assets no longer arm on a flat percentage drop. A -1.5% drop is an emergency for a Treasury Bond, but normal noise for a 3x Leveraged ETF. AlphaBot now arms the trailing stop based on the asset's specific baseline: ```max(LOSS_ARM_PCT, Daily_Volatility)```.  
-2. **Dynamic Multi-Tick Noise Confirmation:** To prevent execution on momentary bid/ask spread noise or single-tick flashes, a symphony must breach its stop level. AlphaBot dynamically scales this confirmation requirement based on multi-day 1-minute historical volatility (e.g., 3 consecutive ticks required for highly volatile assets like TQQQ; 1 tick for stable assets like LQD).  
-3. **Extended Morning Grace Period:** AlphaBot bypasses the unpredictable opening hour, starting its logic only after the morning auction volatility settles.  
-4. **Multi-Day Intraday Volatility Analysis (NEW):** AlphaBot analyzes the past 5 trading days of 1-minute intraday data for your target holdings to establish a rolling "Noise Floor" and an "EOD Volatility Ratio," ensuring it adapts to current market regimes.  
-5. **EOD Relief Valve (NEW):** The logarithmic "Strangler" algorithm excels at locking in gains, but markets get notoriously choppy at 3:30 PM due to MOC orders. If an asset is historically prone to end-of-day volatility, AlphaBot dynamically relaxes the stop "squeeze" by up to 15%, giving it breathing room to survive closing bell fake-outs.  
-6. **Two-Stage Post-Mortem Diagnostics (NEW):** Generates daily ```post_mortem_YYYY-MM-DD.json``` files for AI ingestion. Stage 1 (```15:54 ET```) locks in the math to calculate "Guard Alpha," and Stage 2 (```16:00 ET```) runs next-day volatility prep on tomorrow's target holdings.
+### **1. The Macro Foundation (VIX Regime Filter)**
 
-7. **Gemini "Quant Analyst" Integration (NEW)**
+The bot determines the "Market Weather" using the **VIX Index** (cached 15-minute updates). This sets the baseline multiplier for your safety net:
+
+* **Low Volatility (<15 VIX):** Clamps stops tight to prevent "slow bleed" losses.  
+* **Normal Regime (15-25 VIX):** Balanced sensitivity for standard market conditions.  
+* **Crisis Regime (>25 VIX):** Widens stops to allow for the systemic noise inherent in high-fear markets, preventing premature "whipsaw" exits.
+
+### **2. The Intraday Strangler (Time Decay)**
+
+The system recognizes that volatility typically increases toward the end of the session. It utilizes a **Logarithmic Decay Curve** to tighten the stop from 10:30 AM to 3:54 PM ET.
+
+* **Morning:** Wide stops allow for initial price discovery.  
+* **Afternoon:** The stop "strangles" the position, collapsing wiggle room to lock in the day's gains before the final closing auction.
+
+### **3. The Micro Override (Asymmetric Parabolic Squeeze)**
+
+This layer acts as an **Emergency Brake** for vertical moves. It monitors the High Water Mark (HWM) relative to the symphony's 20-day volatility ($\sigma$).
+
+* **Trigger:** If HWM > 2.0x Daily $\sigma$, the asset is flagged as "Parabolic."  
+* **Action:** A velocity squeeze multiplier (up to 50% reduction) is applied instantly. This yanks the stop upward to hug the price action during spikes, ensuring sudden reversals result in locked top-tier profits.
+
+## **⚡ High-Reliability Performance Architecture**
+
+AlphaBot is engineered to handle large portfolios where multiple symphonies may trigger simultaneously, requiring sequential API execution.
+
+* **Async Threaded Scheduler:** The 1-minute heartbeat is detached from the execution logic. Even if liquidation takes >60 seconds, the scheduler never misses a tick.  
+* **Lockfile Exclusivity:** An ```alpha_bot.lock``` mechanism prevents session overlapping and potential ```bot_state.json``` corruption.  
+* **Optimistic State Saving:** During a trigger, AlphaBot updates local state and the Dashboard **instantly** before initiating the 3-second API calls. This ensures real-time visibility and prevents duplicate orders.  
+* **Dynamic Multi-Tick Confirmation:** To filter out "flash-crash" noise or bid/ask spread glitches, a symphony must breach its stop level for multiple consecutive 1-minute runs (configured via ```tick_threshold```) before liquidation.
+
+## **⚙️ Environment Configuration**
+
+AlphaBot is tuned via the ```.env``` file. The following variables define the Volatility Engine:
+
+### **Macro (VIX) Settings**
+
+* ```VIX_LOW_THRESHOLD``` / ```VIX_HIGH_THRESHOLD```: Defined boundaries for market regimes (Default: 15 / 25).  
+* ```VIX_LOW_MULT``` / ```VIX_MID_MULT``` / ```VIX_HIGH_MULT```: Multipliers applied to daily volatility (ATR) for each regime.
+
+### **Monte Carlo & Squeeze Settings**
+
+* ```TRIGGER_THRESHOLD_PCT```: MC Probability required to arm the trailing stop (Def: 15).  
+* ```TAKE_PROFIT_MC_PCT```: MC Probability required to arm the aggressive "Smart TP" trap (Def: 5).  
+* ```MAX_SQUEEZE_FLOOR```: The absolute tightest a stop can squeeze (Def: 0.20, or 20% of its base width).  
+* ```PARABOLIC_VELOCITY_THRESHOLD```: Multiple of daily $\sigma$ required to trigger the parabolic override (Def: 2.0).
+
+### **Standard Guardrails**
+
+* ```LOSS_ARM_PCT```: Vol-scaled flash crash floor.  
+* ```BREAKEVEN_ACTIVATION_PCT```: Percentage at which the stop floor locks at 0.0% to protect the principal.
+
+## **Gemini "Quant Analyst" Integration**
 
 The ```post_mortem_YYYY-MM-DD.json``` file is specifically structured to be analyzed by a Large Language Model (like Google Gemini Gems).
 
@@ -25,29 +70,31 @@ The ```post_mortem_YYYY-MM-DD.json``` file is specifically structured to be anal
 2. Name it "AlphaBot Quant Analyst".  
 3. Paste the following into the system instructions:
 ```
-You are a Quantitative Risk Analyst evaluating the daily performance of "AlphaBot," an intraday trailing stop-loss execution system.
-
-Every day, I will provide you with:
-
-1. The daily "post_mortem_YYYY-MM-DD.json" file.  
-2. The closing context of the market (e.g., "SPY +1.2%, QQQ \+0.8%, head-fake morning recovery").
-
-Your job is to generate a structured post-mortem report mirroring standard quant desk formatting.
-
-Required Instructions:
-
-1. **Market Context:** Briefly summarize the trading day regime based on my input.  
-2. **Activity Summary:** State how many symphonies were monitored vs. triggered.  
-3. **Guard Alpha Analysis:** Calculate the overall Win Rate (what percentage of triggers had a positive ```saved_pct_guard_alpha```). Calculate the median and average ```saved_pct_guard_alpha```.  
-4. **Trigger Breakdown:** Differentiate between "Take-Profit" triggers and "Trailing Stop" triggers. Note which one performed better.  
-5. **Noise & Microstructure Analysis:** Look at the time_triggered values. Did a large cluster trigger at the same time? Look at triggers with a saved_pct_guard_alpha between -0.10% and 0.0%. Call these out as potential "Noise Crossings."  
-6. **Forward-Looking Recommendations:** Review the "tomorrow_target_holdings" object in the JSON file.  
-   * Identify the dominant asset classes carrying over into tomorrow.  
-   * If the portfolio is rotating into highly volatile/leveraged assets (like TQQQ or SOXL), assess if LOSS_ARM_PCT needs to be raised to account for larger intraday swings.  
-   * If the portfolio is rotating into safe/low-volatility assets, assess if ```TRIGGER_THRESHOLD_PCT``` should be tightened.  
-   * Provide 1 or 2 specific strategy parameter adjustments for the next trading session.
+You are the AlphaBot Quant Analyst. Your job is to analyze daily execution logs and EOD snapshots from the AlphaBot risk-management system, and recommend parameter tuning for the next trading day.
+AlphaBot has recently been upgraded to a Multi-Factor Volatility Engine. You must understand how its 3-tier profit-lock system works to accurately diagnose trades:
+The 3-Tier Execution Logic
+The Macro Foundation (VIX Regime): The bot fetches the VIX every 15 minutes. It uses this to set the base width of the trailing stop for all assets.
+If VIX < VIX_LOW_THRESHOLD, it applies VIX_LOW_MULT.
+If VIX > VIX_HIGH_THRESHOLD, it applies VIX_HIGH_MULT.
+Otherwise, it applies VIX_MID_MULT.
+The Intraday Strangler (Time Decay): As the day progresses from 10:30 AM to 4:00 PM, the stop logarithmically tightens from the morning width down to a fraction of its size.
+The Micro Override (Parabolic Squeeze): If an individual asset's High Water Mark (HWM) exceeds 2.0x its normal daily volatility, the asset is considered "Parabolic". The bot applies a fractional multiplier (up to 50% reduction) to the stop distance, violently tightening the stop to lock in the outlier gain.
+Interpreting the Logs
+Macro Environment: Look for the log Macro Environment: SPY X% | VIX Y (Regime). This tells you the baseline sensitivity for the day.
+Parabolic Events: Look for logs starting with ⚡ [SymphonyName] PARABOLIC SQUEEZE: 0.XXx. If a trade was stopped out shortly after this, it was a successful profit-lock of a vertical move, not a premature whipsaw.
+Arming/Disarming: Look at the MC Probability. If it dropped below TRIGGER_THRESHOLD_PCT, the bot armed. If it dropped below TAKE_PROFIT_MC_PCT, it armed the smart TP.
+Your Tuning Mandate
+When recommending parameter changes, you no longer tune a static ATR multiplier. Instead, you must tune the Regime Matrix. You are authorized to recommend changes to the following environment variables:
+VIX_LOW_THRESHOLD / VIX_HIGH_THRESHOLD
+VIX_LOW_MULT / VIX_MID_MULT / VIX_HIGH_MULT
+TRIGGER_THRESHOLD_PCT
+TAKE_PROFIT_MC_PCT
+LOSS_ARM_PCT
+MAX_SQUEEZE_FLOOR
+TRAILING_STOP_PCT / ENDING_STOP_PCT
+When you provide your daily briefing, analyze whether stops were hit because the VIX Regime Multiplier was too tight for normal noise, or if they were hit because the Parabolic Squeeze correctly trapped a vertical run. Adjust the matrix accordingly.
 ```
-**Daily Workflow:** Simply drop the generated JSON file into the chat at 4:05 PM ET and provide a 1-sentence market summary. The AI will provide a complete statistical breakdown and parameter tuning advice for tomorrow.
+**Daily Workflow:** Simply drop the generated JSON file into the chat at 4:05 PM ET and provide a prompt like, "Tell me how I did today". The AI will provide a complete statistical breakdown and parameter tuning advice for tomorrow.
 
 
 ## **⚙️ Environment Variables**
@@ -74,7 +121,7 @@ Required Instructions:
    pip install flask python-dotenv requests numpy schedule pandas alpaca-trade-api
 ```
 
-3. **Configure Environment:** Create a .env file in the root directory and populate it with the variables listed in the Environment section above (including your Composer, Alpaca, and Discord API keys).  
+3. **Configure Environment:** Create a ```.env``` file in the root directory and populate it with the variables listed in the Environment section above (including your Composer, Alpaca, and Discord API keys).  
 
 4. **Launch the Control Center:**
 ```
@@ -86,8 +133,8 @@ Required Instructions:
 
 AlphaBot utilizes a background schedule thread running via ```app.py```.
 
-* 1-Minute Ticks: The bot evaluates your portfolio precisely at the top of every minute (```:00```) to support the dynamic tick confirmation logic.    
-* 10:30 AM Grace Period: The bot explicitly ignores the highly volatile market open and begins its daily execution loop at ```10:30 AM ET```.    
-* Rebalance Blackout: Executions are automatically paused just before ```3:55 PM ET``` to prevent API collisions with Composer's daily rebalancing routines.
+* **10:30 AM ET Grace Period:** AlphaBot ignores the chaotic opening auction, beginning evaluations once the "Morning Noise" settles.  
+* **3:54 PM ET Rebalance Blackout:** To prevent API collisions during Composer's rebalancing window, AlphaBot automatically ceases all execution actions 6 minutes before the close.  
+* **Guard Alpha Snapshots:** Daily post-mortems calculate "Guard Alpha"—the exact capital saved by AlphaBot compared to a passive "Hold to EOD" strategy.
 
 **Disclaimer: AlphaBot is an automated execution tool. Algorithmic trading carries significant risk. Always test parameters in Dry Run mode before enabling ```LIVE_EXECUTION```.**
