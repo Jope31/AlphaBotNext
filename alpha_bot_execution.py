@@ -1,4 +1,4 @@
-"""Core execution logic for Alpha Bot."""
+"""Core execution logic for Alpha Bot with VIX Regimes, Lockfile, and Optimistic Saving."""
 
 import os
 import sys
@@ -33,17 +33,96 @@ LIVE_EXECUTION = os.getenv("LIVE_EXECUTION", "False").lower() in ("true", "1", "
 TRIGGER_THRESHOLD_PCT = float(os.getenv("TRIGGER_THRESHOLD_PCT", "15.0"))
 MAX_SQUEEZE_FLOOR = float(os.getenv("MAX_SQUEEZE_FLOOR", "0.20"))
 TAKE_PROFIT_MC_PCT = float(os.getenv("TAKE_PROFIT_MC_PCT", "5.0"))
-LOSS_ARM_PCT = float(os.getenv("LOSS_ARM_PCT", "1.5"))  # Vol-Scaled Flash Crash Floor
+LOSS_ARM_PCT = float(os.getenv("LOSS_ARM_PCT", "1.5"))
 TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", "1.5"))
 ENDING_STOP_PCT = float(os.getenv("ENDING_STOP_PCT", "0.5"))
 BREAKEVEN_ACTIVATION_PCT = float(os.getenv("BREAKEVEN_ACTIVATION_PCT", "2.0"))
-
-# --- VOLATILITY PARAMETERS ---
-BASE_ATR_MULTIPLIER = float(os.getenv("BASE_ATR_MULTIPLIER", "2.0"))
 MIN_MULTIPLIER_FLOOR = float(os.getenv("MIN_MULTIPLIER_FLOOR", "0.5"))
+
+# --- VOLATILITY REGIME PARAMETERS ---
+VIX_LOW_THRESHOLD = float(os.getenv("VIX_LOW_THRESHOLD", "15.0"))
+VIX_HIGH_THRESHOLD = float(os.getenv("VIX_HIGH_THRESHOLD", "25.0"))
+VIX_LOW_MULT = float(os.getenv("VIX_LOW_MULT", "1.5"))
+VIX_MID_MULT = float(os.getenv("VIX_MID_MULT", "2.0"))
+VIX_HIGH_MULT = float(os.getenv("VIX_HIGH_MULT", "2.5"))
+
+# --- PARABOLIC PARAMETERS ---
+PARABOLIC_VELOCITY_THRESHOLD = 2.0
+MAX_PARABOLIC_SQUEEZE = 0.50
 
 SIMULATION_PATHS = 5000
 NEIGHBOR_K = 150
+
+# ==========================================
+# 2. STATE MANAGEMENT & LOGGING
+# ==========================================
+STATE_FILE = "bot_state.json"
+HISTORY_CACHE_FILE = "history_cache.json"
+CHART_FILE = "chart_history.json"
+VIX_CACHE_FILE = "vix_cache.json"
+LOCK_FILE = "alpha_bot.lock"
+
+
+def acquire_lock():
+    """Acquires a file lock to prevent overlapping minute executions."""
+    if os.path.exists(LOCK_FILE):
+        try:
+            # If a lock is older than 3 minutes, assume a crash and break it
+            if time.time() - os.path.getmtime(LOCK_FILE) > 180:
+                os.remove(LOCK_FILE)
+            else:
+                return False
+        except OSError:
+            return False
+    try:
+        with open(LOCK_FILE, 'w') as f:
+            f.write(str(time.time()))
+        return True
+    except IOError:
+        return False
+
+
+def release_lock():
+    """Releases the execution lock."""
+    try:
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
+    except OSError:
+        pass
+
+
+def load_state():
+    """Loads the bot state from a JSON file."""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def save_state(state):
+    """Saves the bot state to a JSON file."""
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=4)
+
+
+def load_chart_history():
+    """Loads the intraday chart history."""
+    if os.path.exists(CHART_FILE):
+        try:
+            with open(CHART_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def save_chart_history(history):
+    """Saves the intraday chart history."""
+    with open(CHART_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, separators=(",", ":"))
 
 
 def analyze_intraday_data(api_client, symbols, target_date_et, lookback_days=5):
@@ -110,48 +189,6 @@ def get_latest_post_mortem_profiles():
             return json.load(f).get("intraday_analysis", {})
     except:
         return {}
-
-
-# ==========================================
-# 2. STATE MANAGEMENT & LOGGING
-# ==========================================
-STATE_FILE = "bot_state.json"
-HISTORY_CACHE_FILE = "history_cache.json"
-CHART_FILE = "chart_history.json"
-
-
-def load_state():
-    """Loads the bot state from a JSON file."""
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            return {}
-    return {}
-
-
-def save_state(state):
-    """Saves the bot state to a JSON file."""
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=4)
-
-
-def load_chart_history():
-    """Loads the intraday chart history."""
-    if os.path.exists(CHART_FILE):
-        try:
-            with open(CHART_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            return {}
-    return {}
-
-
-def save_chart_history(history):
-    """Saves the intraday chart history."""
-    with open(CHART_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, separators=(",", ":"))  # Compressed JSON
 
 
 def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
@@ -252,7 +289,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                     portfolio_holdings_summary[ticker] = 0.0
                 portfolio_holdings_summary[ticker] += weight
 
-        # Sort portfolio holdings by weight for the Gem
+        # Sort portfolio holdings by weight
         sorted_holdings = dict(
             sorted(portfolio_holdings_summary.items(), key=lambda item: item[1], reverse=True)
         )
@@ -511,6 +548,42 @@ def get_live_spy_data():
     return 0.0
 
 
+def get_live_vix():
+    """Fetches live VIX index via Yahoo Finance, using a 15-minute local cache to prevent rate limits."""
+    current_time = time.time()
+    
+    # 1. Check local cache first
+    if os.path.exists(VIX_CACHE_FILE):
+        try:
+            with open(VIX_CACHE_FILE, "r") as f:
+                cache = json.load(f)
+                # If cache is less than 15 minutes (900 seconds) old, use it
+                if current_time - cache.get("timestamp", 0) < 900:
+                    return float(cache.get("vix_value", 20.0))
+        except:
+            pass
+
+    # 2. If cache is missing or expired, fetch fresh data
+    url = "https://query2.finance.yahoo.com/v8/finance/chart/^VIX?interval=1d&range=1d"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    vix_value = 20.0 # Default fallback
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            vix_value = float(data['chart']['result'][0]['meta']['regularMarketPrice'])
+            
+            # Save the new value to cache
+            with open(VIX_CACHE_FILE, "w") as f:
+                json.dump({"timestamp": current_time, "vix_value": vix_value}, f)
+                
+    except Exception as e:
+        print(f"  ⚠️ Error fetching VIX: {e}. Defaulting to Normal Regime or previous cache.")
+        
+    return vix_value
+
+
 # ==========================================
 # 4. MATH ENGINE: MONTE CARLO & VOLATILITY
 # ==========================================
@@ -601,470 +674,412 @@ def get_current_et():
 
 def main():
     """Main execution entry point."""
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...")
-    mode_text = "LIVE EXECUTION (DANGER)" if LIVE_EXECUTION else "DRY RUN (SAFE)"
-    print(f"MODE: {mode_text}")
+    
+    # 1. Ensure absolute process exclusivity to prevent State Corruption
+    if not acquire_lock():
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Overlap Detected: Previous minute is still executing (likely processing liquidations). Skipping...")
+        return
 
-    # --- MARKET HOURS GATEKEEPER ---
-    force_run = "--force" in sys.argv
-    current_et = get_current_et()
+    try:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...")
+        mode_text = "LIVE EXECUTION (DANGER)" if LIVE_EXECUTION else "DRY RUN (SAFE)"
+        print(f"MODE: {mode_text}")
 
-    is_weekday = current_et.weekday() < 5
-    current_time = current_et.time()
+        # --- MARKET HOURS GATEKEEPER ---
+        force_run = "--force" in sys.argv
+        current_et = get_current_et()
 
-    # 10:30 AM Post-Mortem Extension: Skips Opening Auction entirely
-    market_open = dt_time(10, 30)
-    market_close = dt_time(16, 0)
-    rebalance_blackout = dt_time(15, 54)  # Start blocking just before 3:55 PM ET
-    post_mortem_cutoff = dt_time(16, 5)  # 5-min window post-close to fetch tomorrow's holdings
+        is_weekday = current_et.weekday() < 5
+        current_time = current_et.time()
 
-    if not is_weekday or current_time < market_open or current_time > post_mortem_cutoff:
-        if not force_run:
-            print(
-                f"  -> Market closed or in Grace Period (ET: {current_et.strftime('%a %H:%M')}). "
-                "Sleeping to conserve API limits..."
-            )
+        market_open = dt_time(10, 30)
+        market_close = dt_time(16, 0)
+        rebalance_blackout = dt_time(15, 54) 
+        post_mortem_cutoff = dt_time(16, 5)  
+
+        if not is_weekday or current_time < market_open or current_time > post_mortem_cutoff:
+            if not force_run:
+                print(f"  -> Market closed or in Grace Period (ET: {current_et.strftime('%a %H:%M')}). Sleeping to conserve API limits...")
+                return
+            print("  -> Market closed, but --force flag detected! Bypassing gatekeeper...")
+
+        # --- COMPOSER REBALANCE BLACKOUT (STAGE 1 SNAPSHOT) ---
+        if rebalance_blackout <= current_time < market_close:
+            bot_state = load_state()
+            generate_eod_snapshot(bot_state, current_et.strftime("%Y-%m-%d"), is_post_rebalance=False)
+
+            if not force_run:
+                print(f"  -> 🛑 COMPOSER REBALANCE BLACKOUT (ET: {current_et.strftime('%H:%M')}). Pausing to prevent false triggers during Composer's end-of-day rebalance...")
+                return
+            print("  -> Rebalance blackout active, but --force flag detected! Bypassing...")
+
+        if not COMPOSER_KEY_ID or not ALPACA_KEY:
+            print("CRITICAL: Missing API Keys. Please check your .env file.")
             return
-        print("  -> Market closed, but --force flag detected! " "Bypassing gatekeeper...")
 
-    # --- COMPOSER REBALANCE BLACKOUT (STAGE 1 SNAPSHOT) ---
-    if rebalance_blackout <= current_time < market_close:
-
-        # STAGE 1: Generate post-mortem snapshot before API is wiped by Composer at 15:55
         bot_state = load_state()
+        chart_history = load_chart_history()
+
         current_date_str = current_et.strftime("%Y-%m-%d")
-        generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False)
+        current_time_str = current_et.strftime("%H:%M")
 
-        if not force_run:
-            print(
-                f"  -> 🛑 COMPOSER REBALANCE BLACKOUT (ET: {current_et.strftime('%H:%M')}). "
-                "Pausing to prevent false triggers during Composer's end-of-day rebalance..."
-            )
-            return
-        print("  -> Rebalance blackout active, but --force flag detected! " "Bypassing...")
-    # --- END GATEKEEPER ---
-
-    if not COMPOSER_KEY_ID or not ALPACA_KEY:
-        print("CRITICAL: Missing API Keys. Please check your .env file.")
-        return
-
-    bot_state = load_state()
-    chart_history = load_chart_history()
-
-    current_date_str = current_et.strftime("%Y-%m-%d")
-    current_time_str = current_et.strftime("%H:%M")
-
-    # WIPE STATE ON NEW DAY
-    if bot_state.get("date") != current_date_str:
-        print(
-            f"  -> New trading day detected ({current_date_str} ET). "
-            "Wiping old state and chart memory."
-        )
-        bot_state = {"date": current_date_str}
-        save_state(bot_state)
-
-    if chart_history.get("date") != current_date_str:
-        chart_history = {"date": current_date_str, "symphonies": {}}
-        save_chart_history(chart_history)
-
-    # --- LOGARITHMIC TIME DECAY RATIO CALCULATION ---
-    m_open_dt = current_et.replace(hour=10, minute=30, second=0, microsecond=0)
-    m_close_dt = current_et.replace(hour=16, minute=0, second=0, microsecond=0)
-
-    total_trading_minutes = (m_close_dt - m_open_dt).total_seconds() / 60.0
-    elapsed_minutes = (current_et - m_open_dt).total_seconds() / 60.0
-
-    time_ratio = max(0.0, min(1.0, elapsed_minutes / total_trading_minutes))
-    base_decay_curve = math.log10(1 + 9 * time_ratio)
-
-    all_tickers = set()
-    symphony_data_cache = {}
-
-    for account in ACCOUNT_UUIDS:
-        symphonies = fetch_symphony_stats(account)
-        symphony_data_cache[account] = symphonies
-        for sym in symphonies:
-            for holding in sym.get("holdings", []):
-                raw_ticker = holding.get("ticker", "")
-                clean_ticker = raw_ticker.split("::")[-1].split("//")[0]
-                alpaca_ticker = clean_ticker.replace("/", ".")
-                if alpaca_ticker:
-                    all_tickers.add(alpaca_ticker)
-                    holding["working_ticker"] = alpaca_ticker
-
-    # --- EOD POST-MORTEM SNAPSHOT STAGE 2 (16:00 - 16:05 ET) ---
-    if market_close <= current_time <= post_mortem_cutoff:
-        current_date_str = current_et.strftime("%Y-%m-%d")
-
-        # Update holdings in bot_state to reflect the newly rebalanced assets fetched from API
-        for account, symphonies in symphony_data_cache.items():
-            for sym in symphonies:
-                s_id = sym["id"]
-                if s_id in bot_state:
-                    bot_state[s_id]["current_holdings"] = [
-                        {
-                            "ticker": h.get("working_ticker", h.get("ticker")),
-                            "allocation": h.get("allocation", 0.0),
-                        }
-                        for h in sym.get("holdings", [])
-                    ]
-        save_state(bot_state)
-
-        # STAGE 2: Inject tomorrow's holdings into the Stage 1 file
-        generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=True)
-        print("  -> EOD Post-Mortem Snapshot complete. Ending execution for the day.")
-        return
-
-    historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
-    if not historical_data:
-        return
-
-    spy_today = get_live_spy_data()
-    print(f"  -> Live SPY Intraday Return: {spy_today:.2f}%")
-
-    print("\nEvaluating Symphonies...")
-
-    for account, symphonies in symphony_data_cache.items():
-        for sym in symphonies:
-            symphony_id = sym["id"]
-            actual_symphony_id = sym.get("symphony_id", symphony_id)
-
-            symphony_name = sym.get("name", "Unknown Symphony")
-            holdings = sym.get("holdings", [])
-            current_return = sym.get("last_percent_change", 0.0) * 100
-
-            for h in holdings:
-                h["ticker"] = h.get("working_ticker", h.get("ticker"))
-
-            # --- INIT BOT STATE & BACKWARD COMPATIBILITY ---
-            profiles = get_latest_post_mortem_profiles()
-            symphony_holdings = [h.get("ticker") for h in holdings]
-            symphony_tick_threshold = 2
-            symphony_eod_ratio = 1.0
-
-            if profiles and symphony_holdings:
-                ticks = [
-                    profiles.get(sym, {}).get("recommended_tick_threshold", 2)
-                    for sym in symphony_holdings
-                ]
-                eods = [
-                    profiles.get(sym, {}).get("eod_vol_ratio", 1.0) for sym in symphony_holdings
-                ]
-
-                # Base the Symphony's threshold on its most volatile holding
-                if ticks:
-                    symphony_tick_threshold = max(ticks)
-                if eods:
-                    symphony_eod_ratio = max(eods)
-
-            if symphony_id not in bot_state:
-                bot_state[symphony_id] = {
-                    "high_water_mark": current_return,
-                    "armed": False,
-                    "tp_armed": False,
-                    "triggered": False,
-                    "mc_history": [],
-                    "below_stop_count": 0,
-                    "above_tp_count": 0,
-                    "breakeven_locked": False,
-                    "tick_threshold": symphony_tick_threshold,
-                    "eod_vol_ratio": symphony_eod_ratio,
-                }
-            else:
-                bot_state[symphony_id]["tick_threshold"] = symphony_tick_threshold
-                bot_state[symphony_id]["eod_vol_ratio"] = symphony_eod_ratio
-
-            # Tracking previous state to determine Chart Events
-            prev_armed = bot_state[symphony_id].get("armed", False)
-            prev_tp_armed = bot_state[symphony_id].get("tp_armed", False)
-            prev_triggered = bot_state[symphony_id].get("triggered", False)
-
-            for key in ["triggered", "tp_armed", "breakeven_locked"]:
-                if key not in bot_state[symphony_id]:
-                    bot_state[symphony_id][key] = False
-            for key in ["below_stop_count", "above_tp_count"]:
-                if key not in bot_state[symphony_id]:
-                    bot_state[symphony_id][key] = 0
-            if "mc_history" not in bot_state[symphony_id]:
-                bot_state[symphony_id]["mc_history"] = []
-
-            # Update High Water Mark
-            if (
-                current_return > bot_state[symphony_id]["high_water_mark"]
-                and not bot_state[symphony_id]["triggered"]
-            ):
-                bot_state[symphony_id]["high_water_mark"] = current_return
-
-            high_water_mark = bot_state[symphony_id]["high_water_mark"]
-
-            # --- 1. MC Probability & Volatility Engine ---
-            prob_beating = run_monte_carlo(holdings, historical_data, spy_today)
-            symphony_vol = calculate_20d_vol(holdings, historical_data)
-
-            decay_curve = base_decay_curve
-
-            # --- INJECT EOD RELIEF VALVE HERE ---
-            if current_et.hour == 15 and current_et.minute >= 30:
-                eod_ratio = bot_state[symphony_id].get("eod_vol_ratio", 1.0)
-                if eod_ratio > 1.2:
-                    relief_factor = min(0.15, (eod_ratio - 1.0) * 0.1)
-                    decay_curve = decay_curve * (1.0 - relief_factor)
-                    print(
-                        f"  -> [{symphony_name}] Applied EOD Relief Valve. Relaxing squeeze by {relief_factor*100:.1f}%"
-                    )
-            # ------------------------------------
-
-            # Calculate Vol-Adjusted Dynamic Stop
-            if symphony_vol > 0:
-                morning_stop = max(symphony_vol * BASE_ATR_MULTIPLIER, MIN_MULTIPLIER_FLOOR)
-                afternoon_stop = max(
-                    symphony_vol * (BASE_ATR_MULTIPLIER * 0.33),
-                    MIN_MULTIPLIER_FLOOR * 0.5,
-                )
-            else:
-                morning_stop = TRAILING_STOP_PCT
-                afternoon_stop = ENDING_STOP_PCT
-
-            dynamic_trailing_stop = morning_stop - ((morning_stop - afternoon_stop) * decay_curve)
-
-            # --- 2. Arming & Disarming Mechanism ---
-            should_arm = False
-            arm_reason = ""
-            effective_loss_threshold = max(LOSS_ARM_PCT, symphony_vol)
-
-            if prob_beating < TRIGGER_THRESHOLD_PCT and prob_beating >= TAKE_PROFIT_MC_PCT:
-                should_arm = True
-                arm_reason = f"MC Prob {prob_beating:.1f}%"
-            elif current_return < -effective_loss_threshold:
-                should_arm = True
-                arm_reason = f"Vol-Scaled Loss (<-{effective_loss_threshold:.2f}%)"
-
-            if (
-                should_arm
-                and not bot_state[symphony_id]["armed"]
-                and not bot_state[symphony_id]["triggered"]
-            ):
-                bot_state[symphony_id]["armed"] = True
-                print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
-
-            elif bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
-                if prob_beating > (TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
-                    bot_state[symphony_id]["armed"] = False
-                    bot_state[symphony_id]["below_stop_count"] = 0
-                    print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***")
-
-            # --- 3. Strangler (SMA + Multiplier) ---
-            bot_state[symphony_id]["mc_history"].append(prob_beating)
-            if len(bot_state[symphony_id]["mc_history"]) > 5:
-                bot_state[symphony_id]["mc_history"].pop(0)
-
-            smoothed_mc = sum(bot_state[symphony_id]["mc_history"]) / len(
-                bot_state[symphony_id]["mc_history"]
-            )
-
-            if bot_state[symphony_id]["armed"]:
-                mc_health_ratio = max(0.0, min(1.0, smoothed_mc / TRIGGER_THRESHOLD_PCT))
-                strangle_multiplier = MAX_SQUEEZE_FLOOR + (
-                    mc_health_ratio * (1.0 - MAX_SQUEEZE_FLOOR)
-                )
-                active_trailing_stop = dynamic_trailing_stop * strangle_multiplier
-            else:
-                active_trailing_stop = dynamic_trailing_stop
-
-            # --- 4. Dynamic Trailing Stop & Vol-Scaled Breakeven Lock Math ---
-            safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
-            base_stop_level = safe_hwm - active_trailing_stop
-
-            effective_breakeven_activation = max(BREAKEVEN_ACTIVATION_PCT, symphony_vol)
-            if safe_hwm >= effective_breakeven_activation:
-                bot_state[symphony_id]["breakeven_locked"] = True
-
-            if bot_state[symphony_id]["breakeven_locked"]:
-                stop_trigger_level = max(base_stop_level, 0.0)
-            else:
-                stop_trigger_level = base_stop_level
-
-            if bot_state[symphony_id]["triggered"]:
-                stop_trigger_level = -999.0
-
-            # --- 4.5 Dynamic Tick Confirmation Trailing Stop Logic ---
-            is_trailing_stop_hit = False
-            if bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
-                if current_return <= stop_trigger_level:
-                    bot_state[symphony_id]["below_stop_count"] += 1
-                    tick_threshold = bot_state[symphony_id].get("tick_threshold", 2)
-                    if bot_state[symphony_id]["below_stop_count"] == 1 and tick_threshold > 1:
-                        print(
-                            f"  ⚠️ {symphony_name[:35]} dipped below stop. Awaiting tick confirmation..."
-                        )
-                    elif bot_state[symphony_id]["below_stop_count"] >= tick_threshold:
-                        is_trailing_stop_hit = True
-                else:
-                    if bot_state[symphony_id]["below_stop_count"] > 0:
-                        print(
-                            f"  ✅ {symphony_name[:35]} recovered above stop. Confirmation reset."
-                        )
-                    bot_state[symphony_id]["below_stop_count"] = 0
-
-            # --- 4.6 Take-Profit Smart Trailing Exit Math (With 2-Tick Confirmation) ---
-            tp_triggered_now = False
-            if prob_beating < TAKE_PROFIT_MC_PCT:
-                if (
-                    not bot_state[symphony_id]["tp_armed"]
-                    and not bot_state[symphony_id]["triggered"]
-                ):
-                    bot_state[symphony_id]["tp_armed"] = True
-                    bot_state[symphony_id]["above_tp_count"] = 0
-                    print(
-                        f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {TAKE_PROFIT_MC_PCT}%) ***"
-                    )
-            elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
-                if prob_beating >= TAKE_PROFIT_MC_PCT:
-                    bot_state[symphony_id]["above_tp_count"] += 1
-                    if bot_state[symphony_id]["above_tp_count"] == 1:
-                        print(
-                            f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation..."
-                        )
-                    elif bot_state[symphony_id]["above_tp_count"] >= 2:
-                        if current_return > 0:
-                            tp_triggered_now = True
-                        else:
-                            bot_state[symphony_id]["tp_armed"] = False
-                            bot_state[symphony_id]["above_tp_count"] = 0
-                            print(
-                                f"  *** {symphony_name} TP-DISARMED (MC Rose but Return <= 0) ***"
-                            )
-                else:
-                    if bot_state[symphony_id]["above_tp_count"] > 0:
-                        print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.")
-                    bot_state[symphony_id]["above_tp_count"] = 0
-
-            print(
-                f"  -> {symphony_name[:35]}: Ret: {current_return:.2f}% | "
-                f"HWM: {high_water_mark:.2f}% | "
-                f"Stop Dist: {active_trailing_stop:.2f}% | "
-                f"ArmProb: {prob_beating:.1f}% (SMA: {smoothed_mc:.1f}%)"
-            )
-
-            bot_state[symphony_id]["name"] = symphony_name
-            bot_state[symphony_id]["account"] = account
-            bot_state[symphony_id]["current_return"] = current_return
-            bot_state[symphony_id]["mc_prob"] = prob_beating
-            bot_state[symphony_id]["stop_trigger"] = stop_trigger_level
-            bot_state[symphony_id]["active_stop_distance"] = active_trailing_stop
-            bot_state[symphony_id]["symphony_vol"] = symphony_vol
-
-            # Store current holdings so 16:00 ET loop knows what to carry over into tomorrow
-            bot_state[symphony_id]["current_holdings"] = [
-                {"ticker": h.get("ticker"), "allocation": h.get("allocation", 0.0)}
-                for h in holdings
-            ]
-
+        # WIPE STATE ON NEW DAY
+        if bot_state.get("date") != current_date_str:
+            print(f"  -> New trading day detected ({current_date_str} ET). Wiping old state and chart memory.")
+            bot_state = {"date": current_date_str}
             save_state(bot_state)
 
-            # --- Chart Visualization Logging ---
-            chart_event = None
-            if is_trailing_stop_hit or tp_triggered_now:
-                chart_event = "Triggered"
-            elif bot_state[symphony_id]["armed"] and not prev_armed:
-                chart_event = "Armed"
-            elif bot_state[symphony_id]["tp_armed"] and not prev_tp_armed:
-                chart_event = "TP-Armed"
+        if chart_history.get("date") != current_date_str:
+            chart_history = {"date": current_date_str, "symphonies": {}}
+            save_chart_history(chart_history)
 
-            tracked_stop = (
-                stop_trigger_level
-                if (
-                    bot_state[symphony_id]["armed"]
-                    or bot_state[symphony_id]["tp_armed"]
-                    or bot_state[symphony_id]["triggered"]
-                    or prev_triggered
+        # --- LOGARITHMIC TIME DECAY RATIO CALCULATION ---
+        m_open_dt = current_et.replace(hour=10, minute=30, second=0, microsecond=0)
+        m_close_dt = current_et.replace(hour=16, minute=0, second=0, microsecond=0)
+
+        total_trading_minutes = (m_close_dt - m_open_dt).total_seconds() / 60.0
+        elapsed_minutes = (current_et - m_open_dt).total_seconds() / 60.0
+
+        time_ratio = max(0.0, min(1.0, elapsed_minutes / total_trading_minutes))
+        base_decay_curve = math.log10(1 + 9 * time_ratio)
+
+        all_tickers = set()
+        symphony_data_cache = {}
+
+        for account in ACCOUNT_UUIDS:
+            symphonies = fetch_symphony_stats(account)
+            symphony_data_cache[account] = symphonies
+            for sym in symphonies:
+                for holding in sym.get("holdings", []):
+                    raw_ticker = holding.get("ticker", "")
+                    clean_ticker = raw_ticker.split("::")[-1].split("//")[0]
+                    alpaca_ticker = clean_ticker.replace("/", ".")
+                    if alpaca_ticker:
+                        all_tickers.add(alpaca_ticker)
+                        holding["working_ticker"] = alpaca_ticker
+
+        # --- EOD POST-MORTEM SNAPSHOT STAGE 2 (16:00 - 16:05 ET) ---
+        if market_close <= current_time <= post_mortem_cutoff:
+            for account, symphonies in symphony_data_cache.items():
+                for sym in symphonies:
+                    s_id = sym["id"]
+                    if s_id in bot_state:
+                        bot_state[s_id]["current_holdings"] = [
+                            {
+                                "ticker": h.get("working_ticker", h.get("ticker")),
+                                "allocation": h.get("allocation", 0.0),
+                            }
+                            for h in sym.get("holdings", [])
+                        ]
+            save_state(bot_state)
+            generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=True)
+            print("  -> EOD Post-Mortem Snapshot complete. Ending execution for the day.")
+            return
+
+        historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
+        if not historical_data:
+            return
+
+        # Fetch Macro Environment Data
+        spy_today = get_live_spy_data()
+        vix_today = get_live_vix()
+
+        # Determine Market Regime based on VIX
+        if vix_today < VIX_LOW_THRESHOLD:
+            regime_mult = VIX_LOW_MULT
+            regime_name = "LOW VOLATILITY"
+        elif vix_today > VIX_HIGH_THRESHOLD:
+            regime_mult = VIX_HIGH_MULT
+            regime_name = "CRISIS/ELEVATED"
+        else:
+            regime_mult = VIX_MID_MULT
+            regime_name = "NORMAL"
+
+        print(f"  -> Macro Environment: SPY {spy_today:.2f}% | VIX {vix_today:.2f} ({regime_name} Regime: {regime_mult}x Vol)")
+        print("\nEvaluating Symphonies...")
+
+        for account, symphonies in symphony_data_cache.items():
+            for sym in symphonies:
+                symphony_id = sym["id"]
+                actual_symphony_id = sym.get("symphony_id", symphony_id)
+
+                symphony_name = sym.get("name", "Unknown Symphony")
+                holdings = sym.get("holdings", [])
+                current_return = sym.get("last_percent_change", 0.0) * 100
+
+                for h in holdings:
+                    h["ticker"] = h.get("working_ticker", h.get("ticker"))
+
+                # --- INIT BOT STATE & BACKWARD COMPATIBILITY ---
+                profiles = get_latest_post_mortem_profiles()
+                symphony_holdings = [h.get("ticker") for h in holdings]
+                symphony_tick_threshold = 2
+                symphony_eod_ratio = 1.0
+
+                if profiles and symphony_holdings:
+                    ticks = [profiles.get(sym, {}).get("recommended_tick_threshold", 2) for sym in symphony_holdings]
+                    eods = [profiles.get(sym, {}).get("eod_vol_ratio", 1.0) for sym in symphony_holdings]
+
+                    if ticks:
+                        symphony_tick_threshold = max(ticks)
+                    if eods:
+                        symphony_eod_ratio = max(eods)
+
+                if symphony_id not in bot_state:
+                    bot_state[symphony_id] = {
+                        "high_water_mark": current_return,
+                        "armed": False,
+                        "tp_armed": False,
+                        "triggered": False,
+                        "mc_history": [],
+                        "below_stop_count": 0,
+                        "above_tp_count": 0,
+                        "breakeven_locked": False,
+                        "tick_threshold": symphony_tick_threshold,
+                        "eod_vol_ratio": symphony_eod_ratio,
+                    }
+                else:
+                    bot_state[symphony_id]["tick_threshold"] = symphony_tick_threshold
+                    bot_state[symphony_id]["eod_vol_ratio"] = symphony_eod_ratio
+
+                # Tracking previous state to determine Chart Events
+                prev_armed = bot_state[symphony_id].get("armed", False)
+                prev_tp_armed = bot_state[symphony_id].get("tp_armed", False)
+                prev_triggered = bot_state[symphony_id].get("triggered", False)
+
+                for key in ["triggered", "tp_armed", "breakeven_locked"]:
+                    if key not in bot_state[symphony_id]:
+                        bot_state[symphony_id][key] = False
+                for key in ["below_stop_count", "above_tp_count"]:
+                    if key not in bot_state[symphony_id]:
+                        bot_state[symphony_id][key] = 0
+                if "mc_history" not in bot_state[symphony_id]:
+                    bot_state[symphony_id]["mc_history"] = []
+
+                # Update High Water Mark
+                if current_return > bot_state[symphony_id]["high_water_mark"] and not bot_state[symphony_id]["triggered"]:
+                    bot_state[symphony_id]["high_water_mark"] = current_return
+
+                high_water_mark = bot_state[symphony_id]["high_water_mark"]
+
+                # --- 1. MC Probability & Volatility Engine ---
+                prob_beating = run_monte_carlo(holdings, historical_data, spy_today)
+                symphony_vol = calculate_20d_vol(holdings, historical_data)
+
+                decay_curve = base_decay_curve
+
+                # --- INJECT EOD RELIEF VALVE HERE ---
+                if current_et.hour == 15 and current_et.minute >= 30:
+                    eod_ratio = bot_state[symphony_id].get("eod_vol_ratio", 1.0)
+                    if eod_ratio > 1.2:
+                        relief_factor = min(0.15, (eod_ratio - 1.0) * 0.1)
+                        decay_curve = decay_curve * (1.0 - relief_factor)
+                        print(f"  -> [{symphony_name}] Applied EOD Relief Valve. Relaxing squeeze by {relief_factor*100:.1f}%")
+
+                # --- ASYMMETRIC PARABOLIC SQUEEZE LOGIC ---
+                velocity_squeeze = 1.0
+                if symphony_vol > 0.5:
+                    velocity = high_water_mark / symphony_vol
+                    if velocity > PARABOLIC_VELOCITY_THRESHOLD:
+                        excess = min(1.0, (velocity - PARABOLIC_VELOCITY_THRESHOLD) / 2.0)
+                        velocity_squeeze = 1.0 - (excess * MAX_PARABOLIC_SQUEEZE)
+                        print(f"  ⚡ [{symphony_name[:20]}] PARABOLIC SQUEEZE: {velocity_squeeze:.2f}x (HWM: {high_water_mark:.1f}% | Vol: {symphony_vol:.1f}%)")
+
+                # --- Vol-Adjusted Dynamic Stop with VIX Regime ---
+                if symphony_vol > 0:
+                    morning_stop = max(symphony_vol * regime_mult, MIN_MULTIPLIER_FLOOR)
+                    afternoon_stop = max(symphony_vol * (regime_mult * 0.33), MIN_MULTIPLIER_FLOOR * 0.5)
+                else:
+                    morning_stop = TRAILING_STOP_PCT
+                    afternoon_stop = ENDING_STOP_PCT
+
+                # Apply Time Decay + Velocity Squeeze
+                dynamic_trailing_stop = (morning_stop - ((morning_stop - afternoon_stop) * decay_curve)) * velocity_squeeze
+
+                # --- 2. Arming & Disarming Mechanism ---
+                should_arm = False
+                arm_reason = ""
+                effective_loss_threshold = max(LOSS_ARM_PCT, symphony_vol)
+
+                if prob_beating < TRIGGER_THRESHOLD_PCT and prob_beating >= TAKE_PROFIT_MC_PCT:
+                    should_arm = True
+                    arm_reason = f"MC Prob {prob_beating:.1f}%"
+                elif current_return < -effective_loss_threshold:
+                    should_arm = True
+                    arm_reason = f"Vol-Scaled Loss (<-{effective_loss_threshold:.2f}%)"
+
+                if should_arm and not bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
+                    bot_state[symphony_id]["armed"] = True
+                    print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
+
+                elif bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
+                    if prob_beating > (TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
+                        bot_state[symphony_id]["armed"] = False
+                        bot_state[symphony_id]["below_stop_count"] = 0
+                        print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***")
+
+                # --- 3. Strangler (SMA + Multiplier) ---
+                bot_state[symphony_id]["mc_history"].append(prob_beating)
+                if len(bot_state[symphony_id]["mc_history"]) > 5:
+                    bot_state[symphony_id]["mc_history"].pop(0)
+
+                smoothed_mc = sum(bot_state[symphony_id]["mc_history"]) / len(bot_state[symphony_id]["mc_history"])
+
+                if bot_state[symphony_id]["armed"]:
+                    mc_health_ratio = max(0.0, min(1.0, smoothed_mc / TRIGGER_THRESHOLD_PCT))
+                    strangle_multiplier = MAX_SQUEEZE_FLOOR + (mc_health_ratio * (1.0 - MAX_SQUEEZE_FLOOR))
+                    active_trailing_stop = dynamic_trailing_stop * strangle_multiplier
+                else:
+                    active_trailing_stop = dynamic_trailing_stop
+
+                # --- 4. Dynamic Trailing Stop & Vol-Scaled Breakeven Lock Math ---
+                safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
+                base_stop_level = safe_hwm - active_trailing_stop
+
+                effective_breakeven_activation = max(BREAKEVEN_ACTIVATION_PCT, symphony_vol)
+                if safe_hwm >= effective_breakeven_activation:
+                    bot_state[symphony_id]["breakeven_locked"] = True
+
+                if bot_state[symphony_id]["breakeven_locked"]:
+                    stop_trigger_level = max(base_stop_level, 0.0)
+                else:
+                    stop_trigger_level = base_stop_level
+
+                if bot_state[symphony_id]["triggered"]:
+                    stop_trigger_level = -999.0
+
+                # --- 4.5 Dynamic Tick Confirmation Trailing Stop Logic ---
+                is_trailing_stop_hit = False
+                if bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
+                    if current_return <= stop_trigger_level:
+                        bot_state[symphony_id]["below_stop_count"] += 1
+                        tick_threshold = bot_state[symphony_id].get("tick_threshold", 2)
+                        if bot_state[symphony_id]["below_stop_count"] == 1 and tick_threshold > 1:
+                            print(f"  ⚠️ {symphony_name[:35]} dipped below stop. Awaiting tick confirmation...")
+                        elif bot_state[symphony_id]["below_stop_count"] >= tick_threshold:
+                            is_trailing_stop_hit = True
+                    else:
+                        if bot_state[symphony_id]["below_stop_count"] > 0:
+                            print(f"  ✅ {symphony_name[:35]} recovered above stop. Confirmation reset.")
+                        bot_state[symphony_id]["below_stop_count"] = 0
+
+                # --- 4.6 Take-Profit Smart Trailing Exit Math (With 2-Tick Confirmation) ---
+                tp_triggered_now = False
+                if prob_beating < TAKE_PROFIT_MC_PCT:
+                    if not bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
+                        bot_state[symphony_id]["tp_armed"] = True
+                        bot_state[symphony_id]["above_tp_count"] = 0
+                        print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {TAKE_PROFIT_MC_PCT}%) ***")
+                elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
+                    if prob_beating >= TAKE_PROFIT_MC_PCT:
+                        bot_state[symphony_id]["above_tp_count"] += 1
+                        if bot_state[symphony_id]["above_tp_count"] == 1:
+                            print(f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation...")
+                        elif bot_state[symphony_id]["above_tp_count"] >= 2:
+                            if current_return > 0:
+                                tp_triggered_now = True
+                            else:
+                                bot_state[symphony_id]["tp_armed"] = False
+                                bot_state[symphony_id]["above_tp_count"] = 0
+                                print(f"  *** {symphony_name} TP-DISARMED (MC Rose but Return <= 0) ***")
+                    else:
+                        if bot_state[symphony_id]["above_tp_count"] > 0:
+                            print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.")
+                        bot_state[symphony_id]["above_tp_count"] = 0
+
+                print(f"  -> {symphony_name[:35]}: Ret: {current_return:.2f}% | HWM: {high_water_mark:.2f}% | Stop Dist: {active_trailing_stop:.2f}% | ArmProb: {prob_beating:.1f}%")
+
+                bot_state[symphony_id]["name"] = symphony_name
+                bot_state[symphony_id]["account"] = account
+                bot_state[symphony_id]["current_return"] = current_return
+                bot_state[symphony_id]["mc_prob"] = prob_beating
+                bot_state[symphony_id]["stop_trigger"] = stop_trigger_level
+                bot_state[symphony_id]["active_stop_distance"] = active_trailing_stop
+                bot_state[symphony_id]["symphony_vol"] = symphony_vol
+                bot_state[symphony_id]["velocity_squeeze"] = velocity_squeeze
+                
+                # Store current holdings so 16:00 ET loop knows what to carry over into tomorrow
+                bot_state[symphony_id]["current_holdings"] = [
+                    {"ticker": h.get("ticker"), "allocation": h.get("allocation", 0.0)}
+                    for h in holdings
+                ]
+
+                save_state(bot_state)
+
+                # --- Chart Visualization Logging ---
+                chart_event = None
+                if is_trailing_stop_hit or tp_triggered_now:
+                    chart_event = "Triggered"
+                elif bot_state[symphony_id]["armed"] and not prev_armed:
+                    chart_event = "Armed"
+                elif bot_state[symphony_id]["tp_armed"] and not prev_tp_armed:
+                    chart_event = "TP-Armed"
+
+                tracked_stop = (
+                    stop_trigger_level
+                    if (bot_state[symphony_id]["armed"] or bot_state[symphony_id]["tp_armed"] or bot_state[symphony_id]["triggered"] or prev_triggered)
+                    else None
                 )
-                else None
-            )
-            if prev_triggered:
-                tracked_stop = bot_state[symphony_id].get("triggered_at_stop", -999.0)
-                if tracked_stop == -999.0:
-                    tracked_stop = None
+                if prev_triggered:
+                    tracked_stop = bot_state[symphony_id].get("triggered_at_stop", -999.0)
+                    if tracked_stop == -999.0:
+                        tracked_stop = None
 
-            sym_chart_data = chart_history["symphonies"].setdefault(symphony_id, [])
-            sym_chart_data.append(
-                {
+                sym_chart_data = chart_history["symphonies"].setdefault(symphony_id, [])
+                sym_chart_data.append({
                     "time": current_time_str,
                     "return": current_return,
                     "stop": tracked_stop,
                     "event": chart_event,
                     "mc_prob": prob_beating,
-                }
-            )
+                })
 
-            # --- 5. Execution Check ---
-            if is_trailing_stop_hit or tp_triggered_now:
-                reason = "Take-Profit" if tp_triggered_now else "Trailing Stop"
-                print(f"  🚨 {reason.upper()} HIT FOR {symphony_name} 🚨")
+                # --- 5. Execution Check & Optimistic Saving ---
+                if is_trailing_stop_hit or tp_triggered_now:
+                    reason = "Take-Profit" if tp_triggered_now else "Trailing Stop"
+                    print(f"  🚨 {reason.upper()} HIT FOR {symphony_name} 🚨")
 
-                if LIVE_EXECUTION:
-                    print(
-                        "  -> [LIVE EXECUTION] Sending sell-to-cash " "command to Composer API..."
-                    )
-                    success = execute_sell_to_cash(actual_symphony_id, account)
-
-                    if success:
-                        bot_state[symphony_id]["armed"] = False
-                        bot_state[symphony_id]["tp_armed"] = False
-                        bot_state[symphony_id]["triggered"] = True
-
-                        bot_state[symphony_id]["triggered_at_return"] = current_return
-                        bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
-                        bot_state[symphony_id]["triggered_at_stop"] = (
-                            current_return if tp_triggered_now else stop_trigger_level
-                        )
-                        bot_state[symphony_id]["triggered_at_time"] = current_time_str
-                        bot_state[symphony_id]["high_water_mark"] = -999.0
-                        save_state(bot_state)
-
-                        sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
-
-                        send_discord_alert(
-                            symphony_name,
-                            current_return,
-                            prob_beating,
-                            stop_trigger_level,
-                            safe_hwm,
-                            LIVE_EXECUTION,
-                            exit_reason=reason,
-                        )
-                    else:
-                        print(
-                            "     !!! EXECUTION FAILED. Keeping state active to retry next loop !!!"
-                        )
-                else:
-                    print("  -> [DRY RUN] Execution bypassed.")
+                    # -------------------------------------------------------------
+                    # OPTIMISTIC STATE SAVE: Instantly update file before API sleep
+                    # -------------------------------------------------------------
                     bot_state[symphony_id]["armed"] = False
                     bot_state[symphony_id]["tp_armed"] = False
                     bot_state[symphony_id]["triggered"] = True
 
                     bot_state[symphony_id]["triggered_at_return"] = current_return
                     bot_state[symphony_id]["triggered_at_hwm"] = safe_hwm
-                    bot_state[symphony_id]["triggered_at_stop"] = (
-                        current_return if tp_triggered_now else stop_trigger_level
-                    )
+                    bot_state[symphony_id]["triggered_at_stop"] = current_return if tp_triggered_now else stop_trigger_level
                     bot_state[symphony_id]["triggered_at_time"] = current_time_str
                     bot_state[symphony_id]["high_water_mark"] = -999.0
                     save_state(bot_state)
 
                     sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
 
-                    send_discord_alert(
-                        symphony_name,
-                        current_return,
-                        prob_beating,
-                        stop_trigger_level,
-                        safe_hwm,
-                        LIVE_EXECUTION,
-                        exit_reason=reason,
-                    )
+                    if LIVE_EXECUTION:
+                        print("  -> [LIVE EXECUTION] Sending sell-to-cash command to Composer API...")
+                        success = execute_sell_to_cash(actual_symphony_id, account)
 
-    save_chart_history(chart_history)
+                        if success:
+                            send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger_level, safe_hwm, LIVE_EXECUTION, exit_reason=reason)
+                        else:
+                            print("     !!! EXECUTION FAILED. Reverting state to retry next loop !!!")
+                            # Rollback state so it tries again next minute
+                            bot_state = load_state()
+                            bot_state[symphony_id]["triggered"] = False
+                            bot_state[symphony_id]["armed"] = not tp_triggered_now
+                            bot_state[symphony_id]["tp_armed"] = tp_triggered_now
+                            bot_state[symphony_id]["high_water_mark"] = safe_hwm
+                            save_state(bot_state)
+                            sym_chart_data[-1]["stop"] = stop_trigger_level
+                    else:
+                        print("  -> [DRY RUN] Execution bypassed.")
+                        send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger_level, safe_hwm, LIVE_EXECUTION, exit_reason=reason)
+
+        save_chart_history(chart_history)
+
+    finally:
+        # 3. Always release lock so the next minute can process, even if there's an error
+        release_lock()
 
 
 if __name__ == "__main__":
