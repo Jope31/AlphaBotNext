@@ -326,7 +326,7 @@
             </div>
 
             <!-- Parameters Grid -->
-            <div class="p-6 bg-slate-800 border-b border-slate-700 shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <div class="p-6 bg-slate-800 border-b border-slate-700 shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <label class="text-[10px] font-semibold text-slate-300">ATR Mult.</label>
@@ -375,6 +375,20 @@
                         <span class="text-sm font-mono text-amber-400 font-bold" id="sim-squeeze-val">0.20</span>
                     </div>
                     <input type="range" id="sim-squeeze-slider" min="0.05" max="1.0" step="0.05" value="0.20" class="w-full accent-amber-500" oninput="runSimulation()">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-[10px] font-semibold text-slate-300" title="Fallback Start / TRAILING_STOP_PCT">Fallbk Start</label>
+                        <span class="text-sm font-mono text-emerald-400 font-bold" id="sim-fallback-start-val">1.50</span>
+                    </div>
+                    <input type="range" id="sim-fallback-start-slider" min="0.5" max="5.0" step="0.1" value="1.5" class="w-full accent-emerald-500" oninput="runSimulation()">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-[10px] font-semibold text-slate-300" title="Fallback End / ENDING_STOP_PCT">Fallbk End</label>
+                        <span class="text-sm font-mono text-emerald-400 font-bold" id="sim-fallback-end-val">0.50</span>
+                    </div>
+                    <input type="range" id="sim-fallback-end-slider" min="0.1" max="5.0" step="0.1" value="0.5" class="w-full accent-emerald-500" oninput="runSimulation()">
                 </div>
             </div>
 
@@ -1115,6 +1129,8 @@
                 if(vars.MAX_SQUEEZE_FLOOR) document.getElementById('sim-squeeze-slider').value = vars.MAX_SQUEEZE_FLOOR;
                 if(vars.TAKE_PROFIT_MC_PCT) document.getElementById('sim-tpmc-slider').value = vars.TAKE_PROFIT_MC_PCT;
                 if(vars.LOSS_ARM_PCT) document.getElementById('sim-loss-slider').value = vars.LOSS_ARM_PCT;
+                if(vars.TRAILING_STOP_PCT) document.getElementById('sim-fallback-start-slider').value = vars.TRAILING_STOP_PCT;
+                if(vars.ENDING_STOP_PCT) document.getElementById('sim-fallback-end-slider').value = vars.ENDING_STOP_PCT;
 
             } catch (error) {
                 console.error("Failed to load live settings for simulator.", error);
@@ -1160,6 +1176,8 @@
             const simSqueeze = parseFloat(document.getElementById('sim-squeeze-slider').value);
             const simTpMc = parseFloat(document.getElementById('sim-tpmc-slider').value);
             const simLossArm = parseFloat(document.getElementById('sim-loss-slider').value);
+            const simFallbackStart = parseFloat(document.getElementById('sim-fallback-start-slider').value);
+            const simFallbackEnd = parseFloat(document.getElementById('sim-fallback-end-slider').value);
             
             const simMinutes = parseInt(document.getElementById('sim-time-slider').value);
             const simRunUp = parseFloat(document.getElementById('sim-runup-slider').value);
@@ -1173,6 +1191,8 @@
             document.getElementById('sim-squeeze-val').innerText = simSqueeze.toFixed(2);
             document.getElementById('sim-tpmc-val').innerText = simTpMc.toFixed(1);
             document.getElementById('sim-loss-val').innerText = simLossArm.toFixed(2);
+            document.getElementById('sim-fallback-start-val').innerText = simFallbackStart.toFixed(2);
+            document.getElementById('sim-fallback-end-val').innerText = simFallbackEnd.toFixed(2);
             
             document.getElementById('sim-time-val').innerText = formatTimeLabel(simMinutes);
             document.getElementById('sim-runup-val').innerText = `+${simRunUp.toFixed(1)}%`;
@@ -1209,11 +1229,30 @@
                 // 2. Simulate the pullback from that peak
                 const simCurRet = simulatedPeak + simPullback;
                 
+                // EOD Relief Valve
+                let symDecayCurve = decayCurve;
+                // 3:30 PM is 300 minutes after 10:30 AM
+                if (simMinutes >= 300) {
+                    const eodRatio = sym.eod_vol_ratio || 1.0;
+                    if (eodRatio > 1.2) {
+                        const reliefFactor = Math.min(0.15, (eodRatio - 1.0) * 0.1);
+                        symDecayCurve = symDecayCurve * (1.0 - reliefFactor);
+                    }
+                }
+
                 // Volatility calculation
-                const vol = sym.symphony_vol || 1.0; 
-                const morningStop = Math.max(vol * simAtr, simFloor);
-                const afternoonStop = Math.max(vol * (simAtr * 0.33), simFloor * 0.5);
-                const dynamicStop = morningStop - ((morningStop - afternoonStop) * decayCurve);
+                const vol = sym.symphony_vol !== undefined ? sym.symphony_vol : -1.0;
+                let morningStop = 0.0;
+                let afternoonStop = 0.0;
+
+                if (vol > 0) {
+                    morningStop = Math.max(vol * simAtr, simFloor);
+                    afternoonStop = Math.max(vol * (simAtr * 0.33), simFloor * 0.5);
+                } else {
+                    morningStop = simFallbackStart;
+                    afternoonStop = simFallbackEnd;
+                }
+                const dynamicStop = morningStop - ((morningStop - afternoonStop) * symDecayCurve);
 
                 // Flash Crash Fix applied to simulation
                 const effectiveLossThreshold = Math.max(simLossArm, vol);
