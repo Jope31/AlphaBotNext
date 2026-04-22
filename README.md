@@ -131,7 +131,8 @@ When you provide your daily briefing, analyze whether stops were hit because the
 ```
    python app.py
 ```
-   *The Flask server will start on ```http://localhost:5000``` and automatically spawn the background execution scheduler.*
+   
+5. **Access Dashboard**: Open ```http://localhost:5000```. The bot will automatically initialize the SQLite database on its first run.
 
 ## 🕒 Scheduling Details
 
