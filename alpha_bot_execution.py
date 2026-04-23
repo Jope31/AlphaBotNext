@@ -761,9 +761,8 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
     latest_valid_day = valid_dates[-1]
     missing_tickers = {t for t in weights.keys() if t not in historical_data.get(latest_valid_day, {})}
 
-    sim_results = np.zeros(SIMULATION_PATHS)
-    for i in range(SIMULATION_PATHS):
-        random_day = np.random.choice(nearest_days)
+    nearest_day_returns = []
+    for random_day in nearest_days:
         path_return = 0.0
         for ticker, weight in weights.items():
             if ticker in missing_tickers:
@@ -771,7 +770,10 @@ def run_monte_carlo(holdings, historical_data, spy_today_return):
             else:
                 daily_ret = historical_data[random_day].get(ticker, {}).get("daily_ret", 0.0)
             path_return += (daily_ret * 100.0) * weight
-        sim_results[i] = path_return
+        nearest_day_returns.append(path_return)
+
+    nearest_day_returns = np.array(nearest_day_returns)
+    sim_results = np.random.choice(nearest_day_returns, size=SIMULATION_PATHS)
 
     sim_results.sort()
     below_count = np.searchsorted(sim_results, current_symphony_return)
