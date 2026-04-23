@@ -51,11 +51,11 @@ VIX_MID_MULT = float(os.getenv("VIX_MID_MULT", "2.0"))
 VIX_HIGH_MULT = float(os.getenv("VIX_HIGH_MULT", "2.5"))
 
 # --- PARABOLIC PARAMETERS ---
-PARABOLIC_VELOCITY_THRESHOLD = 2.0
-MAX_PARABOLIC_SQUEEZE = 0.50
+PARABOLIC_VELOCITY_THRESHOLD = float(os.getenv("PARABOLIC_VELOCITY_THRESHOLD", "2.0"))
+MAX_PARABOLIC_SQUEEZE = float(os.getenv("MAX_PARABOLIC_SQUEEZE", "0.50"))
 
-SIMULATION_PATHS = 5000
-NEIGHBOR_K = 150
+SIMULATION_PATHS = int(os.getenv("SIMULATION_PATHS", "5000"))
+NEIGHBOR_K = int(os.getenv("NEIGHBOR_K", "150"))
 
 # Note: We keep Alpaca daily history in a JSON file because it's massive, 
 # updated only once a day, and does not suffer from minute-by-minute concurrency issues.
