@@ -1,4 +1,4 @@
-"""Core execution logic for Alpha Bot with SQLite State Management."""
+"""Core execution logic for Alpha Bot with SQLite State Management and EOD Autotuner."""
 
 import os
 import sys
@@ -6,14 +6,23 @@ import time
 import json
 import math
 import glob
+import itertools
 from datetime import datetime, timedelta, timezone, time as dt_time
+
 import requests
 import numpy as np
 import pandas as pd
 from alpaca_trade_api.rest import TimeFrame
-from dotenv import load_dotenv
 
-# Import our new SQLite DB Manager
+# Set Matplotlib backend to Agg so it doesn't try to open a GUI window
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from dotenv import load_dotenv, set_key, find_dotenv
+
+# Import our SQLite DB Manager
 import database
 
 # ==========================================
@@ -39,9 +48,9 @@ TAKE_PROFIT_MC_PCT = float(os.getenv("TAKE_PROFIT_MC_PCT", "5.0"))
 LOSS_ARM_PCT = float(os.getenv("LOSS_ARM_PCT", "1.5"))
 TRAILING_STOP_PCT = float(os.getenv("TRAILING_STOP_PCT", "1.5"))
 ENDING_STOP_PCT = float(os.getenv("ENDING_STOP_PCT", "0.5"))
-BREAKEVEN_ACTIVATION_PCT = float(os.getenv("BREAKEVEN_ACTIVATION_PCT", "2.0")) # Suggest lowering to 0.75 or 1.0 in .env
+BREAKEVEN_ACTIVATION_PCT = float(os.getenv("BREAKEVEN_ACTIVATION_PCT", "2.0"))
 MIN_MULTIPLIER_FLOOR = float(os.getenv("MIN_MULTIPLIER_FLOOR", "0.5"))
-VWAP_CROSS_HWM_PCT = float(os.getenv("VWAP_CROSS_HWM_PCT", "1.0")) # HWM req for VWAP defense
+VWAP_CROSS_HWM_PCT = float(os.getenv("VWAP_CROSS_HWM_PCT", "1.0"))
 
 # --- VOLATILITY REGIME PARAMETERS ---
 VIX_LOW_THRESHOLD = float(os.getenv("VIX_LOW_THRESHOLD", "15.0"))
@@ -57,12 +66,234 @@ MAX_PARABOLIC_SQUEEZE = float(os.getenv("MAX_PARABOLIC_SQUEEZE", "0.50"))
 SIMULATION_PATHS = int(os.getenv("SIMULATION_PATHS", "5000"))
 NEIGHBOR_K = int(os.getenv("NEIGHBOR_K", "150"))
 
-# Note: We keep Alpaca daily history in a JSON file because it's massive, 
-# updated only once a day, and does not suffer from minute-by-minute concurrency issues.
 HISTORY_CACHE_FILE = "history_cache.json"
 
 # ==========================================
-# 2. STATE ANALYSIS HELPERS
+# 2. AUTOTUNE GRID SEARCH (NEW)
+# ==========================================
+def run_autotuner(bot_state, current_date_str):
+    """Runs a 5-day walk-forward optimization to find the best variables, updates .env, and sends Heatmap."""
+    print("  -> Starting EOD Autotune Grid Search (5-Day Rolling)...")
+    
+    # 1. Archive today's charts to the permanent DB
+    chart_history = database.load_chart_history()
+    if chart_history and chart_history.get("date") == current_date_str:
+        for sym_id, data in chart_history.get("symphonies", {}).items():
+            database.save_chart_archive(current_date_str, sym_id, data)
+
+    # 2. Fetch the rolling 5-day data
+    history_5d = database.get_rolling_5day_chart(current_date_str)
+    if not history_5d:
+        print("  -> Autotuner aborted: Insufficient chart history.")
+        return
+
+    # 3. Define the Grid Space (26,244 Combinations)
+    param_grid = {
+        "TRIGGER_THRESHOLD_PCT": [12.0, 15.0, 18.0],
+        "TAKE_PROFIT_MC_PCT": [4.0, 5.0, 6.0],
+        "LOSS_ARM_PCT": [1.0, 1.5, 2.0],
+        "MAX_SQUEEZE_FLOOR": [0.15, 0.25],
+        "MIN_MULTIPLIER_FLOOR": [0.4, 0.6],
+        "BREAKEVEN_ACTIVATION_PCT": [0.75, 1.0, 1.5],
+        "VWAP_CROSS_HWM_PCT": [0.5, 1.0, 1.5],
+        "PARABOLIC_VELOCITY_THRESHOLD": [1.5, 2.0, 2.5],
+        "MAX_PARABOLIC_SQUEEZE": [0.3, 0.5, 0.7]
+    }
+
+    keys = list(param_grid.keys())
+    combinations = list(itertools.product(*param_grid.values()))
+    
+    best_alpha = -99999.0
+    best_params = {}
+    heatmap_data = []
+
+    print(f"     Evaluating {len(combinations)} parameter sets against historical minute bars...")
+    start_time = time.time()
+
+    # 4. Simulation Loop
+    for combo in combinations:
+        p = dict(zip(keys, combo))
+        total_guard_alpha = 0.0
+
+        for sym_id, dates_data in history_5d.items():
+            for date, ticks in dates_data.items():
+                if not ticks: continue
+                
+                hwm = -999.0
+                armed = False
+                tp_armed = False
+                vwap_ticks = 0
+                below_stop_count = 0
+                above_tp_count = 0
+                mc_history = []
+                
+                triggered_return = None
+                eod_return = ticks[-1]["return"]
+
+                for tick in ticks:
+                    ret = tick.get("return", 0.0)
+                    mc = tick.get("mc_prob", 50.0)
+                    vol = tick.get("vol", 1.0)
+                    vwap_diff = tick.get("vwap_diff", 0.0)
+                    decay_curve = tick.get("decay_curve", 0.5)
+                    regime_mult = tick.get("regime_mult", 2.0)
+
+                    if ret > hwm: hwm = ret
+                    safe_hwm = max(hwm, ret)
+
+                    # Dynamic Stop calculation
+                    velocity_squeeze = 1.0
+                    if vol > 0.5:
+                        vel = hwm / vol
+                        if vel > p["PARABOLIC_VELOCITY_THRESHOLD"]:
+                            excess = min(1.0, (vel - p["PARABOLIC_VELOCITY_THRESHOLD"]) / 2.0)
+                            velocity_squeeze = 1.0 - (excess * p["MAX_PARABOLIC_SQUEEZE"])
+
+                    morning_stop = max(vol * regime_mult, p["MIN_MULTIPLIER_FLOOR"])
+                    afternoon_stop = max(vol * (regime_mult * 0.33), p["MIN_MULTIPLIER_FLOOR"] * 0.5)
+                    dynamic_stop = (morning_stop - ((morning_stop - afternoon_stop) * decay_curve)) * velocity_squeeze
+
+                    effective_loss_thr = max(p["LOSS_ARM_PCT"], vol)
+
+                    # Arming Logic
+                    if not armed:
+                        if p["TAKE_PROFIT_MC_PCT"] <= mc < p["TRIGGER_THRESHOLD_PCT"]: armed = True
+                        elif ret < -effective_loss_thr: armed = True
+                    else:
+                        if mc > (p["TRIGGER_THRESHOLD_PCT"] * 2) and ret > 0.0:
+                            armed = False
+                            below_stop_count = 0
+
+                    mc_history.append(mc)
+                    if len(mc_history) > 5: mc_history.pop(0)
+                    smoothed_mc = sum(mc_history) / len(mc_history)
+
+                    active_stop_dist = dynamic_stop
+                    if armed:
+                        mc_health = max(0.0, min(1.0, smoothed_mc / p["TRIGGER_THRESHOLD_PCT"]))
+                        strangle = p["MAX_SQUEEZE_FLOOR"] + (mc_health * (1.0 - p["MAX_SQUEEZE_FLOOR"]))
+                        active_stop_dist *= strangle
+
+                    base_stop = safe_hwm - active_stop_dist
+                    breakeven_locked = safe_hwm >= max(p["BREAKEVEN_ACTIVATION_PCT"], vol)
+                    stop_level = max(base_stop, 0.0) if breakeven_locked else base_stop
+
+                    # Triggers
+                    is_trailing_hit = False
+                    if armed:
+                        if ret <= stop_level:
+                            below_stop_count += 1
+                            if below_stop_count >= 2: is_trailing_hit = True
+                        else: below_stop_count = 0
+
+                    is_tp_hit = False
+                    if mc < p["TAKE_PROFIT_MC_PCT"]:
+                        if not tp_armed:
+                            tp_armed = True
+                            above_tp_count = 0
+                    elif tp_armed:
+                        if mc >= p["TAKE_PROFIT_MC_PCT"]:
+                            above_tp_count += 1
+                            if above_tp_count >= 2:
+                                if ret > 0: is_tp_hit = True
+                                else:
+                                    tp_armed = False
+                                    above_tp_count = 0
+                        else: above_tp_count = 0
+
+                    is_vwap_broken = False
+                    if safe_hwm >= p["VWAP_CROSS_HWM_PCT"] and ret < safe_hwm:
+                        if vwap_diff < 0:
+                            vwap_ticks += 1
+                            if vwap_ticks >= 3: is_vwap_broken = True
+                        else: vwap_ticks = 0
+                    else: vwap_ticks = 0
+
+                    if is_trailing_hit or is_tp_hit or is_vwap_broken:
+                        triggered_return = ret
+                        break # Exited for the day
+
+                # Calculate Guard Alpha for this symphony-day
+                if triggered_return is not None:
+                    total_guard_alpha += (triggered_return - eod_return)
+
+        # Store results for heatmap and best params
+        p["guard_alpha"] = total_guard_alpha
+        heatmap_data.append(p)
+
+        if total_guard_alpha > best_alpha:
+            best_alpha = total_guard_alpha
+            best_params = p.copy()
+
+    elapsed = time.time() - start_time
+    print(f"     Autotune completed in {elapsed:.2f}s. Max Guard Alpha found: +{best_alpha:.2f}%")
+
+    # 5. Overwrite .env File
+    env_file = find_dotenv()
+    if not env_file: env_file = ".env"
+    
+    old_vars_text = ""
+    new_vars_text = ""
+    for k, v in best_params.items():
+        if k == "guard_alpha": continue
+        old_val = os.getenv(k, "Unknown")
+        old_vars_text += f"{k}: {old_val}\n"
+        new_vars_text += f"{k}: {v}\n"
+        set_key(env_file, k, str(v))
+
+    # 6. Generate 2D Heatmap (TRIGGER vs BREAKEVEN)
+    try:
+        df = pd.DataFrame(heatmap_data)
+        # Average the guard alpha across all other parameters to see the macro effect of these two
+        pivot = df.pivot_table(
+            index="BREAKEVEN_ACTIVATION_PCT", 
+            columns="TRIGGER_THRESHOLD_PCT", 
+            values="guard_alpha", 
+            aggfunc="mean"
+        )
+        
+        plt.figure(figsize=(9, 7))
+        sns.heatmap(pivot, annot=True, fmt=".2f", cmap="RdYlGn", center=0, cbar_kws={'label': 'Mean Guard Alpha (%)'})
+        plt.title(f"AlphaBot Grid Search: 5-Day Roll\nOptimal Setup Protected {best_alpha:.2f}% vs Shadow", pad=15)
+        plt.xlabel("TRIGGER_THRESHOLD_PCT (Arming Sensitivity)", labelpad=10)
+        plt.ylabel("BREAKEVEN_ACTIVATION_PCT (Lock Floor)", labelpad=10)
+        plt.tight_layout()
+        plt.savefig("autotune_heatmap.png", dpi=100)
+        plt.close()
+    except Exception as e:
+        print(f"     Failed to generate Heatmap: {e}")
+
+    # 7. Push to Discord
+    if DISCORD_WEBHOOK_URL:
+        print("     Pushing Autotune Results to Discord...")
+        try:
+            with open("autotune_heatmap.png", "rb") as f:
+                file_data = f.read()
+
+            cb = chr(96) * 3 # Safe code block formatting
+            payload = {
+                "payload_json": json.dumps({
+                    "embeds": [{
+                        "title": "⚙️ AlphaBot Autotune Complete",
+                        "description": f"Grid Search evaluated **{len(combinations):,}** combinations across rolling 5-day minute bars.\n`.env` file automatically overwritten for tomorrow.",
+                        "color": 3447003,
+                        "image": {"url": "attachment://heatmap.png"},
+                        "fields": [
+                            {"name": "Previous Setup", "value": f"{cb}yaml\n{old_vars_text}{cb}", "inline": True},
+                            {"name": "New Optimal Setup", "value": f"{cb}yaml\n{new_vars_text}{cb}", "inline": True},
+                            {"name": "Simulated Portfolio Save", "value": f"**+{best_alpha:.2f}%** Alpha vs EOD Shadow Returns", "inline": False}
+                        ],
+                        "footer": {"text": f"Calculation Time: {elapsed:.2f}s"}
+                    }]
+                })
+            }
+            files = {"file": ("heatmap.png", file_data, "image/png")}
+            requests.post(DISCORD_WEBHOOK_URL, data=payload, files=files, timeout=20)
+        except Exception as e:
+            print(f"     Failed to send Discord webhook: {e}")
+
+# ==========================================
+# 3. STATE ANALYSIS HELPERS
 # ==========================================
 
 def analyze_intraday_data(api_client, symbols, target_date_et, lookback_days=5):
@@ -267,7 +498,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                 print(f"Failed to send EOD Discord webhook: {e}")
 
 # ==========================================
-# 3. API CONNECTORS
+# 4. API CONNECTORS
 # ==========================================
 def get_composer_headers(key=None, secret=None):
     return {
@@ -280,7 +511,7 @@ def get_alpaca_headers():
     return {"APCA-API-KEY-ID": ALPACA_KEY, "APCA-API-SECRET-KEY": ALPACA_SECRET}
 
 def fetch_symphony_stats(account_id):
-    url = f"https://api.composer.trade/api/v0.1/portfolio/accounts/{account_id}/symphony-stats-meta"
+    url = f"[https://api.composer.trade/api/v0.1/portfolio/accounts/](https://api.composer.trade/api/v0.1/portfolio/accounts/){account_id}/symphony-stats-meta"
     try:
         response = requests.get(url, headers=get_composer_headers(), timeout=15)
         time.sleep(1.5)
@@ -292,7 +523,7 @@ def fetch_symphony_stats(account_id):
     return []
 
 def execute_sell_to_cash(actual_symphony_id, account_id):
-    url = f"https://api.composer.trade/api/v0.1/deploy/accounts/{account_id}/symphonies/{actual_symphony_id}/go-to-cash"
+    url = f"[https://api.composer.trade/api/v0.1/deploy/accounts/](https://api.composer.trade/api/v0.1/deploy/accounts/){account_id}/symphonies/{actual_symphony_id}/go-to-cash"
     try:
         response = requests.post(url, headers=get_composer_headers(), json={}, timeout=10)
         print(f"     -> [API Status]: HTTP {response.status_code}")
@@ -381,7 +612,7 @@ def fetch_alpaca_history(tickers, current_date_str):
 
         page_token = None
         while True:
-            url = f"https://data.alpaca.markets/v2/stocks/bars?symbols={symbol_string}&timeframe=1Day&start={start_date}&limit=10000&adjustment=split"
+            url = f"[https://data.alpaca.markets/v2/stocks/bars?symbols=](https://data.alpaca.markets/v2/stocks/bars?symbols=){symbol_string}&timeframe=1Day&start={start_date}&limit=10000&adjustment=split"
             if page_token:
                 url += f"&page_token={page_token}"
 
@@ -431,7 +662,7 @@ def fetch_alpaca_history(tickers, current_date_str):
 def get_live_spy_data():
     start_date = (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%dT00:00:00Z")
     headers = get_alpaca_headers()
-    url = f"https://data.alpaca.markets/v2/stocks/bars?symbols=SPY&timeframe=1Day&start={start_date}&limit=10"
+    url = f"[https://data.alpaca.markets/v2/stocks/bars?symbols=SPY&timeframe=1Day&start=](https://data.alpaca.markets/v2/stocks/bars?symbols=SPY&timeframe=1Day&start=){start_date}&limit=10"
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -461,7 +692,7 @@ def fetch_intraday_vwaps(tickers, headers, current_et):
     for i in range(0, len(tickers_list), batch_size):
         batch = tickers_list[i : i + batch_size]
         symbol_string = ",".join(batch)
-        url = f"https://data.alpaca.markets/v2/stocks/bars?symbols={symbol_string}&timeframe=1Min&start={start_utc_str}&limit=1000"
+        url = f"[https://data.alpaca.markets/v2/stocks/bars?symbols=](https://data.alpaca.markets/v2/stocks/bars?symbols=){symbol_string}&timeframe=1Min&start={start_utc_str}&limit=1000"
         
         try:
             response = requests.get(url, headers=headers, timeout=15)
@@ -484,14 +715,14 @@ def fetch_intraday_vwaps(tickers, headers, current_et):
     return vwap_data
 
 def get_live_vix():
-    """Fetches live VIX index, utilizing our new SQLite cache."""
+    """Fetches live VIX index, utilizing our SQLite cache."""
     current_time = time.time()
     cache = database.get_vix_cache()
     
     if cache and (current_time - cache["timestamp"] < 900):
         return cache["vix_value"]
 
-    url = "https://query2.finance.yahoo.com/v8/finance/chart/^VIX?interval=1d&range=1d"
+    url = "[https://query2.finance.yahoo.com/v8/finance/chart/](https://query2.finance.yahoo.com/v8/finance/chart/)^VIX?interval=1d&range=1d"
     headers = {"User-Agent": "Mozilla/5.0"}
     vix_value = 20.0
 
@@ -508,7 +739,7 @@ def get_live_vix():
 
 
 # ==========================================
-# 4. MATH ENGINE: MONTE CARLO & VOLATILITY
+# 5. MATH ENGINE: MONTE CARLO & VOLATILITY
 # ==========================================
 def run_monte_carlo(holdings, historical_data, spy_today_return):
     current_symphony_return = sum(
@@ -581,7 +812,7 @@ def get_current_et():
 
 
 # ==========================================
-# 5. MAIN EXECUTION LOOP
+# 6. MAIN EXECUTION LOOP
 # ==========================================
 def main():
     if not database.acquire_lock():
@@ -672,15 +903,20 @@ def main():
                         ]
                         bot_state[s_id]["current_return"] = sym.get("last_percent_change", 0.0) * 100
             database.save_state(bot_state)
+            
+            # Execute Phase 2 Reporting
             generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=True)
-            print("  -> EOD Post-Mortem Snapshot complete. Ending execution for the day.")
+            
+            # NEW: Execute Autotuner
+            run_autotuner(bot_state, current_date_str)
+            
+            print("  -> EOD Post-Mortem & Autotune complete. Ending execution for the day.")
             return
 
         historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
         if not historical_data:
             return
 
-        # Fetch True VWAP data for all current holdings
         live_vwaps = fetch_intraday_vwaps(list(all_tickers), get_alpaca_headers(), current_et)
 
         spy_today = get_live_spy_data()
@@ -708,8 +944,19 @@ def main():
                 holdings = sym.get("holdings", [])
                 current_return = sym.get("last_percent_change", 0.0) * 100
 
+                # Pre-calculate True VWAP difference unconditionally so it can be logged in the chart history 
+                weighted_vwap_diff = 0.0
+                valid_vwap_weight = 0.0
                 for h in holdings:
                     h["ticker"] = h.get("working_ticker", h.get("ticker"))
+                    t = h["ticker"]
+                    alloc = h.get("allocation", 0.0)
+                    if t in live_vwaps:
+                        p = live_vwaps[t]["last_price"]
+                        v = live_vwaps[t]["vwap"]
+                        if v > 0:
+                            weighted_vwap_diff += alloc * ((p - v) / v)
+                            valid_vwap_weight += alloc
 
                 profiles = get_latest_post_mortem_profiles()
                 symphony_holdings = [h.get("ticker") for h in holdings]
@@ -881,20 +1128,7 @@ def main():
                 # Check 3: True VWAP Breakdown
                 is_vwap_broken = False
                 if safe_hwm >= VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
-                    weighted_vwap_diff = 0.0
-                    valid_vwap_weight = 0.0
-                    
-                    for h in holdings:
-                        t = h.get("ticker")
-                        alloc = h.get("allocation", 0.0)
-                        if t in live_vwaps:
-                            p = live_vwaps[t]["last_price"]
-                            v = live_vwaps[t]["vwap"]
-                            if v > 0:
-                                weighted_vwap_diff += alloc * ((p - v) / v)
-                                valid_vwap_weight += alloc
-                    
-                    if valid_vwap_weight > 0.5: # Ensure we have data for majority of the portfolio
+                    if valid_vwap_weight > 0.5:
                         if weighted_vwap_diff < 0:
                             bot_state[symphony_id]["vwap_ticks"] += 1
                             if bot_state[symphony_id]["vwap_ticks"] >= 3:
@@ -940,6 +1174,10 @@ def main():
                     "stop": tracked_stop,
                     "event": chart_event,
                     "mc_prob": prob_beating,
+                    "vol": symphony_vol,
+                    "vwap_diff": weighted_vwap_diff,
+                    "decay_curve": decay_curve,
+                    "regime_mult": regime_mult
                 })
 
                 if is_trailing_stop_hit or tp_triggered_now or is_vwap_broken:
