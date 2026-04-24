@@ -1157,8 +1157,6 @@ def main():
                 bot_state[symphony_id]["velocity_squeeze"] = velocity_squeeze
                 bot_state[symphony_id]["current_holdings"] = [{"ticker": h.get("ticker"), "allocation": h.get("allocation", 0.0)} for h in holdings]
 
-                database.save_state(bot_state)
-
                 chart_event = None
                 if is_trailing_stop_hit or tp_triggered_now or is_vwap_broken:
                     chart_event = "Triggered"
@@ -1227,6 +1225,7 @@ def main():
                         print("  -> [DRY RUN] Execution bypassed.")
                         send_discord_alert(symphony_name, current_return, prob_beating, stop_trigger_level, safe_hwm, LIVE_EXECUTION, exit_reason=reason)
 
+        database.save_state(bot_state)
         database.save_chart_history(chart_history)
 
     finally:
