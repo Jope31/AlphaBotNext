@@ -1,0 +1,1487 @@
+{
+    "date": "2026-04-20",
+    "summary": {
+        "total_monitored": 107,
+        "total_triggered": 85,
+        "positive_guard_alpha_count": 24
+    },
+    "tomorrow_target_holdings": {
+        "VIXY": 40.273440578000006,
+        "UVXY": 27.329753844000003,
+        "UVIX": 13.725541392999999,
+        "BIL": 5.169908662000001,
+        "SOXS": 3.1097614790000003,
+        "EDZ": 1.8412778470000002,
+        "VIXM": 1.631400532,
+        "BTAL": 1.6099981459999997,
+        "TQQQ": 1.375573156,
+        "UDOW": 1.004963381,
+        "TECS": 0.7435078390000001,
+        "UUP": 0.725959673,
+        "QQQ": 0.684375285,
+        "KMLM": 0.681892649,
+        "GLD": 0.509772635,
+        "DIA": 0.505522714,
+        "UGL": 0.41675775500000006,
+        "EEV": 0.406898927,
+        "SPY": 0.40092848099999995,
+        "SCO": 0.334013639,
+        "VXX": 0.332586085,
+        "EDC": 0.32846017699999996,
+        "FXI": 0.276746904,
+        "TAIL": 0.24218879999999998,
+        "YANG": 0.226206902,
+        "BZQ": 0.215067659,
+        "GBTC": 0.207769059,
+        "SOXL": 0.143932521,
+        "LABD": 0.128135563,
+        "XLP": 0.125160353,
+        "CFIT": 0.118964241,
+        "SRTY": 0.114720718,
+        "USD": 0.111202736,
+        "SMH": 0.110917038,
+        "SHNY": 0.10659089,
+        "IAU": 0.100276892,
+        "UPRO": 0.098934585,
+        "SH": 0.095044934,
+        "MIDU": 0.090829154,
+        "SVIX": 0.089748869,
+        "XLK": 0.083396553,
+        "TNA": 0.067996758,
+        "BND": 0.061625252,
+        "FXP": 0.059515897,
+        "HIBS": 0.05039925,
+        "DBO": 0.050082578,
+        "HARD": 0.043516217,
+        "NEAR": 0.041656206,
+        "DRV": 0.039846153,
+        "TZA": 0.032899118,
+        "SQQQ": 0.032642879,
+        "MO": 0.028288943,
+        "TECL": 0.025661959,
+        "INTC": 0.025640941,
+        "AVGO": 0.025608943,
+        "ORCL": 0.025604075,
+        "NVDA": 0.025590324,
+        "NFLX": 0.025582667,
+        "AMD": 0.025579777,
+        "EPV": 0.024801674,
+        "UBR": 0.022461139,
+        "ZSL": 0.021324373,
+        "COST": 0.020658435,
+        "LLY": 0.020057248,
+        "NVO": 0.018891121,
+        "PGR": 0.018149766,
+        "AAPL": 0.017059829,
+        "SVXY": 0.01490991,
+        "TMF": 0.014714332,
+        "QID": 0.014036667,
+        "TWM": 0.0130026,
+        "COKE": 0.012283725,
+        "QLD": 0.012042933,
+        "SPXS": 0.008730041,
+        "TSLA": 0.008511255,
+        "EFZ": 0.008426436,
+        "IHE": 0.007354337000000001,
+        "GDX": 0.007347722,
+        "PSQ": 0.005883398,
+        "MINT": 0.00571228,
+        "BAB": 0.005677921,
+        "EUM": 0.005221471,
+        "REW": 0.004920377,
+        "FAS": 0.004592816,
+        "BIS": 0.004303356
+    },
+    "triggers": [
+        {
+            "symphony_name": "TWF v65 | Cashen",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 0.56,
+            "shadow_return": 0.58,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 1.08,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UPRO",
+                "SOXL",
+                "QQQ",
+                "UUP",
+                "SPY",
+                "BTAL",
+                "TQQQ",
+                "EDZ",
+                "VIXY",
+                "GLD",
+                "VIXM",
+                "BIL"
+            ]
+        },
+        {
+            "symphony_name": "TWF v73 | Cashen",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.9,
+            "shadow_return": 0.9,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.05,
+            "time_triggered": "14:02",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "UUP",
+                "SPY",
+                "BTAL",
+                "EDZ",
+                "VIXY",
+                "GLD",
+                "VIXM",
+                "BIL",
+                "BND"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | United Colors of Benetton | MINI",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.76,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GBTC",
+                "DRV",
+                "TQQQ",
+                "EDZ",
+                "EDC",
+                "FAS",
+                "VIXY",
+                "UVXY",
+                "BIL"
+            ]
+        },
+        {
+            "symphony_name": "VIXRunner Mashup",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.76,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Just The FrontRunners | 80% | Calmar",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.74,
+            "saved_pct_guard_alpha": 0.02,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | SMABoxes | Leveraged",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.76,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "MINT",
+                "EEV",
+                "DRV",
+                "MIDU",
+                "BAB",
+                "EDZ",
+                "EDC",
+                "FXP",
+                "SOXS",
+                "VIXY",
+                "UVXY",
+                "TNA",
+                "TZA"
+            ]
+        },
+        {
+            "symphony_name": "And I Ran, I Ran to Anansi ",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.66,
+            "shadow_return": 1.69,
+            "saved_pct_guard_alpha": -0.03,
+            "hwm_at_trigger": 3.39,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "PGR",
+                "COKE",
+                "NVO",
+                "MO",
+                "BTAL",
+                "LLY",
+                "EDZ",
+                "EDC",
+                "QLD",
+                "VIXY",
+                "UVXY",
+                "BIL",
+                "COST"
+            ]
+        },
+        {
+            "symphony_name": "Opus-12 | WHS & Anansi FR",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 0.56,
+            "shadow_return": 0.55,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 1.21,
+            "time_triggered": "11:58",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "BTAL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "BWC: Systematic Emerging Markets (Composer) ",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.78,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "EDC",
+                "EDZ",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Chicken & Fried Rice | Simplified Portfolio",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.3,
+            "shadow_return": 1.33,
+            "saved_pct_guard_alpha": -0.03,
+            "hwm_at_trigger": 2.58,
+            "time_triggered": "12:20",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "DBO",
+                "EDZ",
+                "UGL",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Inverse Volatility | Tech + EM + Gold",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.98,
+            "shadow_return": 0.96,
+            "saved_pct_guard_alpha": 0.02,
+            "hwm_at_trigger": 1.03,
+            "time_triggered": "11:02",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "EEV",
+                "UGL",
+                "XLP",
+                "BTAL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | United Colors of Benetton | non-MINI",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.76,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GBTC",
+                "EEV",
+                "EPV",
+                "TQQQ",
+                "EDZ",
+                "EDC",
+                "FXP",
+                "SOXS",
+                "VIXY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | SPY 200d",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.77,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SPY",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | United Colors of Benetton",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.78,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GBTC",
+                "EEV",
+                "ZSL",
+                "EPV",
+                "TQQQ",
+                "EDZ",
+                "EDC",
+                "VIXY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunner | 80% | AR + Calmar",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.59,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "HODL FR",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.54,
+            "shadow_return": 1.56,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 3.18,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "PGR",
+                "COKE",
+                "NVO",
+                "MO",
+                "BTAL",
+                "TQQQ",
+                "LLY",
+                "VIXY",
+                "UVXY",
+                "IAU",
+                "COST",
+                "KMLM"
+            ]
+        },
+        {
+            "symphony_name": "80% | Calmar",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.59,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "79 FR",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.94,
+            "shadow_return": 2.0,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 4.11,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL"
+            ]
+        },
+        {
+            "symphony_name": "Feaver Dream UBR RSI",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.43,
+            "shadow_return": 1.46,
+            "saved_pct_guard_alpha": -0.03,
+            "hwm_at_trigger": 3.01,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BZQ",
+                "UBR",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | EM ONLY",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.78,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDC",
+                "EDZ",
+                "FXP",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "TWF STFU and Chill More",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 0.91,
+            "shadow_return": 0.9,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 1.76,
+            "time_triggered": "12:12",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "GLD",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Conjoined Triangles of Success",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.77,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDC",
+                "EDZ",
+                "FXP",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Script Kiddie Feaver Dream UBR RSI",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.94,
+            "shadow_return": 1.99,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 4.11,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "Anansi Mixed Signals",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 0.79,
+            "shadow_return": 0.79,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.5,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "TESTPORT #018.2: Sector Rotator",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.94,
+            "shadow_return": 2.1,
+            "saved_pct_guard_alpha": -0.16,
+            "hwm_at_trigger": 4.11,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | SMABoxes | 3x",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.87,
+            "saved_pct_guard_alpha": -0.11,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EEV",
+                "EFZ",
+                "MIDU",
+                "TWM",
+                "EDC",
+                "VIXY",
+                "QID",
+                "UVXY",
+                "TNA"
+            ]
+        },
+        {
+            "symphony_name": "HODL mFR|KMLM",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.58,
+            "shadow_return": 1.69,
+            "saved_pct_guard_alpha": -0.11,
+            "hwm_at_trigger": 3.22,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "BTAL",
+                "SVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "WHSMacon : Vengeance Sync R\u0394 -Hyper Drive- Edition ",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.21,
+            "shadow_return": 1.26,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 2.24,
+            "time_triggered": "14:01",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "NFLX",
+                "AVGO",
+                "INTC",
+                "HIBS",
+                "NVDA",
+                "TECL",
+                "EDZ",
+                "AAPL",
+                "ORCL",
+                "VIXY",
+                "TSLA",
+                "SRTY",
+                "AMD",
+                "LABD",
+                "VIXM",
+                "BIL"
+            ]
+        },
+        {
+            "symphony_name": "MbM | Always Hedged Timeframe Trends v0.0.0.1 ",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.94,
+            "shadow_return": 2.09,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 4.11,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "US Equities | Multi-Runner | 2025-10-20",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.65,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Mini Benetton | 80% | Calmar",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.86,
+            "saved_pct_guard_alpha": -0.1,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Markets? EMERGED + OOS AutoTuned + Slim Jim (Crypto Juice+) | NOVA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.4,
+            "shadow_return": 1.5,
+            "saved_pct_guard_alpha": -0.1,
+            "hwm_at_trigger": 3.01,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "REW",
+                "GBTC",
+                "EEV",
+                "DRV",
+                "MIDU",
+                "SPXS",
+                "EDZ",
+                "EDC",
+                "FXP",
+                "SOXS",
+                "VIXY",
+                "UVIX",
+                "UVXY",
+                "BIS",
+                "TZA"
+            ]
+        },
+        {
+            "symphony_name": "TWF FW (Base v2) vAll-01 + FR v1",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.22,
+            "shadow_return": 1.3,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 2.45,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EUM",
+                "TMF",
+                "QQQ",
+                "GDX",
+                "UUP",
+                "SPY",
+                "IHE",
+                "BTAL",
+                "SH",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "UVXY",
+                "VIXM",
+                "SQQQ",
+                "PSQ"
+            ]
+        },
+        {
+            "symphony_name": "TWF FW (TWF Base v26) vAll-01 + FR v1",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.18,
+            "shadow_return": 1.24,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 2.37,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EUM",
+                "TMF",
+                "GDX",
+                "UUP",
+                "IHE",
+                "BTAL",
+                "TQQQ",
+                "SH",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "UVXY",
+                "SQQQ",
+                "KMLM",
+                "PSQ"
+            ]
+        },
+        {
+            "symphony_name": "UltraRunner | Static Hold",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.62,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "15 FR + KozBonds",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.46,
+            "shadow_return": 1.52,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 2.77,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "IAU",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "MbM | Hedged FTLT",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.65,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Designed FR | Testfolio",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.66,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "QQQ 1996 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.9,
+            "shadow_return": 1.79,
+            "saved_pct_guard_alpha": 0.11,
+            "hwm_at_trigger": 3.7,
+            "time_triggered": "12:13",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "TWF STFU, HODL, and Chill | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.54,
+            "shadow_return": 1.62,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 3.16,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UGL",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "DIA 1998 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 2.24,
+            "shadow_return": 2.09,
+            "saved_pct_guard_alpha": 0.15,
+            "hwm_at_trigger": 4.09,
+            "time_triggered": "12:11",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "QQQ 1996 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.92,
+            "shadow_return": 1.8,
+            "saved_pct_guard_alpha": 0.12,
+            "hwm_at_trigger": 3.72,
+            "time_triggered": "12:13",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "DIA 1998 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 2.19,
+            "shadow_return": 2.19,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 4.12,
+            "time_triggered": "12:13",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "US Equities Multi-Runner | DIA/FXI/QQQ FR | 2025-10-20 (VIXY -> UVIX) | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.66,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Autotune OPTIMIZED | AutoRunners United Colors of Benetton HOLD | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.9,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Chocolatey Mini Benetton | 80% | Calmar",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.9,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Autotune OPTIMIZED Mix 2 Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.9,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Dan's Semi/Memory/Optics/Comms/Power + Korean 4TLT | okhi2u | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.91,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Long/Short Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.93,
+            "saved_pct_guard_alpha": -0.17,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Champagne & Cocaine Optimized",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 0.79,
+            "shadow_return": 0.84,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 1.5,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "UltraRunner Optimized",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.18,
+            "shadow_return": 1.29,
+            "saved_pct_guard_alpha": -0.11,
+            "hwm_at_trigger": 2.36,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Just The FrontRunners | Optimized",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.87,
+            "saved_pct_guard_alpha": -0.11,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver Shorty | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.88,
+            "saved_pct_guard_alpha": -0.12,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "81-89 FR December 2025 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 0.53,
+            "shadow_return": 0.49,
+            "saved_pct_guard_alpha": 0.04,
+            "hwm_at_trigger": 0.88,
+            "time_triggered": "14:56",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "TAIL",
+                "QQQ",
+                "SVXY",
+                "UUP",
+                "SPY",
+                "UGL",
+                "SH",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "XLK",
+                "VIXM",
+                "NEAR"
+            ]
+        },
+        {
+            "symphony_name": "Moon Mission v3 | Nova Fever FR | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.42,
+            "shadow_return": 1.55,
+            "saved_pct_guard_alpha": -0.13,
+            "hwm_at_trigger": 2.92,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "SOXS",
+                "TAIL",
+                "UVXY",
+                "VIXM",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "v3 The Absolute Lowest Vol High AR | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.91,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "HODL Chicken & Fried Rice | De-Debased Simplified Portfolio | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.88,
+            "saved_pct_guard_alpha": -0.12,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "MOST AR NO MATTER WHAT STFU SIT DOWN AND HOLD ON v1.1 | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.88,
+            "saved_pct_guard_alpha": -0.12,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver FR | 2/3 Core | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.65,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Feaver Dreams and NOVA | UVXY | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.3,
+            "shadow_return": 3.39,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 3.5,
+            "time_triggered": "11:02",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "v2 USD Nested SOXL Autotuned w/ a Shorty | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.8,
+            "saved_pct_guard_alpha": -0.04,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Four square shorting homies | okhi2u | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.79,
+            "saved_pct_guard_alpha": -0.03,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "FSTRAT 29a5 FRUNNER 17 + UCOB + NOVA V1.21c.3a1 HEDGE | OPTIMIZED CAGR Sortino",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.25,
+            "shadow_return": 1.31,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 2.59,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VXX",
+                "UVXY",
+                "VIXM"
+            ]
+        },
+        {
+            "symphony_name": "Chocolate milk V3",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.78,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 3.54,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Consolidated Portfolio V2 2026 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.48,
+            "shadow_return": 3.45,
+            "saved_pct_guard_alpha": 0.03,
+            "hwm_at_trigger": 4.07,
+            "time_triggered": "11:18",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "SOXS",
+                "TECS",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Land of Feaver'd Allocations: Intelligent Novas | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.71,
+            "shadow_return": 1.7,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 3.48,
+            "time_triggered": "12:12",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BTAL",
+                "UVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver FR | #018.2: Sector Rotator | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.54,
+            "saved_pct_guard_alpha": 0.03,
+            "hwm_at_trigger": 2.99,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Golden Ratio Portfolio v20260408 (Zaied + Gold Nova Feaver + GOLD / UGL mixer + Nova Feaver) | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.16,
+            "shadow_return": 1.17,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 1.69,
+            "time_triggered": "14:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "CFIT",
+                "HARD",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Moon Mission v3 | Nova Fever FR | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.42,
+            "shadow_return": 1.4,
+            "saved_pct_guard_alpha": 0.02,
+            "hwm_at_trigger": 2.89,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "SOXS",
+                "TAIL",
+                "UVXY",
+                "VIXM",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of TWF STFU, HODL, and Chill | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.54,
+            "shadow_return": 1.5,
+            "saved_pct_guard_alpha": 0.04,
+            "hwm_at_trigger": 3.15,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UGL",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of HODL Chicken & Fried Rice | De-Debased Simplified Portfolio | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.71,
+            "saved_pct_guard_alpha": 0.05,
+            "hwm_at_trigger": 3.52,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Autotune OPTIMIZED Mix 2 Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.74,
+            "saved_pct_guard_alpha": 0.02,
+            "hwm_at_trigger": 3.52,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Feaver Dreams and NOVA | UVXY | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.32,
+            "shadow_return": 3.38,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 3.35,
+            "time_triggered": "11:02",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of US Equities Multi-Runner | DIA/FXI/QQQ FR | 2025-10-20 (VIXY -> UVIX) | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.54,
+            "saved_pct_guard_alpha": 0.03,
+            "hwm_at_trigger": 3.0,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Consolidated Portfolio V2 2026",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.39,
+            "shadow_return": 3.66,
+            "saved_pct_guard_alpha": -0.27,
+            "hwm_at_trigger": 3.39,
+            "time_triggered": "11:03",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "SOXS",
+                "TECS",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of MOST AR NO MATTER WHAT STFU SIT DOWN AND HOLD ON v1.1 | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.73,
+            "saved_pct_guard_alpha": 0.03,
+            "hwm_at_trigger": 3.52,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Nova Feaver FR | 2/3 Core | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.53,
+            "saved_pct_guard_alpha": 0.04,
+            "hwm_at_trigger": 3.0,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of DIA 1998 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.88,
+            "shadow_return": 1.93,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 3.97,
+            "time_triggered": "12:20",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of QQQ 1996 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.66,
+            "shadow_return": 1.58,
+            "saved_pct_guard_alpha": 0.08,
+            "hwm_at_trigger": 3.59,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of DIA 1998 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.91,
+            "shadow_return": 1.93,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 4.0,
+            "time_triggered": "12:20",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of QQQ 1996 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.64,
+            "shadow_return": 1.55,
+            "saved_pct_guard_alpha": 0.09,
+            "hwm_at_trigger": 3.57,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Chocolatey Mini Benetton | 80% | Calmar",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.76,
+            "shadow_return": 1.74,
+            "saved_pct_guard_alpha": 0.02,
+            "hwm_at_trigger": 3.52,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of FXI 2006 | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 2.01,
+            "shadow_return": 2.0,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 4.17,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "FXI",
+                "UVIX",
+                "YANG"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Land of Feaver'd Allocations: Intelligent Novas | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.75,
+            "shadow_return": 1.73,
+            "saved_pct_guard_alpha": 0.02,
+            "hwm_at_trigger": 3.43,
+            "time_triggered": "12:12",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BTAL",
+                "UVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver FR | #018.2: Sector Rotator | Jope IRA",
+            "exit_reason": "Trailing Stop",
+            "exit_return": 1.57,
+            "shadow_return": 1.56,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 3.01,
+            "time_triggered": "12:21",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        }
+    ]
+}

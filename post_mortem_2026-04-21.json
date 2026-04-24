@@ -1,0 +1,1716 @@
+{
+    "date": "2026-04-21",
+    "summary": {
+        "total_monitored": 107,
+        "total_triggered": 99,
+        "positive_guard_alpha_count": 12
+    },
+    "tomorrow_target_holdings": {
+        "VIXY": 32.75132829299999,
+        "UVXY": 20.948118736,
+        "UVIX": 8.468988293,
+        "BIL": 4.786952999999999,
+        "SOXS": 4.2287318670000005,
+        "EDZ": 3.5323450700000003,
+        "QQQ": 2.5391126809999998,
+        "DIA": 2.160396668,
+        "KMLM": 1.9938687670000002,
+        "SPY": 1.9737880810000001,
+        "TQQQ": 1.720582808,
+        "BTAL": 1.6316646050000005,
+        "GLD": 1.304744788,
+        "UUP": 1.2549462359999999,
+        "TECL": 1.252451318,
+        "VIXM": 1.005084936,
+        "UGL": 0.886606223,
+        "UDOW": 0.864311965,
+        "UCO": 0.8607189660000001,
+        "DFEN": 0.803758998,
+        "SPXL": 0.800563899,
+        "EDC": 0.7422434889999999,
+        "FXI": 0.6986495340000001,
+        "SHNY": 0.600415478,
+        "BZQ": 0.584973481,
+        "EEV": 0.47658015500000006,
+        "GBTC": 0.4536311840000001,
+        "UBR": 0.396887615,
+        "XLP": 0.371045905,
+        "USD": 0.368180136,
+        "GDX": 0.36714678100000003,
+        "YANG": 0.310052985,
+        "TNA": 0.309037155,
+        "IAU": 0.30059473600000003,
+        "MIDU": 0.271438393,
+        "SVIX": 0.268620474,
+        "SOXL": 0.265386005,
+        "HIBS": 0.247885218,
+        "UPRO": 0.24682132899999998,
+        "DRV": 0.201395374,
+        "COST": 0.198927813,
+        "FXP": 0.181903494,
+        "EET": 0.170090003,
+        "FTDS": 0.161380103,
+        "LLY": 0.131656478,
+        "EPV": 0.128583585,
+        "CFIT": 0.117599596,
+        "SRTY": 0.114537899,
+        "SMH": 0.110839608,
+        "SRS": 0.105208311,
+        "BND": 0.103397106,
+        "EUM": 0.100973379,
+        "SH": 0.09506738,
+        "NVO": 0.095051212,
+        "JXI": 0.084524176,
+        "KOLD": 0.084460388,
+        "PSCU": 0.084385131,
+        "TOLZ": 0.084360335,
+        "REZ": 0.084331716,
+        "TPYP": 0.084307243,
+        "SPCK": 0.083927069,
+        "XLK": 0.083614541,
+        "MO": 0.083013116,
+        "PUI": 0.073686602,
+        "GE": 0.073628336,
+        "EFZ": 0.070889764,
+        "ZSL": 0.063871815,
+        "TZA": 0.059319529,
+        "QID": 0.056692003,
+        "TWM": 0.05279873,
+        "PGR": 0.051555194,
+        "DBO": 0.050382689,
+        "HARD": 0.043269199,
+        "TAIL": 0.041685385,
+        "COKE": 0.036956137,
+        "AMD": 0.025630152,
+        "TSM": 0.025571135,
+        "INTC": 0.025568899,
+        "ORCL": 0.025557814,
+        "NVDA": 0.02554942,
+        "NFLX": 0.025547412,
+        "QLD": 0.023988737,
+        "AAPL": 0.016989342,
+        "SVXY": 0.014802214,
+        "MINT": 0.011497197,
+        "BAB": 0.011458674,
+        "EMF": 0.010540265,
+        "EEM": 0.009551169,
+        "FAS": 0.009253504,
+        "SPXS": 0.008938156,
+        "TSLA": 0.008489912,
+        "PSQ": 0.005867091,
+        "REW": 0.004850564,
+        "BIS": 0.004320737,
+        "SQQQ": 0.003244917
+    },
+    "triggers": [
+        {
+            "symphony_name": "TWF v73 | Cashen",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.88,
+            "shadow_return": 0.74,
+            "saved_pct_guard_alpha": 0.14,
+            "hwm_at_trigger": 0.88,
+            "time_triggered": "15:45",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BND",
+                "GLD",
+                "QQQ",
+                "SPY",
+                "UUP",
+                "BTAL",
+                "VIXM",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | United Colors of Benetton | MINI",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.61,
+            "shadow_return": 0.66,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 0.64,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GBTC",
+                "DRV",
+                "TQQQ",
+                "EDZ",
+                "EDC",
+                "FAS",
+                "VIXY",
+                "UVXY",
+                "BIL"
+            ]
+        },
+        {
+            "symphony_name": "VIXRunner Mashup",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.82,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Just The FrontRunners | 80% | Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.77,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | SMABoxes | Leveraged",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.72,
+            "shadow_return": 0.72,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.8,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "MINT",
+                "EEV",
+                "DRV",
+                "FTDS",
+                "MIDU",
+                "BAB",
+                "EDZ",
+                "EDC",
+                "FXP",
+                "SOXS",
+                "VIXY",
+                "UVXY",
+                "TNA",
+                "TZA"
+            ]
+        },
+        {
+            "symphony_name": "And I Ran, I Ran to Anansi ",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.45,
+            "shadow_return": 0.49,
+            "saved_pct_guard_alpha": -0.04,
+            "hwm_at_trigger": 0.48,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "PGR",
+                "COKE",
+                "NVO",
+                "MO",
+                "BTAL",
+                "LLY",
+                "EDZ",
+                "QLD",
+                "VIXY",
+                "UVXY",
+                "BIL",
+                "COST"
+            ]
+        },
+        {
+            "symphony_name": "Opus-12 | WHS & Anansi FR",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.76,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.97,
+            "time_triggered": "13:26",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "BTAL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "BWC: Systematic Emerging Markets (Composer) ",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.5,
+            "shadow_return": 0.52,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 0.53,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "EDC",
+                "EDZ",
+                "FXP",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Chicken & Fried Rice | Simplified Portfolio",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.73,
+            "shadow_return": 1.72,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 1.73,
+            "time_triggered": "13:13",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "DBO",
+                "EDZ",
+                "UGL",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Inverse Volatility | Tech + EM + Gold",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.35,
+            "shadow_return": 0.31,
+            "saved_pct_guard_alpha": 0.04,
+            "hwm_at_trigger": 0.44,
+            "time_triggered": "11:39",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "EET",
+                "EEV",
+                "UGL",
+                "XLP",
+                "BTAL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | United Colors of Benetton | non-MINI",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.56,
+            "shadow_return": 0.57,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 0.61,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GBTC",
+                "EEV",
+                "EPV",
+                "TQQQ",
+                "EDZ",
+                "EDC",
+                "SRS",
+                "FXP",
+                "SOXS",
+                "VIXY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | SPY 200d",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.63,
+            "shadow_return": 0.64,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 0.71,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SPY",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | United Colors of Benetton",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.68,
+            "shadow_return": 0.74,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 0.73,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GBTC",
+                "EEV",
+                "ZSL",
+                "EPV",
+                "TQQQ",
+                "EDZ",
+                "EDC",
+                "SRS",
+                "VIXY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunner | 80% | AR + Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.5,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "HODL FR",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.45,
+            "shadow_return": 0.46,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 0.52,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "PGR",
+                "COKE",
+                "NVO",
+                "MO",
+                "BTAL",
+                "TQQQ",
+                "LLY",
+                "VIXY",
+                "UVXY",
+                "IAU",
+                "COST",
+                "KMLM"
+            ]
+        },
+        {
+            "symphony_name": "80% | Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.5,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Feaver Dream UBR RSI",
+            "exit_reason": "Take-Profit",
+            "exit_return": 2.36,
+            "shadow_return": 2.41,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 2.36,
+            "time_triggered": "13:13",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BZQ",
+                "UBR",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | EM ONLY",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.56,
+            "shadow_return": 0.61,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 0.57,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDC",
+                "EDZ",
+                "EMF",
+                "FXP",
+                "FTDS",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "TWF STFU and Chill More",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.99,
+            "shadow_return": 1.01,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 1.34,
+            "time_triggered": "13:26",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "GLD",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Conjoined Triangles of Success",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.49,
+            "shadow_return": 0.54,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 0.54,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDC",
+                "EDZ",
+                "FXP",
+                "FTDS",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Script Kiddie Feaver Dream UBR RSI",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.09,
+            "shadow_return": 1.24,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 1.16,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BZQ",
+                "UBR",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "Anansi Mixed Signals",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.22,
+            "shadow_return": 0.31,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 0.28,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "TESTPORT #018.2: Sector Rotator",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.09,
+            "shadow_return": 1.27,
+            "saved_pct_guard_alpha": -0.18,
+            "hwm_at_trigger": 1.16,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | SMABoxes | 3x",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.81,
+            "shadow_return": 0.88,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.9,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EEV",
+                "EFZ",
+                "FTDS",
+                "MIDU",
+                "TWM",
+                "EDC",
+                "VIXY",
+                "QID",
+                "UVXY",
+                "TNA"
+            ]
+        },
+        {
+            "symphony_name": "HODL mFR|KMLM",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.46,
+            "shadow_return": 0.53,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.48,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "BTAL",
+                "SVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "WHSMacon : Vengeance Sync R\u0394 -Hyper Drive- Edition ",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.53,
+            "shadow_return": 1.52,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 1.53,
+            "time_triggered": "13:13",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "NFLX",
+                "DRV",
+                "INTC",
+                "HIBS",
+                "NVDA",
+                "TECL",
+                "EDZ",
+                "AAPL",
+                "ORCL",
+                "VIXY",
+                "TSLA",
+                "SRTY",
+                "AMD",
+                "TSM",
+                "VIXM",
+                "BIL"
+            ]
+        },
+        {
+            "symphony_name": "MbM | Always Hedged Timeframe Trends v0.0.0.1 ",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.09,
+            "shadow_return": 1.17,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 1.16,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "HIBS",
+                "SPXL"
+            ]
+        },
+        {
+            "symphony_name": "US Equities | Multi-Runner | 2025-10-20",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.54,
+            "saved_pct_guard_alpha": -0.12,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Mini Benetton | 80% | Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.78,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Markets? EMERGED + OOS AutoTuned + Slim Jim (Crypto Juice+) | NOVA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.78,
+            "shadow_return": 1.77,
+            "saved_pct_guard_alpha": 0.01,
+            "hwm_at_trigger": 2.45,
+            "time_triggered": "13:26",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "REW",
+                "GBTC",
+                "EEV",
+                "EUM",
+                "DRV",
+                "EEM",
+                "SOXL",
+                "EFZ",
+                "FTDS",
+                "MIDU",
+                "EET",
+                "TECL",
+                "SPXS",
+                "EDZ",
+                "EDC",
+                "FXP",
+                "SOXS",
+                "VIXY",
+                "UVIX",
+                "UVXY",
+                "BIS",
+                "USD",
+                "TZA"
+            ]
+        },
+        {
+            "symphony_name": "TWF FW (Base v2) vAll-01 + FR v1",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.23,
+            "shadow_return": 0.24,
+            "saved_pct_guard_alpha": -0.01,
+            "hwm_at_trigger": 0.28,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EUM",
+                "QQQ",
+                "UUP",
+                "SPY",
+                "BTAL",
+                "SH",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "UVXY",
+                "VIXM",
+                "SQQQ",
+                "PSQ"
+            ]
+        },
+        {
+            "symphony_name": "UltraRunner | Static Hold",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.49,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UGL",
+                "UUP",
+                "XLP",
+                "KMLM",
+                "TQQQ"
+            ]
+        },
+        {
+            "symphony_name": "15 FR + KozBonds",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.34,
+            "shadow_return": 0.42,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 0.46,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "IAU",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "MbM | Hedged FTLT",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.58,
+            "saved_pct_guard_alpha": -0.16,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Designed FR | Testfolio",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.54,
+            "saved_pct_guard_alpha": -0.12,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "QQQ 1996 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.09,
+            "shadow_return": 1.16,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 1.09,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "TWF STFU, HODL, and Chill | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.53,
+            "shadow_return": 0.63,
+            "saved_pct_guard_alpha": -0.1,
+            "hwm_at_trigger": 0.61,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UGL",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "DIA 1998 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.22,
+            "shadow_return": 1.26,
+            "saved_pct_guard_alpha": -0.04,
+            "hwm_at_trigger": 1.23,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "QQQ 1996 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.13,
+            "shadow_return": 1.21,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 1.13,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "DIA 1998 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.16,
+            "shadow_return": 1.2,
+            "saved_pct_guard_alpha": -0.04,
+            "hwm_at_trigger": 1.17,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "US Equities Multi-Runner | DIA/FXI/QQQ FR | 2025-10-20 (VIXY -> UVIX) | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.57,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Autotune OPTIMIZED | AutoRunners United Colors of Benetton HOLD | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.9,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Chocolatey Mini Benetton | 80% | Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.89,
+            "saved_pct_guard_alpha": -0.13,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Autotune OPTIMIZED Mix 2 Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.84,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Dan's Semi/Memory/Optics/Comms/Power + Korean 4TLT | okhi2u | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": -0.1,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Long/Short Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.85,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Champagne & Cocaine Optimized",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.22,
+            "shadow_return": 0.27,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 0.28,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GE",
+                "EDZ",
+                "LLY",
+                "NVO",
+                "COST",
+                "TECL"
+            ]
+        },
+        {
+            "symphony_name": "UltraRunner Optimized",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.51,
+            "shadow_return": 0.6,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 0.58,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SPY"
+            ]
+        },
+        {
+            "symphony_name": "AutoRunners | Just The FrontRunners | Optimized",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.57,
+            "shadow_return": 0.64,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.65,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BIL",
+                "UCO",
+                "TECL",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver Shorty | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.85,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Moon Mission v3 | Nova Fever FR | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.4,
+            "shadow_return": 0.49,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 0.46,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SOXL",
+                "SHNY",
+                "TECL",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "UVXY",
+                "UCO",
+                "BIL",
+                "USD"
+            ]
+        },
+        {
+            "symphony_name": "v3 The Absolute Lowest Vol High AR | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.9,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "HODL Chicken & Fried Rice | De-Debased Simplified Portfolio | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.85,
+            "saved_pct_guard_alpha": -0.09,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "MOST AR NO MATTER WHAT STFU SIT DOWN AND HOLD ON v1.1 | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.9,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver FR | 2/3 Core | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.57,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Feaver Dreams and NOVA | UVXY | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.83,
+            "shadow_return": 0.94,
+            "saved_pct_guard_alpha": -0.11,
+            "hwm_at_trigger": 0.83,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "GDX",
+                "SHNY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "v2 USD Nested SOXL Autotuned w/ a Shorty | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.88,
+            "saved_pct_guard_alpha": -0.12,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Four square shorting homies | okhi2u | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.89,
+            "saved_pct_guard_alpha": -0.13,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "FSTRAT 29a5 FRUNNER 17 + UCOB + NOVA V1.21c.3a1 HEDGE | OPTIMIZED CAGR Sortino",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.65,
+            "shadow_return": 1.62,
+            "saved_pct_guard_alpha": 0.03,
+            "hwm_at_trigger": 2.13,
+            "time_triggered": "13:26",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UCO",
+                "TECL"
+            ]
+        },
+        {
+            "symphony_name": "Chocolate milk V3",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.76,
+            "shadow_return": 0.91,
+            "saved_pct_guard_alpha": -0.15,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "PSCU",
+                "SPCK",
+                "KOLD",
+                "TPYP",
+                "PUI",
+                "TOLZ",
+                "VIXY",
+                "UVXY",
+                "JXI",
+                "REZ"
+            ]
+        },
+        {
+            "symphony_name": "Consolidated Portfolio V2 2026 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.02,
+            "shadow_return": 2.59,
+            "saved_pct_guard_alpha": 0.43,
+            "hwm_at_trigger": 3.03,
+            "time_triggered": "15:45",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SOXS"
+            ]
+        },
+        {
+            "symphony_name": "Land of Feaver'd Allocations: Intelligent Novas | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 2.19,
+            "shadow_return": 2.21,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 2.91,
+            "time_triggered": "13:26",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BTAL",
+                "UVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver FR | #018.2: Sector Rotator | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.42,
+            "shadow_return": 0.58,
+            "saved_pct_guard_alpha": -0.16,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of US Equities Multi-Runner | DIA/FXI/QQQ FR | 2025-10-20 (VIXY -> UVIX) | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.44,
+            "shadow_return": 0.58,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Moon Mission v3 | Nova Fever FR | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.11,
+            "shadow_return": 2.78,
+            "saved_pct_guard_alpha": 0.33,
+            "hwm_at_trigger": 3.14,
+            "time_triggered": "15:45",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SOXL",
+                "SHNY",
+                "TECL",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "UVXY",
+                "UCO",
+                "BIL",
+                "USD"
+            ]
+        },
+        {
+            "symphony_name": "Copy of DIA 1998 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.23,
+            "shadow_return": 1.23,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.23,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Nova Feaver FR | TESTPORT #018.2: Sector Rotator | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.44,
+            "shadow_return": 0.51,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of QQQ 1996 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.12,
+            "shadow_return": 1.28,
+            "saved_pct_guard_alpha": -0.16,
+            "hwm_at_trigger": 1.13,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Nova Feaver FR | 2/3 Core | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.44,
+            "shadow_return": 0.51,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.56,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of MOST AR NO MATTER WHAT STFU SIT DOWN AND HOLD ON v1.1 | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.77,
+            "shadow_return": 0.91,
+            "saved_pct_guard_alpha": -0.14,
+            "hwm_at_trigger": 0.85,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of DIA 1998 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.16,
+            "shadow_return": 1.16,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.17,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of QQQ 1996 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.09,
+            "shadow_return": 1.11,
+            "saved_pct_guard_alpha": -0.02,
+            "hwm_at_trigger": 1.09,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of TWF STFU, HODL, and Chill | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.54,
+            "shadow_return": 0.62,
+            "saved_pct_guard_alpha": -0.08,
+            "hwm_at_trigger": 0.6,
+            "time_triggered": "10:33",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UGL",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Golden Ratio Portfolio v20260408 (Zaied + Gold Nova Feaver + GOLD / UGL mixer + Nova Feaver) | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.3,
+            "shadow_return": 1.48,
+            "saved_pct_guard_alpha": -1.18,
+            "hwm_at_trigger": 0.36,
+            "time_triggered": "10:32",
+            "symphony_vol": 2.43,
+            "next_day_holdings": [
+                "BIL",
+                "GLD",
+                "UGL",
+                "CFIT",
+                "HARD",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Chocolatey Mini Benetton | 80% | Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.86,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:36",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Autotune OPTIMIZED Mix 2 Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.86,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:36",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of HODL Chicken & Fried Rice | De-Debased Simplified Portfolio | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.86,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:36",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Feaver Dreams and NOVA | UVXY | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.72,
+            "shadow_return": 0.82,
+            "saved_pct_guard_alpha": -0.1,
+            "hwm_at_trigger": 0.73,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "GDX",
+                "SHNY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of FXI 2006 | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.04,
+            "shadow_return": 1.07,
+            "saved_pct_guard_alpha": -0.03,
+            "hwm_at_trigger": 1.04,
+            "time_triggered": "10:36",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "FXI",
+                "UVIX",
+                "YANG"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Land of Feaver'd Allocations: Intelligent Novas | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.51,
+            "shadow_return": 0.54,
+            "saved_pct_guard_alpha": -0.03,
+            "hwm_at_trigger": 0.6,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BTAL",
+                "UVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of GLD 1995 | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 3.25,
+            "shadow_return": 2.79,
+            "saved_pct_guard_alpha": 0.46,
+            "hwm_at_trigger": 3.4,
+            "time_triggered": "15:45",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "GLD",
+                "SHNY",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Consolidated Portfolio V2 2026",
+            "exit_reason": "Take-Profit",
+            "exit_return": 2.93,
+            "shadow_return": 2.53,
+            "saved_pct_guard_alpha": 0.4,
+            "hwm_at_trigger": 3.05,
+            "time_triggered": "15:45",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SOXS"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Moon Mission v3 | Nova Fever FR | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.38,
+            "shadow_return": 0.44,
+            "saved_pct_guard_alpha": -0.06,
+            "hwm_at_trigger": 0.41,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SOXL",
+                "SHNY",
+                "TECL",
+                "SOXS",
+                "VIXY",
+                "GLD",
+                "UVXY",
+                "UCO",
+                "BIL",
+                "USD"
+            ]
+        },
+        {
+            "symphony_name": "Copy of TWF STFU, HODL, and Chill | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.62,
+            "shadow_return": 0.59,
+            "saved_pct_guard_alpha": 0.03,
+            "hwm_at_trigger": 0.62,
+            "time_triggered": "10:36",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UGL",
+                "BTAL",
+                "KMLM",
+                "TQQQ",
+                "UPRO",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of HODL Chicken & Fried Rice | De-Debased Simplified Portfolio | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.86,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Autotune OPTIMIZED Mix 2 Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.86,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Feaver Dreams and NOVA | UVXY | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.72,
+            "shadow_return": 0.82,
+            "saved_pct_guard_alpha": -0.1,
+            "hwm_at_trigger": 0.73,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "EDZ",
+                "GDX",
+                "SHNY",
+                "UVXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of US Equities Multi-Runner | DIA/FXI/QQQ FR | 2025-10-20 (VIXY -> UVIX) | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.44,
+            "shadow_return": 0.51,
+            "saved_pct_guard_alpha": -0.07,
+            "hwm_at_trigger": 0.44,
+            "time_triggered": "10:32",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Consolidated Portfolio V2 2026",
+            "exit_reason": "Take-Profit",
+            "exit_return": 2.84,
+            "shadow_return": 2.38,
+            "saved_pct_guard_alpha": 0.46,
+            "hwm_at_trigger": 3.13,
+            "time_triggered": "15:45",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "SOXS"
+            ]
+        },
+        {
+            "symphony_name": "Copy of MOST AR NO MATTER WHAT STFU SIT DOWN AND HOLD ON v1.1 | Mini Benetton | 80% | Calmar | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.86,
+            "shadow_return": 0.86,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.86,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Nova Feaver FR | 2/3 Core | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.55,
+            "shadow_return": 0.55,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.55,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of DIA 1998 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.18,
+            "shadow_return": 1.18,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.24,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of QQQ 1996 KMLM | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.21,
+            "shadow_return": 1.21,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.21,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of DIA 1998 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.12,
+            "shadow_return": 1.12,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.18,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "DIA",
+                "UDOW",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of QQQ 1996 MA | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.14,
+            "shadow_return": 1.14,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.14,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "QQQ",
+                "TQQQ",
+                "UVIX"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Chocolatey Mini Benetton | 80% | Calmar",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.89,
+            "shadow_return": 0.89,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.89,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Copy of FXI 2006 | Feaver Dream\u2122 | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 1.05,
+            "shadow_return": 1.05,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 1.05,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "FXI",
+                "UVIX",
+                "YANG"
+            ]
+        },
+        {
+            "symphony_name": "Copy of Land of Feaver'd Allocations: Intelligent Novas | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 2.16,
+            "shadow_return": 2.21,
+            "saved_pct_guard_alpha": -0.05,
+            "hwm_at_trigger": 2.91,
+            "time_triggered": "13:26",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "BTAL",
+                "UVIX",
+                "UVXY",
+                "VIXY"
+            ]
+        },
+        {
+            "symphony_name": "Nova Feaver FR | #018.2: Sector Rotator | Jope IRA",
+            "exit_reason": "Take-Profit",
+            "exit_return": 0.58,
+            "shadow_return": 0.58,
+            "saved_pct_guard_alpha": 0.0,
+            "hwm_at_trigger": 0.58,
+            "time_triggered": "10:37",
+            "symphony_vol": 0.0,
+            "next_day_holdings": [
+                "VIXY"
+            ]
+        }
+    ]
+}
