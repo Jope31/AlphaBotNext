@@ -465,9 +465,9 @@
                         <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Time of Day (Logarithmic Squeeze)</label>
                         <span class="text-sm font-mono text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20" id="sim-time-val">4:00 PM</span>
                     </div>
-                    <input type="range" id="sim-time-slider" min="0" max="330" step="1" value="330" class="w-full accent-blue-500" oninput="runSimulation()">
+                    <input type="range" id="sim-time-slider" min="0" max="390" step="1" value="390" class="w-full accent-blue-500" oninput="runSimulation()">
                     <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1 font-bold">
-                        <span>10:30 AM</span>
+                        <span>9:30 AM</span>
                         <span>4:00 PM</span>
                     </div>
                 </div>
@@ -1239,7 +1239,7 @@
             }
 
             // Defaults
-            document.getElementById('sim-time-slider').value = 330; // EOD (from 10:30)
+            document.getElementById('sim-time-slider').value = 390; // EOD (from 9:30)
             document.getElementById('sim-runup-slider').value = 0.0; 
             document.getElementById('sim-pullback-slider').value = 0.0;
             document.getElementById('sim-force-arm').checked = true;
@@ -1260,8 +1260,8 @@
         }
 
         function formatTimeLabel(minutesFromOpen) {
-            // Reflects the new 10:30 AM open grace period
-            const totalMinutes = 10 * 60 + 30 + parseInt(minutesFromOpen);
+            // Reflects the 9:30 AM open
+            const totalMinutes = 9 * 60 + 30 + parseInt(minutesFromOpen);
             const hours = Math.floor(totalMinutes / 60);
             const mins = totalMinutes % 60;
             const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -1301,7 +1301,7 @@
             document.getElementById('sim-pullback-val').innerText = `${simPullback.toFixed(1)}%`;
 
             // Calculate Decay Curve
-            const timeRatio = Math.max(0.0, Math.min(1.0, simMinutes / 330.0));
+            const timeRatio = Math.max(0.0, Math.min(1.0, simMinutes / 390.0));
             const decayCurve = Math.log10(1 + 9 * timeRatio);
 
             let html = '';

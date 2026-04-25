@@ -933,7 +933,7 @@ def main():
         is_weekday = current_et.weekday() < 5
         current_time = current_et.time()
 
-        market_open = dt_time(10, 30)
+        market_open = dt_time(9, 30)
         market_close = dt_time(16, 0)
         rebalance_blackout = dt_time(15, 54)
         post_mortem_cutoff = dt_time(16, 5)
@@ -980,7 +980,7 @@ def main():
             chart_history = {"date": current_date_str, "symphonies": {}}
             database.save_chart_history(chart_history)
 
-        m_open_dt = current_et.replace(hour=10, minute=30, second=0, microsecond=0)
+        m_open_dt = current_et.replace(hour=9, minute=30, second=0, microsecond=0)
         m_close_dt = current_et.replace(hour=16, minute=0, second=0, microsecond=0)
         total_trading_minutes = (m_close_dt - m_open_dt).total_seconds() / 60.0
         elapsed_minutes = (current_et - m_open_dt).total_seconds() / 60.0
