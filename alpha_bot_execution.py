@@ -538,31 +538,65 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
             pos_triggers = [
                 t for t in report.get("triggers", []) if t.get("saved_pct_guard_alpha", 0) > 0
             ]
-            if pos_triggers:
-                triggers_text = "\n".join(
-                    [
-                        f"• **{t['symphony_name']}**: Saved {t['saved_pct_guard_alpha']}% vs shadow."
-                        for t in pos_triggers
-                    ]
-                )
-                if len(triggers_text) > 1024:
-                    triggers_text = triggers_text[:1020] + "..."
-            else:
-                triggers_text = "None today."
 
-            payload = {
-                "embeds": [
-                    {
-                        "title": f"📊 AlphaBot EOD Analysis ({current_date_str})",
-                        "color": 3447003,
-                        "description": f"**Total Monitored:** {report['summary']['total_monitored']}\n**Positive Guard Alpha Triggers:** {report['summary']['positive_guard_alpha_count']}",
-                        "fields": [{"name": "Successful Saves", "value": triggers_text}],
-                        "footer": {"text": "End of Day Post-Mortem"},
-                    }
-                ]
+            fields = []
+            total_embed_chars = 0
+
+            # Base embed characters (title + description + footer text)
+            title = f"📊 AlphaBot EOD Analysis ({current_date_str})"
+            desc = f"**Total Monitored:** {report['summary']['total_monitored']}\n**Positive Guard Alpha Triggers:** {report['summary']['positive_guard_alpha_count']}"
+            footer = "End of Day Post-Mortem"
+            total_embed_chars += len(title) + len(desc) + len(footer)
+
+            if pos_triggers:
+                current_text = ""
+                chunk_index = 1
+                for t in pos_triggers:
+                    line = f"• **{t['symphony_name']}**: Saved {t['saved_pct_guard_alpha']}% vs shadow.\n"
+                    # Field limit is 1024 chars
+                    if len(current_text) + len(line) > 1024:
+                        field_name = "Successful Saves" if chunk_index == 1 else f"Successful Saves (Cont. {chunk_index})"
+
+                        # Check global 6000 limit
+                        if total_embed_chars + len(field_name) + len(current_text.strip()) > 5900:
+                            break
+
+                        fields.append({"name": field_name, "value": current_text.strip()})
+                        total_embed_chars += len(field_name) + len(current_text.strip())
+                        current_text = line
+                        chunk_index += 1
+                    else:
+                        current_text += line
+
+                if current_text:
+                    field_name = "Successful Saves" if chunk_index == 1 else f"Successful Saves (Cont. {chunk_index})"
+                    if total_embed_chars + len(field_name) + len(current_text.strip()) <= 5900:
+                        fields.append({"name": field_name, "value": current_text.strip()})
+            else:
+                fields.append({"name": "Successful Saves", "value": "None today."})
+
+            embed = {
+                "title": title,
+                "color": 3447003,
+                "description": desc,
+                "fields": fields,
+                "footer": {"text": footer},
             }
+
+            payload = {"embeds": [embed]}
+
             try:
-                requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+                with open(report_file, "rb") as f:
+                    file_data = f.read()
+
+                payload_data = {
+                    "payload_json": json.dumps(payload)
+                }
+                files_payload = {
+                    "file": (report_file, file_data, "application/json")
+                }
+
+                requests.post(DISCORD_WEBHOOK_URL, data=payload_data, files=files_payload, timeout=10)
             except Exception as e:
                 print(f"Failed to send EOD Discord webhook: {e}")
 
