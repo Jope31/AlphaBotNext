@@ -298,7 +298,7 @@ def run_autotuner(bot_state, current_date_str):
         plt.tight_layout()
         plt.savefig("autotune_heatmap.png", dpi=100)
         plt.close()
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError) as e:
         print(f"     Failed to generate Heatmap: {e}")
 
     # 7. Push to Discord
