@@ -7,6 +7,7 @@ import json
 import math
 import glob
 import itertools
+import concurrent.futures
 from datetime import datetime, timedelta, timezone, time as dt_time
 
 import requests
@@ -556,7 +557,11 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                     line = f"• **{t['symphony_name']}**: Saved {t['saved_pct_guard_alpha']}% vs shadow.\n"
                     # Field limit is 1024 chars
                     if len(current_text) + len(line) > 1024:
-                        field_name = "Successful Saves" if chunk_index == 1 else f"Successful Saves (Cont. {chunk_index})"
+                        field_name = (
+                            "Successful Saves"
+                            if chunk_index == 1
+                            else f"Successful Saves (Cont. {chunk_index})"
+                        )
 
                         # Check global 6000 limit
                         if total_embed_chars + len(field_name) + len(current_text.strip()) > 5900:
@@ -570,7 +575,11 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                         current_text += line
 
                 if current_text:
-                    field_name = "Successful Saves" if chunk_index == 1 else f"Successful Saves (Cont. {chunk_index})"
+                    field_name = (
+                        "Successful Saves"
+                        if chunk_index == 1
+                        else f"Successful Saves (Cont. {chunk_index})"
+                    )
                     if total_embed_chars + len(field_name) + len(current_text.strip()) <= 5900:
                         fields.append({"name": field_name, "value": current_text.strip()})
             else:
@@ -590,14 +599,12 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                 with open(report_file, "rb") as f:
                     file_data = f.read()
 
-                payload_data = {
-                    "payload_json": json.dumps(payload)
-                }
-                files_payload = {
-                    "file": (report_file, file_data, "application/json")
-                }
+                payload_data = {"payload_json": json.dumps(payload)}
+                files_payload = {"file": (report_file, file_data, "application/json")}
 
-                requests.post(DISCORD_WEBHOOK_URL, data=payload_data, files=files_payload, timeout=10)
+                requests.post(
+                    DISCORD_WEBHOOK_URL, data=payload_data, files=files_payload, timeout=10
+                )
             except Exception as e:
                 print(f"Failed to send EOD Discord webhook: {e}")
 
@@ -1032,17 +1039,28 @@ def main():
         all_tickers = set()
         symphony_data_cache = {}
 
-        for account in ACCOUNT_UUIDS:
-            symphonies = fetch_symphony_stats(account)
-            symphony_data_cache[account] = symphonies
-            for sym in symphonies:
-                for holding in sym.get("holdings", []):
-                    raw_ticker = holding.get("ticker", "")
-                    clean_ticker = raw_ticker.split("::")[-1].split("//")[0]
-                    alpaca_ticker = clean_ticker.replace("/", ".")
-                    if alpaca_ticker:
-                        all_tickers.add(alpaca_ticker)
-                        holding["working_ticker"] = alpaca_ticker
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max(1, len(ACCOUNT_UUIDS))
+        ) as executor:
+            future_to_account = {
+                executor.submit(fetch_symphony_stats, acc): acc for acc in ACCOUNT_UUIDS
+            }
+            for future in concurrent.futures.as_completed(future_to_account):
+                account = future_to_account[future]
+                try:
+                    symphonies = future.result()
+                    symphony_data_cache[account] = symphonies
+                    for sym in symphonies:
+                        for holding in sym.get("holdings", []):
+                            raw_ticker = holding.get("ticker", "")
+                            clean_ticker = raw_ticker.split("::")[-1].split("//")[0]
+                            alpaca_ticker = clean_ticker.replace("/", ".")
+                            if alpaca_ticker:
+                                all_tickers.add(alpaca_ticker)
+                                holding["working_ticker"] = alpaca_ticker
+                except Exception as e:
+                    print(f"Error fetching account {account} concurrently: {e}")
+                    symphony_data_cache[account] = []
 
         if market_close <= current_time <= post_mortem_cutoff:
             for account, symphonies in symphony_data_cache.items():
