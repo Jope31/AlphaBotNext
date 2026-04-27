@@ -1,0 +1,155 @@
+
+🚀 Starting Alpha Bot Control Center at http://localhost:5000
+
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+127.0.0.1 - - [27/Apr/2026 15:19:37] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:19:38] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:19:39] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:19:41] "GET /api/settings HTTP/1.1" 200 -
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+127.0.0.1 - - [27/Apr/2026 15:22:22] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:22] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:22] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:25] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:27] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:32] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:37] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:42] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:47] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:22:52] "GET /api/state HTTP/1.1" 200 -
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+Traceback (most recent call last):
+  File "/app/alpha_bot_execution.py", line 18, in <module>
+    import matplotlib
+ModuleNotFoundError: No module named 'matplotlib'
+[15:27:04] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+127.0.0.1 - - [27/Apr/2026 15:27:08] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:08] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:08] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:11] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:13] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:18] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:23] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:28] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:33] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:27:38] "GET /api/state HTTP/1.1" 200 -
+[15:28:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:29:05] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:30:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:31:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:32:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:33:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:34:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+127.0.0.1 - - [27/Apr/2026 15:34:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:34:54] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:34:54] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:34:56] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:34:59] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:34:59] "GET /api/settings HTTP/1.1" 200 -
+[15:35:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:36:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+127.0.0.1 - - [27/Apr/2026 15:37:00] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:37:00] "GET /api/settings HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:37:00] "GET /api/state HTTP/1.1" 200 -
+127.0.0.1 - - [27/Apr/2026 15:37:02] "GET /api/settings HTTP/1.1" 200 -
+[15:37:04] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:38:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:39:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:40:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:41:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:42:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:43:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:44:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:45:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:46:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:47:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:48:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:49:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:50:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:51:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:52:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
+[15:53:03] Alpha Bot Waking Up...
+MODE: DRY RUN (SAFE)
+CRITICAL: Missing API Keys. Please check your .env file.
