@@ -75,10 +75,14 @@ YAHOO_FINANCE_BASE_URL = "https://query2.finance.yahoo.com/v8/finance/chart"
 # ==========================================
 # 2. AUTOTUNE GRID SEARCH (NEW)
 # ==========================================
+
+from skopt import gp_minimize
+from skopt.space import Real
+
 def run_autotuner(bot_state, current_date_str):
-    """Runs a 5-day walk-forward optimization to find the best variables, updates .env, and sends Heatmap."""
-    print("  -> Starting EOD Autotune Grid Search (5-Day Rolling)...")
-    
+    """Runs a 5-day walk-forward optimization to find the best variables using Bayesian Optimization per account."""
+    print("  -> Starting EOD Autotune (Bayesian Optimization per Account)...")
+
     # 1. Archive today's charts to the permanent DB
     chart_history = database.load_chart_history()
     if chart_history and chart_history.get("date") == current_date_str:
@@ -91,210 +95,177 @@ def run_autotuner(bot_state, current_date_str):
         print("  -> Autotuner aborted: Insufficient chart history.")
         return
 
-    # 3. Define the Grid Space (26,244 Combinations)
-    param_grid = {
-        "TRIGGER_THRESHOLD_PCT": [12.0, 15.0, 18.0],
-        "TAKE_PROFIT_MC_PCT": [4.0, 5.0, 6.0],
-        "LOSS_ARM_PCT": [1.0, 1.5, 2.0],
-        "MAX_SQUEEZE_FLOOR": [0.15, 0.25],
-        "MIN_MULTIPLIER_FLOOR": [0.4, 0.6],
-        "BREAKEVEN_ACTIVATION_PCT": [0.75, 1.0, 1.5],
-        "VWAP_CROSS_HWM_PCT": [0.5, 1.0, 1.5],
-        "PARABOLIC_VELOCITY_THRESHOLD": [1.5, 2.0, 2.5],
-        "MAX_PARABOLIC_SQUEEZE": [0.3, 0.5, 0.7]
-    }
+    # Process each account separately
+    account_strategies = database.get_all_account_strategies()
+    if not account_strategies:
+        account_strategies = {acc: database.get_account_strategy(acc) for acc in ACCOUNT_UUIDS}
 
-    keys = list(param_grid.keys())
-    combinations = list(itertools.product(*param_grid.values()))
-    
-    best_alpha = -99999.0
-    best_params = {}
-    heatmap_data = []
+    for account_id, strat_data in account_strategies.items():
+        print(f"     Optimizing Account: {account_id}")
+        locked_vars = strat_data.get("locked_vars", [])
+        current_params = strat_data.get("params", {})
 
-    print(f"     Evaluating {len(combinations)} parameter sets against historical minute bars...")
-    start_time = time.time()
+        # 3. Define the Space for variables not locked
+        search_space = []
+        param_names = []
 
-    # 4. Simulation Loop
-    for combo in combinations:
-        p = dict(zip(keys, combo))
-        total_guard_alpha = 0.0
+        full_space_def = {
+            "TRIGGER_THRESHOLD_PCT": Real(10.0, 20.0, name="TRIGGER_THRESHOLD_PCT"),
+            "TAKE_PROFIT_MC_PCT": Real(3.0, 10.0, name="TAKE_PROFIT_MC_PCT"),
+            "LOSS_ARM_PCT": Real(0.5, 3.0, name="LOSS_ARM_PCT"),
+            "MAX_SQUEEZE_FLOOR": Real(0.10, 0.40, name="MAX_SQUEEZE_FLOOR"),
+            "MIN_MULTIPLIER_FLOOR": Real(0.2, 1.0, name="MIN_MULTIPLIER_FLOOR"),
+            "BREAKEVEN_ACTIVATION_PCT": Real(0.5, 3.0, name="BREAKEVEN_ACTIVATION_PCT"),
+            "VWAP_CROSS_HWM_PCT": Real(0.2, 2.0, name="VWAP_CROSS_HWM_PCT"),
+            "PARABOLIC_VELOCITY_THRESHOLD": Real(1.0, 4.0, name="PARABOLIC_VELOCITY_THRESHOLD"),
+            "MAX_PARABOLIC_SQUEEZE": Real(0.2, 0.8, name="MAX_PARABOLIC_SQUEEZE")
+        }
 
-        for sym_id, dates_data in history_5d.items():
-            for date, ticks in dates_data.items():
-                if not ticks: continue
-                
-                hwm = -999.0
-                armed = False
-                tp_armed = False
-                vwap_ticks = 0
-                below_stop_count = 0
-                above_tp_count = 0
-                mc_history = []
-                
-                triggered_return = None
-                eod_return = ticks[-1]["return"]
+        for param_name, space in full_space_def.items():
+            if param_name not in locked_vars:
+                search_space.append(space)
+                param_names.append(param_name)
 
-                for tick in ticks:
-                    ret = tick.get("return", 0.0)
-                    mc = tick.get("mc_prob", 50.0)
-                    vol = tick.get("vol", 1.0)
-                    vwap_diff = tick.get("vwap_diff", 0.0)
-                    decay_curve = tick.get("decay_curve", 0.5)
-                    regime_mult = tick.get("regime_mult", 2.0)
+        if not search_space:
+            print(f"       All vars locked. Skipping optimization.")
+            continue
 
-                    if ret > hwm: hwm = ret
-                    safe_hwm = max(hwm, ret)
+        # Helper to run the simulation
+        def objective(params_list):
+            p = current_params.copy()
+            for name, val in zip(param_names, params_list):
+                p[name] = val
 
-                    # Dynamic Stop calculation
-                    velocity_squeeze = 1.0
-                    if vol > 0.5:
-                        vel = hwm / vol
-                        if vel > p["PARABOLIC_VELOCITY_THRESHOLD"]:
-                            excess = min(1.0, (vel - p["PARABOLIC_VELOCITY_THRESHOLD"]) / 2.0)
-                            velocity_squeeze = 1.0 - (excess * p["MAX_PARABOLIC_SQUEEZE"])
+            total_guard_alpha = 0.0
 
-                    morning_stop = max(vol * regime_mult, p["MIN_MULTIPLIER_FLOOR"])
-                    afternoon_stop = max(vol * (regime_mult * 0.33), p["MIN_MULTIPLIER_FLOOR"] * 0.5)
-                    dynamic_stop = (morning_stop - ((morning_stop - afternoon_stop) * decay_curve)) * velocity_squeeze
+            # Isolate the symphonies that belong to this account
+            acc_sym_ids = [k for k, v in bot_state.items() if isinstance(v, dict) and v.get("account") == account_id]
 
-                    effective_loss_thr = max(p["LOSS_ARM_PCT"], vol)
+            for sym_id in acc_sym_ids:
+                dates_data = history_5d.get(sym_id, {})
+                for date, ticks in dates_data.items():
+                    if not ticks: continue
 
-                    # Arming Logic
-                    if not armed:
-                        if p["TAKE_PROFIT_MC_PCT"] <= mc < p["TRIGGER_THRESHOLD_PCT"]: armed = True
-                        elif ret < -effective_loss_thr: armed = True
-                    else:
-                        if mc > (p["TRIGGER_THRESHOLD_PCT"] * 2) and ret > 0.0:
-                            armed = False
-                            below_stop_count = 0
+                    hwm = -999.0
+                    armed = False
+                    tp_armed = False
+                    vwap_ticks = 0
+                    below_stop_count = 0
+                    above_tp_count = 0
+                    mc_history = []
 
-                    mc_history.append(mc)
-                    if len(mc_history) > 5: mc_history.pop(0)
-                    smoothed_mc = sum(mc_history) / len(mc_history)
+                    triggered_return = None
+                    eod_return = ticks[-1]["return"]
 
-                    active_stop_dist = dynamic_stop
-                    if armed:
-                        mc_health = max(0.0, min(1.0, smoothed_mc / p["TRIGGER_THRESHOLD_PCT"]))
-                        strangle = p["MAX_SQUEEZE_FLOOR"] + (mc_health * (1.0 - p["MAX_SQUEEZE_FLOOR"]))
-                        active_stop_dist *= strangle
+                    for tick in ticks:
+                        ret = tick.get("return", 0.0)
+                        mc = tick.get("mc_prob", 50.0)
+                        vol = tick.get("vol", 1.0)
+                        vwap_diff = tick.get("vwap_diff", 0.0)
+                        decay_curve = tick.get("decay_curve", 0.5)
+                        regime_mult = tick.get("regime_mult", 2.0)
 
-                    base_stop = safe_hwm - active_stop_dist
-                    breakeven_locked = safe_hwm >= max(p["BREAKEVEN_ACTIVATION_PCT"], vol)
-                    stop_level = max(base_stop, 0.0) if breakeven_locked else base_stop
+                        if ret > hwm: hwm = ret
+                        safe_hwm = max(hwm, ret)
 
-                    # Triggers
-                    is_trailing_hit = False
-                    if armed:
-                        if ret <= stop_level:
-                            below_stop_count += 1
-                            if below_stop_count >= 2: is_trailing_hit = True
-                        else: below_stop_count = 0
+                        velocity_squeeze = 1.0
+                        if vol > 0.5:
+                            vel = hwm / vol
+                            if vel > p.get("PARABOLIC_VELOCITY_THRESHOLD", 2.0):
+                                excess = min(1.0, (vel - p.get("PARABOLIC_VELOCITY_THRESHOLD", 2.0)) / 2.0)
+                                velocity_squeeze = 1.0 - (excess * p.get("MAX_PARABOLIC_SQUEEZE", 0.5))
 
-                    is_tp_hit = False
-                    if mc < p["TAKE_PROFIT_MC_PCT"]:
-                        if not tp_armed:
-                            tp_armed = True
-                            above_tp_count = 0
-                    elif tp_armed:
-                        if mc >= p["TAKE_PROFIT_MC_PCT"]:
-                            above_tp_count += 1
-                            if above_tp_count >= 2:
-                                if ret > 0: is_tp_hit = True
-                                else:
-                                    tp_armed = False
-                                    above_tp_count = 0
-                        else: above_tp_count = 0
+                        morning_stop = max(vol * regime_mult, p.get("MIN_MULTIPLIER_FLOOR", 0.5))
+                        afternoon_stop = max(vol * (regime_mult * 0.33), p.get("MIN_MULTIPLIER_FLOOR", 0.5) * 0.5)
+                        dynamic_stop = (morning_stop - ((morning_stop - afternoon_stop) * decay_curve)) * velocity_squeeze
 
-                    is_vwap_broken = False
-                    if safe_hwm >= p["VWAP_CROSS_HWM_PCT"] and ret < safe_hwm:
-                        if vwap_diff < 0:
-                            vwap_ticks += 1
-                            if vwap_ticks >= 3: is_vwap_broken = True
+                        effective_loss_thr = max(p.get("LOSS_ARM_PCT", 1.5), vol)
+
+                        if not armed:
+                            if p.get("TAKE_PROFIT_MC_PCT", 5.0) <= mc < p.get("TRIGGER_THRESHOLD_PCT", 15.0): armed = True
+                            elif ret < -effective_loss_thr: armed = True
+                        else:
+                            if mc > (p.get("TRIGGER_THRESHOLD_PCT", 15.0) * 2) and ret > 0.0:
+                                armed = False
+                                below_stop_count = 0
+
+                        mc_history.append(mc)
+                        if len(mc_history) > 5: mc_history.pop(0)
+                        smoothed_mc = sum(mc_history) / len(mc_history)
+
+                        active_stop_dist = dynamic_stop
+                        if armed:
+                            mc_health = max(0.0, min(1.0, smoothed_mc / p.get("TRIGGER_THRESHOLD_PCT", 15.0)))
+                            strangle = p.get("MAX_SQUEEZE_FLOOR", 0.2) + (mc_health * (1.0 - p.get("MAX_SQUEEZE_FLOOR", 0.2)))
+                            active_stop_dist *= strangle
+
+                        base_stop = safe_hwm - active_stop_dist
+                        breakeven_locked = safe_hwm >= max(p.get("BREAKEVEN_ACTIVATION_PCT", 2.0), vol)
+                        stop_level = max(base_stop, 0.0) if breakeven_locked else base_stop
+
+                        is_trailing_hit = False
+                        if armed:
+                            if ret <= stop_level:
+                                below_stop_count += 1
+                                if below_stop_count >= 2: is_trailing_hit = True
+                            else: below_stop_count = 0
+
+                        is_tp_hit = False
+                        if mc < p.get("TAKE_PROFIT_MC_PCT", 5.0):
+                            if not tp_armed:
+                                tp_armed = True
+                                above_tp_count = 0
+                        elif tp_armed:
+                            if mc >= p.get("TAKE_PROFIT_MC_PCT", 5.0):
+                                above_tp_count += 1
+                                if above_tp_count >= 2:
+                                    if ret > 0: is_tp_hit = True
+                                    else:
+                                        tp_armed = False
+                                        above_tp_count = 0
+                            else: above_tp_count = 0
+
+                        is_vwap_broken = False
+                        if safe_hwm >= p.get("VWAP_CROSS_HWM_PCT", 1.0) and ret < safe_hwm:
+                            if vwap_diff < 0:
+                                vwap_ticks += 1
+                                if vwap_ticks >= 3: is_vwap_broken = True
+                            else: vwap_ticks = 0
                         else: vwap_ticks = 0
-                    else: vwap_ticks = 0
 
-                    if is_trailing_hit or is_tp_hit or is_vwap_broken:
-                        triggered_return = ret
-                        break # Exited for the day
+                        if is_trailing_hit or is_tp_hit or is_vwap_broken:
+                            triggered_return = ret
+                            break
 
-                # Calculate Guard Alpha for this symphony-day
-                if triggered_return is not None:
-                    total_guard_alpha += (triggered_return - eod_return)
+                    if triggered_return is not None:
+                        total_guard_alpha += (triggered_return - eod_return)
 
-        # Store results for heatmap and best params
-        p["guard_alpha"] = total_guard_alpha
-        heatmap_data.append(p)
+            return -total_guard_alpha
 
-        if total_guard_alpha > best_alpha:
-            best_alpha = total_guard_alpha
-            best_params = p.copy()
+        start_time = time.time()
+        x0 = [current_params.get(name, full_space_def[name].bounds[0]) for name in param_names]
 
-    elapsed = time.time() - start_time
-    print(f"     Autotune completed in {elapsed:.2f}s. Max Guard Alpha found: +{best_alpha:.2f}%")
-
-    # 5. Overwrite .env File
-    env_file = find_dotenv()
-    if not env_file: env_file = ".env"
-    
-    old_vars_text = ""
-    new_vars_text = ""
-    for k, v in best_params.items():
-        if k == "guard_alpha": continue
-        old_val = os.getenv(k, "Unknown")
-        old_vars_text += f"{k}: {old_val}\n"
-        new_vars_text += f"{k}: {v}\n"
-        set_key(env_file, k, str(v))
-
-    # 6. Generate 2D Heatmap (TRIGGER vs BREAKEVEN)
-    try:
-        df = pd.DataFrame(heatmap_data)
-        # Average the guard alpha across all other parameters to see the macro effect of these two
-        pivot = df.pivot_table(
-            index="BREAKEVEN_ACTIVATION_PCT", 
-            columns="TRIGGER_THRESHOLD_PCT", 
-            values="guard_alpha", 
-            aggfunc="mean"
+        res = gp_minimize(
+            objective,
+            search_space,
+            x0=x0,
+            n_calls=30,
+            n_initial_points=10,
+            random_state=42
         )
-        
-        plt.figure(figsize=(9, 7))
-        sns.heatmap(pivot, annot=True, fmt=".2f", cmap="RdYlGn", center=0, cbar_kws={'label': 'Mean Guard Alpha (%)'})
-        plt.title(f"AlphaBot Grid Search: 5-Day Roll\nOptimal Setup Protected {best_alpha:.2f}% vs Shadow", pad=15)
-        plt.xlabel("TRIGGER_THRESHOLD_PCT (Arming Sensitivity)", labelpad=10)
-        plt.ylabel("BREAKEVEN_ACTIVATION_PCT (Lock Floor)", labelpad=10)
-        plt.tight_layout()
-        plt.savefig("autotune_heatmap.png", dpi=100)
-        plt.close()
-    except Exception as e:
-        print(f"     Failed to generate Heatmap: {e}")
 
-    # 7. Push to Discord
-    if DISCORD_WEBHOOK_URL:
-        print("     Pushing Autotune Results to Discord...")
-        try:
-            with open("autotune_heatmap.png", "rb") as f:
-                file_data = f.read()
+        best_alpha = -res.fun
+        best_params_list = res.x
 
-            cb = chr(96) * 3 # Safe code block formatting
-            payload = {
-                "payload_json": json.dumps({
-                    "embeds": [{
-                        "title": "⚙️ AlphaBot Autotune Complete",
-                        "description": f"Grid Search evaluated **{len(combinations):,}** combinations across rolling 5-day minute bars.\n`.env` file automatically overwritten for tomorrow.",
-                        "color": 3447003,
-                        "image": {"url": "attachment://heatmap.png"},
-                        "fields": [
-                            {"name": "Previous Setup", "value": f"{cb}yaml\n{old_vars_text}{cb}", "inline": True},
-                            {"name": "New Optimal Setup", "value": f"{cb}yaml\n{new_vars_text}{cb}", "inline": True},
-                            {"name": "Simulated Portfolio Save", "value": f"**+{best_alpha:.2f}%** Alpha vs EOD Shadow Returns", "inline": False}
-                        ],
-                        "footer": {"text": f"Calculation Time: {elapsed:.2f}s"}
-                    }]
-                })
-            }
-            files = {"file": ("heatmap.png", file_data, "image/png")}
-            requests.post(DISCORD_WEBHOOK_URL, data=payload, files=files, timeout=20)
-        except Exception as e:
-            print(f"     Failed to send Discord webhook: {e}")
+        for name, val in zip(param_names, best_params_list):
+            current_params[name] = round(val, 2)
+
+        elapsed = time.time() - start_time
+        print(f"       Optimization completed in {elapsed:.2f}s. Expected Guard Alpha: +{best_alpha:.2f}%")
+
+        database.save_account_strategy(account_id, current_params, locked_vars)
+
+    print("  -> Autotuner finished all accounts.")
 
 # ==========================================
 # 3. STATE ANALYSIS HELPERS
@@ -412,6 +383,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                 report["triggers"].append(
                     {
                         "symphony_name": sym.get("name", "Unknown"),
+                        "account_id": sym.get("account", "Unknown"),
                         "exit_reason": exit_reason,
                         "exit_return": round(f_ret, 2),
                         "shadow_return": round(live_ret, 2),
@@ -447,13 +419,13 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                 continue
 
             sym_holdings = [h.get("ticker") for h in sym.get("current_holdings", [])]
-            
+
             live_ret = sym.get("current_return", 0.0)
             f_ret = sym.get("triggered_at_return", 0.0)
             saved_pct = f_ret - live_ret
 
             for trigger in report.get("triggers", []):
-                if trigger.get("symphony_name") == sym.get("name"):
+                if trigger.get("symphony_name") == sym.get("name") and trigger.get("account_id") == sym.get("account"):
                     trigger["next_day_holdings"] = sym_holdings
                     trigger["shadow_return"] = round(live_ret, 2)
                     trigger["saved_pct_guard_alpha"] = round(saved_pct, 2)
@@ -464,7 +436,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
                 if ticker not in portfolio_holdings_summary:
                     portfolio_holdings_summary[ticker] = 0.0
                 portfolio_holdings_summary[ticker] += weight
-                
+
         pos_alpha_count = sum(1 for t in report.get("triggers", []) if t.get("saved_pct_guard_alpha", 0) > 0)
         report["summary"]["positive_guard_alpha_count"] = pos_alpha_count
 
@@ -480,24 +452,57 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False):
         if DISCORD_WEBHOOK_URL:
             print("  -> Pushing EOD Snapshot to Discord...")
             pos_triggers = [t for t in report.get("triggers", []) if t.get("saved_pct_guard_alpha", 0) > 0]
-            if pos_triggers:
-                triggers_text = "\n".join([f"• **{t['symphony_name']}**: Saved {t['saved_pct_guard_alpha']}% vs shadow." for t in pos_triggers])
-                if len(triggers_text) > 1024:
-                    triggers_text = triggers_text[:1020] + "..."
-            else:
-                triggers_text = "None today."
 
-            payload = {
-                "embeds": [{
-                    "title": f"📊 AlphaBot EOD Analysis ({current_date_str})",
-                    "color": 3447003,
-                    "description": f"**Total Monitored:** {report['summary']['total_monitored']}\n**Positive Guard Alpha Triggers:** {report['summary']['positive_guard_alpha_count']}",
-                    "fields": [{"name": "Successful Saves", "value": triggers_text}],
-                    "footer": {"text": "End of Day Post-Mortem"}
-                }]
+            fields = []
+            total_embed_chars = 0
+
+            title = f"📊 AlphaBot EOD Analysis ({current_date_str})"
+            desc = f"**Total Monitored:** {report['summary']['total_monitored']}\\n**Positive Guard Alpha Triggers:** {report['summary']['positive_guard_alpha_count']}"
+            footer = "End of Day Post-Mortem"
+            total_embed_chars += len(title) + len(desc) + len(footer)
+
+            if pos_triggers:
+                current_text = ""
+                chunk_index = 1
+                for t in pos_triggers:
+                    acc_display = t.get('account_id', 'Unknown')[:8]
+                    line = f"• **{t['symphony_name']} ({acc_display}...)**: Saved {t['saved_pct_guard_alpha']}% vs shadow.\\n"
+                    if len(current_text) + len(line) > 1024:
+                        field_name = "Successful Saves" if chunk_index == 1 else f"Successful Saves (Cont. {chunk_index})"
+                        if total_embed_chars + len(field_name) + len(current_text.strip()) > 5900:
+                            break
+                        fields.append({"name": field_name, "value": current_text.strip()})
+                        total_embed_chars += len(field_name) + len(current_text.strip())
+                        current_text = line
+                        chunk_index += 1
+                    else:
+                        current_text += line
+
+                if current_text:
+                    field_name = "Successful Saves" if chunk_index == 1 else f"Successful Saves (Cont. {chunk_index})"
+                    if total_embed_chars + len(field_name) + len(current_text.strip()) <= 5900:
+                        fields.append({"name": field_name, "value": current_text.strip()})
+            else:
+                fields.append({"name": "Successful Saves", "value": "None today."})
+
+            embed = {
+                "title": title,
+                "color": 3447003,
+                "description": desc,
+                "fields": fields,
+                "footer": {"text": footer}
             }
+
+            payload = {"embeds": [embed]}
+
             try:
-                requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+                with open(report_file, "rb") as f:
+                    file_data = f.read()
+
+                payload_data = {"payload_json": json.dumps(payload)}
+                files_payload = {"file": (report_file, file_data, "application/json")}
+
+                requests.post(DISCORD_WEBHOOK_URL, data=payload_data, files=files_payload, timeout=10)
             except Exception as e:
                 print(f"Failed to send EOD Discord webhook: {e}")
 
@@ -685,19 +690,19 @@ def fetch_intraday_vwaps(tickers, headers, current_et):
     """Fetches minute bars for today to calculate true VWAP for all active holdings."""
     if not tickers:
         return {}
-    
+
     start_et = current_et.replace(hour=9, minute=30, second=0, microsecond=0)
     start_utc_str = start_et.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     vwap_data = {}
     batch_size = 30
     tickers_list = list(tickers)
-    
+
     for i in range(0, len(tickers_list), batch_size):
         batch = tickers_list[i : i + batch_size]
         symbol_string = ",".join(batch)
         url = f"{ALPACA_BASE_URL}/stocks/bars?symbols={symbol_string}&timeframe=1Min&start={start_utc_str}&limit=1000"
-        
+
         try:
             response = requests.get(url, headers=headers, timeout=15)
             if response.status_code == 200:
@@ -715,14 +720,14 @@ def fetch_intraday_vwaps(tickers, headers, current_et):
                         vwap_data[sym] = {"vwap": vwap, "last_price": last_price}
         except Exception as e:
             print(f"Error fetching VWAP for batch {batch}: {e}")
-            
+
     return vwap_data
 
 def get_live_vix():
     """Fetches live VIX index, utilizing our SQLite cache."""
     current_time = time.time()
     cache = database.get_vix_cache()
-    
+
     if cache and (current_time - cache["timestamp"] < 900):
         return cache["vix_value"]
 
@@ -909,13 +914,13 @@ def main():
                         ]
                         bot_state[s_id]["current_return"] = sym.get("last_percent_change", 0.0) * 100
             database.save_state(bot_state)
-            
+
             # Execute Phase 2 Reporting
             generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=True)
-            
+
             # NEW: Execute Autotuner
             run_autotuner(bot_state, current_date_str)
-            
+
             print("  -> EOD Post-Mortem & Autotune complete. Ending execution for the day.")
             return
 
@@ -942,6 +947,33 @@ def main():
         print("\nEvaluating Symphonies...")
 
         for account, symphonies in symphony_data_cache.items():
+            account_strat = database.get_account_strategy(account)
+            acc_params = account_strat.get("params", {})
+
+            acc_TRIGGER_THRESHOLD_PCT = acc_params.get("TRIGGER_THRESHOLD_PCT", TRIGGER_THRESHOLD_PCT)
+            acc_MAX_SQUEEZE_FLOOR = acc_params.get("MAX_SQUEEZE_FLOOR", MAX_SQUEEZE_FLOOR)
+            acc_TAKE_PROFIT_MC_PCT = acc_params.get("TAKE_PROFIT_MC_PCT", TAKE_PROFIT_MC_PCT)
+            acc_LOSS_ARM_PCT = acc_params.get("LOSS_ARM_PCT", LOSS_ARM_PCT)
+            acc_TRAILING_STOP_PCT = acc_params.get("TRAILING_STOP_PCT", TRAILING_STOP_PCT)
+            acc_ENDING_STOP_PCT = acc_params.get("ENDING_STOP_PCT", ENDING_STOP_PCT)
+            acc_BREAKEVEN_ACTIVATION_PCT = acc_params.get("BREAKEVEN_ACTIVATION_PCT", BREAKEVEN_ACTIVATION_PCT)
+            acc_MIN_MULTIPLIER_FLOOR = acc_params.get("MIN_MULTIPLIER_FLOOR", MIN_MULTIPLIER_FLOOR)
+            acc_VWAP_CROSS_HWM_PCT = acc_params.get("VWAP_CROSS_HWM_PCT", VWAP_CROSS_HWM_PCT)
+
+            acc_VIX_LOW_MULT = acc_params.get("VIX_LOW_MULT", VIX_LOW_MULT)
+            acc_VIX_MID_MULT = acc_params.get("VIX_MID_MULT", VIX_MID_MULT)
+            acc_VIX_HIGH_MULT = acc_params.get("VIX_HIGH_MULT", VIX_HIGH_MULT)
+
+            acc_PARABOLIC_VELOCITY_THRESHOLD = acc_params.get("PARABOLIC_VELOCITY_THRESHOLD", PARABOLIC_VELOCITY_THRESHOLD)
+            acc_MAX_PARABOLIC_SQUEEZE = acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE)
+
+            if vix_today < VIX_LOW_THRESHOLD:
+                acc_regime_mult = acc_VIX_LOW_MULT
+            elif vix_today > VIX_HIGH_THRESHOLD:
+                acc_regime_mult = acc_VIX_HIGH_MULT
+            else:
+                acc_regime_mult = acc_VIX_MID_MULT
+
             for sym in symphonies:
                 symphony_id = sym["id"]
                 actual_symphony_id = sym.get("symphony_id", symphony_id)
@@ -950,7 +982,7 @@ def main():
                 holdings = sym.get("holdings", [])
                 current_return = sym.get("last_percent_change", 0.0) * 100
 
-                # Pre-calculate True VWAP difference unconditionally so it can be logged in the chart history 
+                # Pre-calculate True VWAP difference unconditionally so it can be logged in the chart history
                 weighted_vwap_diff = 0.0
                 valid_vwap_weight = 0.0
                 for h in holdings:
@@ -1030,25 +1062,25 @@ def main():
                 velocity_squeeze = 1.0
                 if symphony_vol > 0.5:
                     velocity = high_water_mark / symphony_vol
-                    if velocity > PARABOLIC_VELOCITY_THRESHOLD:
-                        excess = min(1.0, (velocity - PARABOLIC_VELOCITY_THRESHOLD) / 2.0)
-                        velocity_squeeze = 1.0 - (excess * MAX_PARABOLIC_SQUEEZE)
+                    if velocity > acc_PARABOLIC_VELOCITY_THRESHOLD:
+                        excess = min(1.0, (velocity - acc_PARABOLIC_VELOCITY_THRESHOLD) / 2.0)
+                        velocity_squeeze = 1.0 - (excess * acc_MAX_PARABOLIC_SQUEEZE)
                         print(f"  ⚡ [{symphony_name[:20]}] PARABOLIC SQUEEZE: {velocity_squeeze:.2f}x")
 
                 if symphony_vol > 0:
-                    morning_stop = max(symphony_vol * regime_mult, MIN_MULTIPLIER_FLOOR)
-                    afternoon_stop = max(symphony_vol * (regime_mult * 0.33), MIN_MULTIPLIER_FLOOR * 0.5)
+                    morning_stop = max(symphony_vol * acc_regime_mult, acc_MIN_MULTIPLIER_FLOOR)
+                    afternoon_stop = max(symphony_vol * (acc_regime_mult * 0.33), acc_MIN_MULTIPLIER_FLOOR * 0.5)
                 else:
-                    morning_stop = TRAILING_STOP_PCT
-                    afternoon_stop = ENDING_STOP_PCT
+                    morning_stop = acc_TRAILING_STOP_PCT
+                    afternoon_stop = acc_ENDING_STOP_PCT
 
                 dynamic_trailing_stop = (morning_stop - ((morning_stop - afternoon_stop) * decay_curve)) * velocity_squeeze
 
                 should_arm = False
                 arm_reason = ""
-                effective_loss_threshold = max(LOSS_ARM_PCT, symphony_vol)
+                effective_loss_threshold = max(acc_LOSS_ARM_PCT, symphony_vol)
 
-                if TAKE_PROFIT_MC_PCT <= prob_beating < TRIGGER_THRESHOLD_PCT:
+                if acc_TAKE_PROFIT_MC_PCT <= prob_beating < acc_TRIGGER_THRESHOLD_PCT:
                     should_arm = True
                     arm_reason = f"MC Prob {prob_beating:.1f}%"
                 elif current_return < -effective_loss_threshold:
@@ -1060,7 +1092,7 @@ def main():
                     print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
 
                 elif bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
-                    if prob_beating > (TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
+                    if prob_beating > (acc_TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
                         bot_state[symphony_id]["armed"] = False
                         bot_state[symphony_id]["below_stop_count"] = 0
                         print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***")
@@ -1072,15 +1104,15 @@ def main():
                 smoothed_mc = sum(bot_state[symphony_id]["mc_history"]) / len(bot_state[symphony_id]["mc_history"])
 
                 if bot_state[symphony_id]["armed"]:
-                    mc_health_ratio = max(0.0, min(1.0, smoothed_mc / TRIGGER_THRESHOLD_PCT))
-                    strangle_multiplier = MAX_SQUEEZE_FLOOR + (mc_health_ratio * (1.0 - MAX_SQUEEZE_FLOOR))
+                    mc_health_ratio = max(0.0, min(1.0, smoothed_mc / acc_TRIGGER_THRESHOLD_PCT))
+                    strangle_multiplier = acc_MAX_SQUEEZE_FLOOR + (mc_health_ratio * (1.0 - acc_MAX_SQUEEZE_FLOOR))
                     active_trailing_stop = dynamic_trailing_stop * strangle_multiplier
                 else:
                     active_trailing_stop = dynamic_trailing_stop
 
                 base_stop_level = safe_hwm - active_trailing_stop
 
-                effective_breakeven_activation = max(BREAKEVEN_ACTIVATION_PCT, symphony_vol)
+                effective_breakeven_activation = max(acc_BREAKEVEN_ACTIVATION_PCT, symphony_vol)
                 if safe_hwm >= effective_breakeven_activation:
                     bot_state[symphony_id]["breakeven_locked"] = True
 
@@ -1109,13 +1141,13 @@ def main():
 
                 # Check 2: Take Profit
                 tp_triggered_now = False
-                if prob_beating < TAKE_PROFIT_MC_PCT:
+                if prob_beating < acc_TAKE_PROFIT_MC_PCT:
                     if not bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
                         bot_state[symphony_id]["tp_armed"] = True
                         bot_state[symphony_id]["above_tp_count"] = 0
-                        print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {TAKE_PROFIT_MC_PCT}%) ***")
+                        print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%) ***")
                 elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
-                    if prob_beating >= TAKE_PROFIT_MC_PCT:
+                    if prob_beating >= acc_TAKE_PROFIT_MC_PCT:
                         bot_state[symphony_id]["above_tp_count"] += 1
                         if bot_state[symphony_id]["above_tp_count"] == 1:
                             print(f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation...")
@@ -1133,7 +1165,7 @@ def main():
 
                 # Check 3: True VWAP Breakdown
                 is_vwap_broken = False
-                if safe_hwm >= VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
+                if safe_hwm >= acc_VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
                     if valid_vwap_weight > 0.5:
                         if weighted_vwap_diff < 0:
                             bot_state[symphony_id]["vwap_ticks"] += 1
@@ -1181,7 +1213,7 @@ def main():
                     "vol": symphony_vol,
                     "vwap_diff": weighted_vwap_diff,
                     "decay_curve": decay_curve,
-                    "regime_mult": regime_mult
+                    "acc_regime_mult": acc_regime_mult
                 })
 
                 if is_trailing_stop_hit or tp_triggered_now or is_vwap_broken:
@@ -1191,7 +1223,7 @@ def main():
                         reason = "VWAP Breakdown"
                     else:
                         reason = "Trailing Stop"
-                    
+
                     print(f"  🚨 {reason.upper()} HIT FOR {symphony_name} 🚨")
 
                     bot_state[symphony_id]["armed"] = False
@@ -1203,7 +1235,7 @@ def main():
                     bot_state[symphony_id]["triggered_at_stop"] = current_return if tp_triggered_now else stop_trigger_level
                     bot_state[symphony_id]["triggered_at_time"] = current_time_str
                     bot_state[symphony_id]["high_water_mark"] = -999.0
-                    
+
                     database.save_state(bot_state)
                     sym_chart_data[-1]["stop"] = bot_state[symphony_id]["triggered_at_stop"]
 

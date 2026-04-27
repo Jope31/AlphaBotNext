@@ -60,6 +60,7 @@ def get_state():
             "status": "active",
             "state": state_data,
             "live_mode": live_mode,
+            "execution_start_time": env_vars.get("EXECUTION_START_TIME", "09:30"),
             "next_run_seconds": next_run_seconds,
         })
     except Exception as e:
@@ -101,7 +102,7 @@ def sell_account():
     account_id = data.get("account_id")
     env_vars = dotenv_values(".env")
     live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
-    
+
     if account_id and env_vars.get("COMPOSER_KEY_ID"):
         threading.Thread(target=perform_account_liquidation, args=(account_id, env_vars.get("COMPOSER_KEY_ID"), env_vars.get("COMPOSER_SECRET"), live_mode)).start()
         return jsonify({"status": "success", "message": "Liquidation initiated."})
@@ -114,6 +115,7 @@ def get_settings():
     env_vars = dotenv_values(".env")
     globals_data = {
         "LIVE_EXECUTION": env_vars.get("LIVE_EXECUTION", "False"),
+        "EXECUTION_START_TIME": env_vars.get("EXECUTION_START_TIME", "09:30"),
         "COMPOSER_KEY_ID": env_vars.get("COMPOSER_KEY_ID", ""),
         "COMPOSER_SECRET": env_vars.get("COMPOSER_SECRET", ""),
         "ALPACA_KEY": env_vars.get("ALPACA_KEY", ""),
@@ -121,13 +123,13 @@ def get_settings():
         "ACCOUNT_UUIDS": env_vars.get("ACCOUNT_UUIDS", ""),
         "DISCORD_WEBHOOK_URL": env_vars.get("DISCORD_WEBHOOK_URL", ""),
     }
-    
+
     # Fetch DB strategies and ensure newly added accounts in .env have a DB entry
     account_uuids = [uid.strip() for uid in globals_data["ACCOUNT_UUIDS"].split(",") if uid.strip()]
     accounts_data = {}
     for acc in account_uuids:
         accounts_data[acc] = database.get_account_strategy(acc)
-        
+
     return jsonify({"globals": globals_data, "accounts": accounts_data})
 
 @app.route("/api/settings", methods=["POST"])
@@ -140,13 +142,13 @@ def save_settings():
         # Save Globals
         for key, val in payload.get("globals", {}).items():
             set_key(env_file, key, str(val))
-            
+
         # Save Account Strategies
         for acc_id, strategy_data in payload.get("accounts", {}).items():
             params = {k: float(v) for k, v in strategy_data.get("params", {}).items()}
             locked = strategy_data.get("locked_vars", [])
             database.save_account_strategy(acc_id, params, locked)
-            
+
         return jsonify({"status": "success", "message": "Variables updated successfully!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
