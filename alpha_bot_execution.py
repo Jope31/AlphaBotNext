@@ -379,6 +379,22 @@ def main():
                     if t and "cash" not in t.lower():
                         all_tickers.add(t)
 
+        # Garbage Collection: Clean up orphaned symphonies (Portfolio Sync)
+        active_symphony_ids = set()
+        for account, symphonies in symphony_data_cache.items():
+            for sym in symphonies:
+                active_symphony_ids.add(sym["id"])
+
+        orphans = []
+        for s_id, s_data in bot_state.items():
+            if isinstance(s_data, dict) and s_id not in active_symphony_ids and not s_data.get("triggered", False):
+                orphans.append(s_id)
+
+        for s_id in orphans:
+            print(f"  -> [PORTFOLIO SYNC] Removing orphaned symphony from state: {bot_state[s_id].get('name', s_id)}")
+            del bot_state[s_id]
+            state_changed = True
+
         if (market_close <= current_time <= post_mortem_cutoff) or (force_run and current_et.weekday() >= 5):
             if bot_state.get("post_mortem_run") == current_date_str:
                 if not force_run:
