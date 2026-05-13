@@ -1,4 +1,4 @@
-# AlphaBot v3
+# AlphaBot v3.1
 
 ## Summary
 
@@ -17,8 +17,7 @@ AlphaBot achieves its goals through a sophisticated combination of data ingestio
 
 
 ### **The Multi-Layered Risk Engine**
-**Volatility Scaling**
-* Calculates an active trailing stop distance based strictly on the portfolio's 20-day volatility.
+* **Volatility Scaling:** Calculates an active trailing stop distance based strictly on the portfolio's 20-day volatility.
 * **Logarithmic Time Squeeze:** Shrinks the trailing stop distance smoothly and predictably based on the time of day using a logarithmic decay curve. The dynamic multiplier decays from 1.5x at the open to 0.5x by the close.
 * **Parabolic Squeeze Ratchet:** Measures tick-by-tick return velocity. If the velocity exceeds the `PARABOLIC_VELOCITY_THRESHOLD`, the engine permanently ratchets the trailing stop tighter using the `MAX_PARABOLIC_SQUEEZE` multiplier to protect the peak.
 * **Risk Guard (Breakeven Lock):** To lock the absolute downside floor to breakeven (0.0%), the live return must hold above a dynamically calculated activation threshold (clamped between 0.4% and 3.0%) for 5 consecutive ticks.
@@ -30,13 +29,14 @@ AlphaBot achieves its goals through a sophisticated combination of data ingestio
 ### **Symphony-Level Database Architecture**
 * **SQLite State Management:** Uses a highly concurrent SQLite database to store states, isolated risk parameters, execution locks, and continuous chart histories.
 * **Symphony-Level Strategies:** Maintains independent parameter tuning and variable locks based on unique, normalized symphony names.
-* **Per-Symphony Activity Logging:** Captures and stores specific event logs (e.g., arming, triggers, execution) for each symphony into a local `symphony_logs.json` file, ensuring intraday actions are auditable.
+* **(NEW) Automated Portfolio Sync (Garbage Collection):** Automatically detects and prunes orphaned strategies removed from Composer during rebalances to keep the execution loop and autotuner highly optimized.
+* **(NEW) Persistent Daily Logging:** Captures specific event logs (e.g., arming, triggers, execution) for each symphony into persistent local daily files (`symphony_logs_YYYY-MM-DD.json`), ensuring all historical intraday actions are permanently auditable.
 
 
 ### **Automated Execution & Alerting**
 * **Gatekeeper & Scheduler:** A fully internal Flask-based daemon process using the `schedule` library runs the bot every minute during market hours, removing reliance on external cron jobs.
 * **Composer API Trigger:** Fires a POST request to Composer's backend, liquidating a symphony to cash if the stop level is hit. It utilizes an exponential backoff retry mechanism (1, 2, 4, 10 seconds) to ensure resilience against rate limits (HTTP 429) and network spikes.
-* **Discord Webhooks (Multi-Embed):** Instantly sends a clean, multi-embed payload detailing the exit reason, Guard Alpha metrics, VWAP stats, and a summary chart powered by QuickChart. It chunks the Discord messages into batches of 10 to strictly adhere to Discord's rate limits.
+* **Discord Webhooks (Multi-Embed):** Instantly sends a clean, multi-embed payload detailing the exit reason, Guard Alpha metrics, VWAP stats, and a summary chart powered by QuickChart. Includes built-in webhook rate-limit staggering and crash protection to gracefully handle mass-exit events (market crashes) without interrupting the core memory loop.
 
 
 ### **EOD Autotuning & Post-Mortem Analytics**
@@ -45,7 +45,8 @@ AlphaBot achieves its goals through a sophisticated combination of data ingestio
 
 
 ### **Interactive Control Center (UI/UX)**
-* **Live Dashboard:** A real-time Flask command center to view the exact distance to the stop level, status ranks, EOD shadow returns, and active EOD EOD chart data.
+* **Live Dashboard:** A real-time Flask command center to view the exact distance to the stop level, status ranks, EOD shadow returns, and active EOD chart data.
+* **Daily History Explorer:** A dedicated two-pane modal allowing users to intuitively navigate and investigate historical trigger events and execution logs for any symphony on any given day.
 * **Settings Control Panel:** A dedicated API endpoint and UI structure to update `.env` globals and SQLite symphony strategies on the fly without restarting the application.
 * **Manual Overrides:** Includes API triggers to force an immediate run, force an EOD analysis computation, force a Discord push, or manually trigger an immediate account liquidation to cash.
 
