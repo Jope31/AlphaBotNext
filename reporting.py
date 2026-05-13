@@ -287,7 +287,7 @@ def send_eod_discord_post(current_date_str, report_file, optimization_results, d
                     if delta_days < 0:
                         continue # Skip future files
                         
-                    active_windows = [w for w in windows if delta_days <= w]
+                    active_windows = [w for w in windows if delta_days < w]
                     if not active_windows:
                         continue
                         
