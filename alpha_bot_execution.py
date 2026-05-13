@@ -244,7 +244,7 @@ def fetch_intraday_vwaps(tickers, headers, current_et):
                     cumulative_v = df['v'].sum()
                     if cumulative_v > 0:
                         vwap = cumulative_pv / cumulative_v
-                        last_price = df['c'].iloc[-1]
+                        last_price = float(df['c'].iloc[-1])
                         vwap_data[sym] = {"vwap": vwap, "last_price": last_price}
         except Exception as e:
             print(f"Error fetching VWAP for batch {batch}: {e}")
@@ -343,7 +343,17 @@ def main():
             print(f"  -> New trading day detected ({current_date_str} ET). Wiping transient state keys and chart memory.")
             bot_state["date"] = current_date_str
             database.wipe_transient_state(bot_state)
-            database.clear_symphony_logs()
+            state_changed = True
+
+        accounts_to_purge = []
+        for s_id, s_data in bot_state.items():
+            if isinstance(s_data, dict) and "account" in s_data:
+                if s_data["account"] not in ACCOUNT_UUIDS:
+                    accounts_to_purge.append(s_id)
+        
+        for s_id in accounts_to_purge:
+            print(f"  -> [ACCOUNT REMOVED] Purging ghost symphony from state: {s_id}")
+            del bot_state[s_id]
             state_changed = True
 
         if state_changed:
@@ -560,7 +570,7 @@ def main():
                 if should_arm and not bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
                     bot_state[symphony_id]["armed"] = True
                     print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
-                    database.log_symphony_event(symphony_id, f"{symphony_name} ARMED ({arm_reason})", "armed")
+                    database.log_symphony_event(symphony_id, f"{symphony_name} ARMED ({arm_reason})", "armed", current_date_str)
 
                 elif bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
                     if prob_beating > (acc_TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
@@ -582,7 +592,7 @@ def main():
                     if not bot_state[symphony_id]["para_armed"]:
                         bot_state[symphony_id]["para_armed"] = True
                         print(f"  🚀 {symphony_name} PARA-ARMED (Velocity: {velocity:.2f}%) 🚀")
-                        database.log_symphony_event(symphony_id, f"{symphony_name} PARA-ARMED (Velocity: {velocity:.2f}%)", "para-armed")
+                        database.log_symphony_event(symphony_id, f"{symphony_name} PARA-ARMED (Velocity: {velocity:.2f}%)", "para-armed", current_date_str)
 
                 # --- TIME SQUEEZE DECAY LOGIC ---
                 m_open_dt = current_et.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
@@ -651,7 +661,7 @@ def main():
                         bot_state[symphony_id]["tp_armed"] = True
                         bot_state[symphony_id]["above_tp_count"] = 0
                         print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%) ***")
-                        database.log_symphony_event(symphony_id, f"{symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%)", "tp-armed")
+                        database.log_symphony_event(symphony_id, f"{symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%)", "tp-armed", current_date_str)
                 elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
                     if prob_beating >= acc_TAKE_PROFIT_MC_PCT:
                         bot_state[symphony_id]["above_tp_count"] += 1
@@ -757,7 +767,7 @@ def main():
                         attempted_level = stop_trigger_level
 
                     print(f"  🚨 {reason.upper()} HIT FOR {symphony_name} 🚨 - Queuing for Execution")
-                    database.log_symphony_event(symphony_id, f"{reason.upper()} HIT FOR {symphony_name}. Level: {attempted_level:.2f}", "triggered")
+                    database.log_symphony_event(symphony_id, f"{reason.upper()} HIT FOR {symphony_name}. Level: {attempted_level:.2f}", "triggered", current_date_str)
 
                     execution_queue.append({
                         "symphony_id": symphony_id,
