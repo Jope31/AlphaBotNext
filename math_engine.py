@@ -11,7 +11,7 @@ def run_monte_carlo(holdings, historical_data, spy_today_return, symphony_vol, s
     )
     valid_dates = sorted(list(historical_data.keys()))
     if len(valid_dates) < 20:
-        return 100.0, 0.0
+        return 100.0, 0.0, 0.0
 
     tickers = [h["ticker"] for h in holdings]
     weights = np.array([h.get("allocation", 0.0) for h in holdings])
@@ -44,7 +44,7 @@ def run_monte_carlo(holdings, historical_data, spy_today_return, symphony_vol, s
 
     # Step 3: Safety check for SPY data
     if spy_today_return is None or not isinstance(spy_today_return, (int, float)) or np.isnan(spy_today_return):
-        return unconditional_prob_beating, unconditional_prob_loss_dynamic
+        return unconditional_prob_beating, unconditional_prob_loss_dynamic, dynamic_floor
 
     # 1. Calculate distances based on SPY return and rolling 20-day volatility
     spy_returns = np.array([historical_data[date].get("SPY", {}).get("daily_ret", 0.0) for date in valid_dates])
@@ -74,7 +74,7 @@ def run_monte_carlo(holdings, historical_data, spy_today_return, symphony_vol, s
         nearest_indices = np.argpartition(distances, neighbor_k)[:neighbor_k]
     
     if len(nearest_indices) < 20:
-        return unconditional_prob_beating, unconditional_prob_loss_dynamic
+        return unconditional_prob_beating, unconditional_prob_loss_dynamic, dynamic_floor
     
     # 4. Calculate path returns using the pre-computed array directly
     nearest_day_returns = all_day_returns[nearest_indices]
@@ -89,7 +89,7 @@ def run_monte_carlo(holdings, historical_data, spy_today_return, symphony_vol, s
     below_floor_count = np.searchsorted(sim_results, dynamic_floor)
     prob_loss_dynamic = (below_floor_count / simulation_paths) * 100.0
     
-    return prob_beating, prob_loss_dynamic
+    return prob_beating, prob_loss_dynamic, dynamic_floor
 
 def calculate_20d_vol(holdings, historical_data):
     """
