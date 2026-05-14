@@ -235,6 +235,10 @@ def generate_synthetic_history(bot_state, current_date_str):
                             weighted_vwap_diff += alloc * ((c - v) / v)
                         valid_alloc += alloc
                         
+                # ENFORCE LIVE GATE: Only track VWAP difference if we have VWAP data for >50% of the portfolio
+                if valid_alloc <= 0.5:
+                    weighted_vwap_diff = 0.0
+
                 # Reduce neighbor_k and paths for speed, 300 paths is fine for tuning approximation
                 mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(holdings, hist_data_up_to_yesterday, spy_today, vol, 300, 5, volatility_multiplier=vol_mult)
                 
