@@ -6,6 +6,7 @@ import database
 import synthetic_history
 import glob
 import json
+import math_engine
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -164,10 +165,9 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         safe_hwm = max(hwm, ret)
                         
                         # --- PARABOLIC SQUEEZE LOGIC ---
-                        velocity = ret - prev_return
+                        is_para = math_engine.check_parabolic_velocity(ret, prev_return, p.get("PARABOLIC_VELOCITY_THRESHOLD", 2.0))
                         prev_return = ret
-                        para_threshold = p.get("PARABOLIC_VELOCITY_THRESHOLD", 2.0)
-                        if velocity >= para_threshold:
+                        if is_para:
                             para_armed = True
                         # ------------------------------
 
@@ -186,30 +186,17 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         # --- TIME SQUEEZE DECAY LOGIC ---
                         # Assuming ticks are minute bars (9:30-16:00 = 390 mins)
                         time_ratio = tick_idx / 390.0
-                        decay_curve = math.log10(1 + 9 * time_ratio)
-                        
-                        # Calculate Dynamic Multiplier (Decays from 1.5x to 0.5x)
-                        mult_open = 1.5
-                        mult_close = 0.5
-                        dynamic_multiplier = mult_open - ((mult_open - mult_close) * decay_curve)
-
-                        # Calculate Minimum Floors (Decays from 0.3% to 0.15%)
-                        min_stop_open = 0.3
-                        min_stop_close = 0.15
-                        dynamic_min_stop = min_stop_open - ((min_stop_open - min_stop_close) * decay_curve)
+                        dynamic_multiplier, dynamic_min_stop = math_engine.calculate_time_decay_multipliers(time_ratio)
 
                         # Calculate active stop distance based strictly on 20-day volatility
                         safe_vol = vol if vol > 0 else 1.0
-                        active_stop_dist = max((safe_vol * dynamic_multiplier), dynamic_min_stop)
-
-                        if para_armed or breakeven_locked:
-                            active_stop_dist *= p.get("MAX_PARABOLIC_SQUEEZE", 0.50)
+                        is_squeezed = para_armed or breakeven_locked
+                        active_stop_dist = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, p.get("MAX_PARABOLIC_SQUEEZE", 0.50))
 
                         base_stop = safe_hwm - active_stop_dist
                         
                         # --- RISK GUARD LOGIC ---
-                        dynamic_activation = max(0.4, min(3.0, vol))
-                        if ret >= (dynamic_activation - 0.2):
+                        if math_engine.check_breakeven_activation(ret, vol):
                             hwm_hold_ticks += 1
                         else:
                             hwm_hold_ticks = 0
@@ -249,8 +236,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                                 vwap_ticks += 1
                                 if vwap_ticks >= 3: is_vwap_broken = True
                             else: vwap_ticks = 0
-                            raw_dynamic_bleed = -(vol * p.get("VWAP_BLEED_MULTIPLIER", 1.5))
-                            vwap_bleed_arm_pct = max(-3.0, min(-0.5, raw_dynamic_bleed))
+                            vwap_bleed_arm_pct = math_engine.calculate_vwap_bleed_threshold(vol, p.get("VWAP_BLEED_MULTIPLIER", 1.5))
                             
                             if ret <= vwap_bleed_arm_pct:
                                 vwap_bleed_ticks += 1
