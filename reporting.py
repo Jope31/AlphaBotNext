@@ -91,6 +91,8 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
                         "hwm_at_trigger": round(sym.get("triggered_at_hwm", 0.0), 2),
                         "time_triggered": sym.get("triggered_at_time", ""),
                         "symphony_vol": round(sym.get("symphony_vol", 0.0), 2),
+                        "prob_loss_dynamic": round(sym["prob_loss_dynamic"], 2) if sym.get("prob_loss_dynamic") is not None else None,
+                        "dynamic_floor": round(sym["dynamic_floor"], 2) if sym.get("dynamic_floor") is not None else None,
                         "strategy_params": params,
                         "next_day_holdings": ["Pending..."],
                     }
