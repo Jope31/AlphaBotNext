@@ -425,6 +425,7 @@ def main():
                 if not s_data.get("removed_by_user", False):
                     print(f"  -> [CIRCUIT BREAKER] Symphony {s_data.get('name', s_id)} missing 2+ times. Flagging removed_by_user=True")
                     s_data["removed_by_user"] = True
+                    reporting.send_circuit_breaker_alert(s_data.get("name", s_id), DISCORD_WEBHOOK_URL)
                     state_changed = True
 
         if (market_close <= current_time <= post_mortem_cutoff) or (force_run and current_et.weekday() >= 5):
@@ -584,7 +585,7 @@ def main():
                 safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
 
                 symphony_vol = math_engine.calculate_20d_vol(holdings, historical_data)
-                prob_beating, prob_loss_dynamic = math_engine.run_monte_carlo(holdings, historical_data, spy_today, symphony_vol, SIMULATION_PATHS, NEIGHBOR_K)
+                prob_beating, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(holdings, historical_data, spy_today, symphony_vol, SIMULATION_PATHS, NEIGHBOR_K)
 
                 raw_dynamic_bleed = -(symphony_vol * acc_VWAP_BLEED_MULTIPLIER)
                 acc_VWAP_BLEED_ARM_PCT = max(-3.0, min(-0.5, raw_dynamic_bleed))
@@ -815,7 +816,9 @@ def main():
                         "symphony_vol": symphony_vol,
                         "acc_VWAP_BLEED_TICKS": acc_VWAP_BLEED_TICKS,
                         "vwap_ticks": bot_state[symphony_id]["vwap_ticks"],
-                        "acc_TAKE_PROFIT_MC_PCT": acc_TAKE_PROFIT_MC_PCT
+                        "acc_TAKE_PROFIT_MC_PCT": acc_TAKE_PROFIT_MC_PCT,
+                        "prob_loss_dynamic": prob_loss_dynamic,
+                        "dynamic_floor": dynamic_floor
                     })
 
         # Process Execution Queue
@@ -946,7 +949,9 @@ def main():
                                     vwap_bleed_ticks=item["acc_VWAP_BLEED_TICKS"], vwap_diff=item["weighted_vwap_diff"], 
                                     vwap_breakdown_ticks=item["vwap_ticks"], tp_threshold=item["acc_TAKE_PROFIT_MC_PCT"],
                                     vwap_bleed_multiplier=item.get("acc_VWAP_BLEED_MULTIPLIER"),
-                                    symphony_vol=item.get("symphony_vol")
+                                    symphony_vol=item.get("symphony_vol"),
+                                    prob_loss_dynamic=item.get("prob_loss_dynamic"),
+                                    dynamic_floor=item.get("dynamic_floor")
                                 )
                                 print(f"  -> [SETTLED] {item['symphony_name']} successfully moved to cash.")
                                 database.save_state(bot_state)
