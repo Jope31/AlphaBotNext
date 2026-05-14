@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from joblib import Parallel, delayed
 
 import math_engine
+import database
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -206,6 +207,11 @@ def generate_synthetic_history(bot_state, current_date_str):
             vol = math_engine.calculate_20d_vol(holdings, hist_data_up_to_yesterday)
             base_atr = math_engine.calculate_14d_atr_pct(holdings, hist_data_up_to_yesterday)
             
+            # Extract multiplier from strategy params
+            ref_name = bot_state.get(sym_id, {}).get("name", "")
+            strat_data = database.get_symphony_strategy(database.normalize_name(ref_name))
+            vol_mult = strat_data.get("params", {}).get("VOLATILITY_MAGNITUDE_MULTIPLIER", 0.5)
+
             for i, ts in enumerate(timestamps):
                 agg_ret = 0.0
                 weighted_vwap_diff = 0.0
@@ -230,17 +236,17 @@ def generate_synthetic_history(bot_state, current_date_str):
                         valid_alloc += alloc
                         
                 # Reduce neighbor_k and paths for speed, 300 paths is fine for tuning approximation
-		mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(holdings, hist_data_up_to_yesterday, spy_today, vol, 300, 5)
+                mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(holdings, hist_data_up_to_yesterday, spy_today, vol, 300, 5, volatility_multiplier=vol_mult)
                 
                 ticks.append({
-		    "time": ts[11:16], 
-		    "return": agg_ret * 100.0,
-		    "mc_prob": mc_prob,
-		    "prob_loss_dynamic": prob_loss_dynamic,
-		    "dynamic_floor": dynamic_floor,
-		    "vol": vol,
-		    "vwap_diff": weighted_vwap_diff,
-		    "base_atr_pct": base_atr
+                    "time": ts[11:16], 
+                    "return": agg_ret * 100.0,
+                    "mc_prob": mc_prob,
+                    "prob_loss_dynamic": prob_loss_dynamic,
+                    "dynamic_floor": dynamic_floor,
+                    "vol": vol,
+                    "vwap_diff": weighted_vwap_diff,
+                    "base_atr_pct": base_atr
                 })
                 
             day_history[sym_id] = ticks
