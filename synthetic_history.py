@@ -240,7 +240,7 @@ def generate_synthetic_history(bot_state, current_date_str):
                     weighted_vwap_diff = 0.0
 
                 # Reduce neighbor_k and paths for speed, 300 paths is fine for tuning approximation
-                mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(holdings, hist_data_up_to_yesterday, spy_today, vol, 300, 5, volatility_multiplier=vol_mult)
+                mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(agg_ret * 100.0, holdings, hist_data_up_to_yesterday, spy_today, vol, 300, 5, volatility_multiplier=vol_mult)
                 
                 ticks.append({
                     "time": ts[11:16], 
