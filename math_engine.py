@@ -30,6 +30,7 @@ def run_monte_carlo(current_symphony_return, holdings, historical_data, spy_toda
     Vectorized Monte Carlo simulation using Nearest Neighbors matching.
     Includes an unconditional bootstrap fallback.
     """
+    np.random.seed(42)
     valid_dates = sorted(list(historical_data.keys()))
     if len(valid_dates) < VOLATILITY_WINDOW_DAYS:
         return 100.0, 0.0, 0.0
