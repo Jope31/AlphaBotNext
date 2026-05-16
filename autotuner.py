@@ -137,13 +137,15 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                     if not ticks: continue
 
                     hwm = -999.0
+                    highest_stop_level = -999.0
                     armed = False
                     tp_armed = False
                     vwap_ticks = 0
                     vwap_bleed_ticks = 0
                     para_armed = False
                     breakeven_locked = False
-                    prev_return = 0.0
+                    gap_defense_locked = False
+                    prev_return = None
                     hwm_hold_ticks = 0
                     below_stop_count = 0
                     above_tp_count = 0
@@ -165,8 +167,16 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         safe_hwm = max(hwm, ret)
                         
                         # --- PARABOLIC SQUEEZE LOGIC ---
-                        is_para = math_engine.check_parabolic_velocity(ret, prev_return, p.get("PARABOLIC_VELOCITY_THRESHOLD", 2.0))
-                        prev_return = ret
+                        if prev_return is None:
+                            if ret >= p.get("GAP_DEFENSE_THRESHOLD_PCT", 2.5):
+                                gap_defense_locked = True
+                            prev_return = ret
+                            velocity = 0.0
+                            is_para = False
+                        else:
+                            velocity = ret - prev_return
+                            is_para = math_engine.check_parabolic_velocity(ret, prev_return, p.get("PARABOLIC_VELOCITY_THRESHOLD", 2.0))
+                            prev_return = ret
                         if is_para:
                             para_armed = True
                         # ------------------------------
@@ -192,6 +202,8 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         safe_vol = vol if vol > 0 else 1.0
                         is_squeezed = para_armed or breakeven_locked
                         active_stop_dist = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, p.get("MAX_PARABOLIC_SQUEEZE", 0.50))
+                        if gap_defense_locked:
+                            active_stop_dist *= p.get("GAP_DEFENSE_MULTIPLIER", 0.5)
 
                         base_stop = safe_hwm - active_stop_dist
                         
@@ -205,6 +217,8 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                             breakeven_locked = True
                         
                         stop_level = max(base_stop, 0.0) if breakeven_locked else base_stop
+                        highest_stop_level = max(stop_level, highest_stop_level)
+                        stop_level = highest_stop_level
                         # ------------------------
 
                         is_trailing_hit = False
@@ -284,14 +298,26 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
 
         def objective(trial):
             p = current_params.copy()
-            p["TRIGGER_THRESHOLD_PCT"] = trial.suggest_float("TRIGGER_THRESHOLD_PCT", 5.0, 25.0)
-            p["TAKE_PROFIT_MC_PCT"] = trial.suggest_float("TAKE_PROFIT_MC_PCT", 2.0, 10.0)
-            p["VWAP_CROSS_HWM_PCT"] = trial.suggest_float("VWAP_CROSS_HWM_PCT", 0.5, 2.5)
-            p["VWAP_BLEED_MULTIPLIER"] = trial.suggest_float("VWAP_BLEED_MULTIPLIER", 0.5, 3.0)
-            p["VWAP_BLEED_TICKS"] = trial.suggest_int("VWAP_BLEED_TICKS", 3, 30)
-            p["PARABOLIC_VELOCITY_THRESHOLD"] = trial.suggest_float("PARABOLIC_VELOCITY_THRESHOLD", 1.0, 4.0)
-            p["MAX_PARABOLIC_SQUEEZE"] = trial.suggest_float("MAX_PARABOLIC_SQUEEZE", 0.1, 0.8)
-            p["VOLATILITY_MAGNITUDE_MULTIPLIER"] = trial.suggest_float("VOLATILITY_MAGNITUDE_MULTIPLIER", 0.2, 1.0, step=0.1)
+            if "TRIGGER_THRESHOLD_PCT" not in locked_vars:
+                p["TRIGGER_THRESHOLD_PCT"] = trial.suggest_float("TRIGGER_THRESHOLD_PCT", 5.0, 25.0)
+            if "TAKE_PROFIT_MC_PCT" not in locked_vars:
+                p["TAKE_PROFIT_MC_PCT"] = trial.suggest_float("TAKE_PROFIT_MC_PCT", 2.0, 10.0)
+            if "VWAP_CROSS_HWM_PCT" not in locked_vars:
+                p["VWAP_CROSS_HWM_PCT"] = trial.suggest_float("VWAP_CROSS_HWM_PCT", 0.5, 2.5)
+            if "VWAP_BLEED_MULTIPLIER" not in locked_vars:
+                p["VWAP_BLEED_MULTIPLIER"] = trial.suggest_float("VWAP_BLEED_MULTIPLIER", 0.5, 3.0)
+            if "VWAP_BLEED_TICKS" not in locked_vars:
+                p["VWAP_BLEED_TICKS"] = trial.suggest_int("VWAP_BLEED_TICKS", 3, 30)
+            if "PARABOLIC_VELOCITY_THRESHOLD" not in locked_vars:
+                p["PARABOLIC_VELOCITY_THRESHOLD"] = trial.suggest_float("PARABOLIC_VELOCITY_THRESHOLD", 1.0, 4.0)
+            if "MAX_PARABOLIC_SQUEEZE" not in locked_vars:
+                p["MAX_PARABOLIC_SQUEEZE"] = trial.suggest_float("MAX_PARABOLIC_SQUEEZE", 0.1, 0.8)
+            if "VOLATILITY_MAGNITUDE_MULTIPLIER" not in locked_vars:
+                p["VOLATILITY_MAGNITUDE_MULTIPLIER"] = trial.suggest_float("VOLATILITY_MAGNITUDE_MULTIPLIER", 0.2, 1.0, step=0.1)
+            if "GAP_DEFENSE_THRESHOLD_PCT" not in locked_vars:
+                p["GAP_DEFENSE_THRESHOLD_PCT"] = trial.suggest_float("GAP_DEFENSE_THRESHOLD_PCT", 1.0, 5.0)
+            if "GAP_DEFENSE_MULTIPLIER" not in locked_vars:
+                p["GAP_DEFENSE_MULTIPLIER"] = trial.suggest_float("GAP_DEFENSE_MULTIPLIER", 0.2, 0.8)
 
             acc_sym_ids = [k for k, v in bot_state.items() if isinstance(v, dict) and database.normalize_name(v.get("name", "")) == normalized_name]
             if not acc_sym_ids: return 0.0
@@ -307,7 +333,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
             url=db_url,
             engine_kwargs={"connect_args": {"timeout": 60}}
         )
-        study = optuna.create_study(study_name=normalized_name, storage=storage, load_if_exists=True, direction="maximize")
+        study = optuna.create_study(study_name=f"{normalized_name}_{current_date_str}", storage=storage, load_if_exists=True, direction="maximize")
         study.optimize(objective, n_trials=500, n_jobs=-1)
         
 
