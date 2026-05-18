@@ -515,8 +515,6 @@ def main():
                 
                 acc_GAP_DEFENSE_THRESHOLD_PCT = acc_params.get("GAP_DEFENSE_THRESHOLD_PCT", 2.5)
                 acc_GAP_DEFENSE_MULTIPLIER = acc_params.get("GAP_DEFENSE_MULTIPLIER", 0.5)
-                
-                bot_state[symphony_id].setdefault("gap_defense_locked", False)
 
 
 
@@ -563,6 +561,7 @@ def main():
                         "armed": False,
                         "tp_armed": False,
                         "para_armed": False,
+                        "gap_defense_locked": False,
                         "triggered": False,
                         "mc_history": [],
                         "below_stop_count": 0,
@@ -579,7 +578,7 @@ def main():
                 prev_triggered = bot_state[symphony_id].get("triggered", False)
                 prev_para_armed = bot_state[symphony_id].get("para_armed", False)
 
-                for key in ["triggered", "tp_armed", "breakeven_locked", "para_armed"]:
+                for key in ["triggered", "tp_armed", "breakeven_locked", "para_armed", "gap_defense_locked"]:
                     if key not in bot_state[symphony_id]:
                         bot_state[symphony_id][key] = False
                 for key in ["below_stop_count", "above_tp_count", "vwap_ticks", "vwap_bleed_ticks", "hwm_hold_ticks", "missing_streak"]:
