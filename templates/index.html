@@ -154,6 +154,13 @@
             </div>
         </header>
 
+        <!-- NEW ACCOUNT VALUES DISPLAY -->
+        <div id="account-values-display" class="flex justify-center gap-8 mb-8 text-sm font-semibold text-slate-400">
+            <div class="hidden" id="val-container-ind">Individual: <span id="val-ind" class="text-slate-200">$--</span></div>
+            <div class="hidden" id="val-container-roth">Roth IRA: <span id="val-roth" class="text-slate-200">$--</span></div>
+            <div class="hidden" id="val-container-trad">Trad. IRA: <span id="val-trad" class="text-slate-200">$--</span></div>
+        </div>
+
         <div id="notification" class="hidden mb-6 p-4 rounded-xl text-sm font-medium transition-all duration-300"></div>
 
         <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 min-h-[750px]">
@@ -309,6 +316,20 @@
                                     class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                             </div>
                         </div>
+                        <div class="space-y-4 mt-5">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Individual Account Balance ($)</label>
+                                <input type="number" id="env-bal-ind" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Roth IRA Balance ($)</label>
+                                <input type="number" id="env-bal-roth" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 mb-1 block">Trad IRA Balance ($)</label>
+                                <input type="number" id="env-bal-trad" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            </div>
+                        </div>
                         <div class="mt-5">
                             <label class="text-xs font-semibold text-slate-300 mb-1 block">Discord Server Webhook
                                 (Optional)</label>
@@ -347,110 +368,84 @@
         </div>
     </div>
 
-    <!-- Log Modal -->
-    <div id="log-modal"
-        class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]"
-            id="log-modal-content">
+    <!-- Symphony Detail Modal -->
+    <div id="symphony-detail-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-6xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[95vh]" id="symphony-detail-modal-content">
+            
+            <!-- Header -->
             <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 shrink-0">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2" id="log-modal-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Activity Logs
-                </h3>
-                <button onclick="closeLogModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-            <div class="p-6 overflow-y-auto" id="log-modal-body">
-                <!-- Logs injected here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Chart Modal -->
-    <div id="chart-modal"
-        class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-slate-800 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-4xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]"
-            id="chart-modal-content">
-            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 shrink-0">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2" id="chart-modal-title">
-                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
-                    </svg>
-                    Intraday Trailing Stop Visualizer
-                </h3>
-                <button onclick="closeChartModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-            <div id="chart-stats-header"
-                class="px-6 py-3 bg-slate-800/80 border-b border-slate-700 flex flex-wrap gap-2 shrink-0 hidden"></div>
-
-            <div class="p-6 bg-slate-900 flex-1 relative min-h-[400px]">
-                <canvas id="intradayChart"></canvas>
+                <div class="flex items-center gap-4">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2" id="detail-modal-title">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        <span id="detail-symphony-name" class="truncate max-w-[400px]"></span>
+                    </h3>
+                    <div id="detail-status-badge"></div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="detail-go-to-cash-btn" class="hidden text-xs bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 px-3 py-1.5 rounded transition-colors font-bold tracking-wide flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        GO TO CASH
+                    </button>
+                    <button onclick="closeSymphonyDetailModal()" class="text-slate-400 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
             </div>
 
-            <!-- Custom Legend -->
-            <div
-                class="px-6 py-4 border-t border-slate-700 bg-slate-800 shrink-0 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-1 bg-emerald-500 rounded"></div>
-                    <span class="text-xs font-semibold text-slate-300">Current Return</span>
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-900 space-y-6">
+                <!-- Top Row (KPIs) -->
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Live Return</p>
+                        <p class="text-2xl font-bold" id="kpi-live-return">---</p>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Stop Level <span id="kpi-stop-type" class="text-slate-600 text-[9px]"></span></p>
+                        <p class="text-2xl font-bold text-slate-200" id="kpi-stop-level">---</p>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1" title="Shadow High Water Mark">Shadow Peak</p>
+                        <p class="text-2xl font-bold text-slate-200" id="kpi-shadow-peak">---</p>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Guard Alpha</p>
+                        <p class="text-2xl font-bold" id="kpi-guard-alpha">---</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-1 border-t-2 border-dashed border-orange-500"></div>
-                    <span class="text-xs font-semibold text-slate-300">Trailing Stop Floor</span>
+
+                <!-- Middle Row (Chart) -->
+                <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden relative">
+                    <div class="absolute top-4 right-4 z-10 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 max-w-2xl bg-slate-900/80 backdrop-blur border border-slate-700 p-2 rounded-lg">
+                        <div class="flex items-center gap-2"><div class="w-3 h-1 bg-emerald-500 rounded"></div><span class="text-[10px] font-semibold text-slate-300">Return</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3 h-1 border-t-2 border-dashed border-orange-500"></div><span class="text-[10px] font-semibold text-slate-300">Stop Floor</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3 h-1 border-t-2 border-dashed border-rose-600"></div><span class="text-[10px] font-semibold text-slate-300">Exit</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-blue-500/30 border border-blue-500/50 rounded-[1px]"></div><span class="text-[10px] font-semibold text-slate-300">MC Prob</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-fuchsia-500/40 border border-fuchsia-500/80 rounded-[1px]"></div><span class="text-[10px] font-semibold text-slate-300">Smart TP</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-amber-500 clip-triangle"></div><span class="text-[10px] font-semibold text-slate-300">Armed</span></div>
+                        <div class="flex items-center gap-2"><div class="w-2 h-2 bg-rose-600 rounded-sm transform rotate-45"></div><span class="text-[10px] font-semibold text-slate-300">Triggered</span></div>
+                        <div class="flex items-center gap-2"><div class="text-violet-500 text-[10px] leading-none clip-star">★</div><span class="text-[10px] font-semibold text-slate-300">VWAP</span></div>
+                    </div>
+                    <div class="p-4 relative h-[350px]">
+                        <canvas id="detailIntradayChart"></canvas>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-1 border-t-2 border-dashed border-rose-600"></div>
-                    <span class="text-xs font-semibold text-slate-300">Exit Return</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 bg-blue-500/30 border border-blue-500/50 rounded-[1px]"></div>
-                    <span class="text-xs font-semibold text-slate-300"
-                        title="Monte Carlo Engine Output. Lower bars squeeze the stop tighter.">MC Probability
-                        (Engine)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 bg-fuchsia-500/40 border border-fuchsia-500/80 rounded-[1px]"></div>
-                    <span class="text-xs font-semibold text-slate-300" title="Smart Take-Profit Armed Zone.">Smart TP
-                        Zone</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 bg-amber-500 clip-triangle"></div>
-                    <span class="text-xs font-semibold text-slate-300">Armed Event</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 bg-rose-600 rounded-sm transform rotate-45"></div>
-                    <span class="text-xs font-semibold text-slate-300">Triggered / Exit</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="text-violet-500 text-sm leading-none clip-star">★</div>
-                    <span class="text-xs font-semibold text-slate-300">VWAP Exit</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-1 border-t border-dashed border-emerald-500/50"></div>
-                    <span class="text-xs font-semibold text-slate-300"
-                        title="High-Water Mark must cross this line to lock Breakeven.">Breakeven Threshold</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-1 border-t border-dashed border-fuchsia-500/50"></div>
-                    <span class="text-xs font-semibold text-slate-300">TP MC Threshold</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-1 border-t border-dashed border-violet-500/50"></div>
-                    <span class="text-xs font-semibold text-slate-300">VWAP Bleed Floor</span>
+
+                <!-- Bottom Row (Split View) -->
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Left: Logs -->
+                    <div class="col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Today's Events</h4>
+                        <div id="detail-logs-container" class="flex-1 overflow-y-auto max-h-[250px] relative">
+                            <!-- Timeline logs injected here -->
+                        </div>
+                    </div>
+                    <!-- Right: Risk Math -->
+                    <div class="col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Risk Math</h4>
+                        <div id="detail-risk-math" class="space-y-4">
+                            <!-- Risk math injected here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -924,6 +919,32 @@
                     container.innerHTML = data.html;
                 }
             }
+
+            // Format balances
+            const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            if (data.account_balances) {
+                if (data.account_balances.MANUAL_BAL_IND > 0) {
+                    document.getElementById('val-container-ind').classList.remove('hidden');
+                    document.getElementById('val-ind').textContent = formatter.format(data.account_balances.MANUAL_BAL_IND);
+                } else {
+                    document.getElementById('val-container-ind').classList.add('hidden');
+                }
+                
+                if (data.account_balances.MANUAL_BAL_ROTH > 0) {
+                    document.getElementById('val-container-roth').classList.remove('hidden');
+                    document.getElementById('val-roth').textContent = formatter.format(data.account_balances.MANUAL_BAL_ROTH);
+                } else {
+                    document.getElementById('val-container-roth').classList.add('hidden');
+                }
+                
+                if (data.account_balances.MANUAL_BAL_TRAD > 0) {
+                    document.getElementById('val-container-trad').classList.remove('hidden');
+                    document.getElementById('val-trad').textContent = formatter.format(data.account_balances.MANUAL_BAL_TRAD);
+                } else {
+                    document.getElementById('val-container-trad').classList.add('hidden');
+                }
+            }
+
             document.getElementById('last-updated').textContent = `Last Updated: ${new Date().toLocaleTimeString()}`;
 
         }
@@ -1135,373 +1156,392 @@
             }
         });
 
-        // --- Activity Log Modal Logic ---
-	async function openLogModal(symphonyId, symphonyName) {
-            try {
-                const dateStr = globalStateCache.date || new Date().toISOString().split('T')[0];
-                const response = await fetch(`/api/logs/${dateStr}/${symphonyId}`);
-                const logs = await response.json();
-
-                const modal = document.getElementById('log-modal');
-                const content = document.getElementById('log-modal-content');
-                const body = document.getElementById('log-modal-body');
-
-                document.getElementById('log-modal-title').innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <div class="truncate max-w-[400px]" title="${symphonyName}">${symphonyName} Logs</div>
-                `;
-
-                if (!logs || logs.length === 0) {
-                    body.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No activity logs recorded for this symphony today.</p>';
-                } else {
-                    let html = '<ul class="space-y-3">';
-                    logs.forEach(log => {
-                        const date = new Date(log.timestamp);
-                        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-                        let badgeColor = "bg-slate-700 text-slate-300";
-                        if (log.event_type.includes("armed")) badgeColor = "bg-blue-900/50 text-blue-400";
-                        if (log.event_type.includes("disarmed")) badgeColor = "bg-slate-700 text-slate-400";
-                        if (log.event_type === "triggered") badgeColor = "bg-rose-900/50 text-rose-400";
-                        if (log.event_type === "execution") badgeColor = "bg-emerald-900/50 text-emerald-400";
-                        if (log.event_type === "warning") badgeColor = "bg-orange-900/50 text-orange-400";
-
-                        html += `
-                            <li class="bg-slate-900 p-3 rounded-lg border border-slate-700 flex flex-col gap-1">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-xs font-mono text-slate-500">${timeStr}</span>
-                                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded ${badgeColor}">${log.event_type}</span>
-                                </div>
-                                <div class="text-sm text-slate-200 mt-1">${log.message}</div>
-                            </li>
-                        `;
-                    });
-                    html += '</ul>';
-                    body.innerHTML = html;
-                }
-
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modal.classList.remove('opacity-0');
-                    content.classList.remove('scale-95');
-                }, 10);
-            } catch (error) {
-                showNotification("Failed to load logs.", "error");
-            }
-        }
-
-        function closeLogModal() {
-            const modal = document.getElementById('log-modal');
-            const content = document.getElementById('log-modal-content');
-            modal.classList.add('opacity-0');
-            content.classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); }, 300);
-        }
+        // --- Symphony Detail Modal Logic ---
 
         // --- Intraday Chart Modal Logic ---
-        async function openChartModal(symphonyId, symphonyName) {
+        let detailActiveChart = null;
+
+        async function openSymphonyDetailModal(symphonyId, symphonyName) {
             try {
-                // 1. Fetch data FIRST before opening the modal.
-                const response = await fetch(`/api/chart/${symphonyId}`);
-                const resData = await response.json();
+                // 1. Fetch data FIRST before opening the modal
+                const dateStr = globalStateCache.date || new Date().toISOString().split('T')[0];
+                const [logsRes, chartRes] = await Promise.all([
+                    fetch(`/api/logs/${dateStr}/${symphonyId}`),
+                    fetch(`/api/chart/${symphonyId}`)
+                ]);
+                
+                const logs = await logsRes.json();
+                const chartDataRaw = await chartRes.json();
+                let chartData = chartDataRaw.data || [];
 
-                let data = resData.data || [];
-                if (data.length === 0) {
-                    showNotification("Awaiting first minute-tick. No chart data available yet.", "error");
-                    return; // Abort entirely. Prevents the empty modal from flashing on screen.
+                // 2. Setup Modal State & UI references
+                const modal = document.getElementById('symphony-detail-modal');
+                const content = document.getElementById('symphony-detail-modal-content');
+                const state = globalStateCache[symphonyId] || {};
+                
+                document.getElementById('detail-symphony-name').textContent = symphonyName;
+
+                // --- 3. Header & Status Badge ---
+                const statusBadge = document.getElementById('detail-status-badge');
+                if (state.triggered) {
+                    statusBadge.innerHTML = `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></div>TRIGGERED</span>`;
+                } else if (state.armed) {
+                    statusBadge.innerHTML = `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>ARMED</span>`;
+                } else {
+                    statusBadge.innerHTML = `<span class="bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">STANDBY</span>`;
                 }
 
-                // --- Calculate Stats ---
-                const latestData = data[data.length - 1];
-                const returnsArr = data.map(d => d.return);
-                const latestRet = latestData.return;
-                const maxRet = Math.max(...returnsArr);
-                const minRet = Math.min(...returnsArr);
-                const latestStop = latestData.stop;
-                const latestMcProb = latestData.mc_prob || 0;
+                // Go to cash button logic (show if live and not triggered)
+                const cashBtn = document.getElementById('detail-go-to-cash-btn');
+                // if (!state.triggered) { // Need composer instance ID logic. Leave hidden for now or attach function.
+                //     cashBtn.classList.remove('hidden');
+                // } else {
+                //     cashBtn.classList.add('hidden');
+                // }
 
-                // --- Split Exit vs Shadow Return ---
-                const isTriggered = globalStateCache[symphonyId]?.triggered;
-                const exitRet = isTriggered ? (globalStateCache[symphonyId]?.triggered_at_return ?? 0) : null;
+                // --- 4. KPIs ---
+                const latestRet = chartData.length > 0 ? chartData[chartData.length - 1].return : 0;
+                const currentLiveRet = state.current_return !== undefined && state.current_return !== null ? state.current_return : latestRet;
+                
+                document.getElementById('kpi-live-return').textContent = (currentLiveRet > 0 ? '+' : '') + currentLiveRet.toFixed(2) + '%';
+                document.getElementById('kpi-live-return').className = `text-2xl font-bold ${currentLiveRet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
 
-                let currentExit = null;
-                const exitReturns = data.map(d => {
-                    if (['Triggered', 'Trailing Stop', 'Take-Profit', 'VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) {
-                        currentExit = exitRet ?? d.return;
+                let stopDisplay = "OFF";
+                if (state.trailing_stop !== undefined && state.trailing_stop !== null && state.trailing_stop !== -999.0) {
+                    stopDisplay = state.trailing_stop.toFixed(2) + '%';
+                }
+                document.getElementById('kpi-stop-level').textContent = stopDisplay;
+                document.getElementById('kpi-stop-type').textContent = state.stop_type ? `(${state.stop_type})` : '';
+
+                let shadowPeakDisplay = currentLiveRet;
+                if (state.shadow_hwm !== undefined && state.shadow_hwm !== null && state.shadow_hwm !== -999.0) {
+                    shadowPeakDisplay = state.shadow_hwm;
+                }
+                document.getElementById('kpi-shadow-peak').textContent = shadowPeakDisplay.toFixed(2) + '%';
+
+                let guardAlphaDisplay = 0;
+                if (state.triggered) {
+                    const trigVal = state.triggered_at_return !== undefined && state.triggered_at_return !== null ? state.triggered_at_return : currentLiveRet;
+                    guardAlphaDisplay = trigVal - currentLiveRet;
+                }
+                document.getElementById('kpi-guard-alpha').textContent = (guardAlphaDisplay > 0 ? '+' : '') + guardAlphaDisplay.toFixed(2) + '%';
+                
+                let alphaColor = 'text-slate-500';
+                if (guardAlphaDisplay > 0) alphaColor = 'text-emerald-400';
+                else if (guardAlphaDisplay < 0) alphaColor = 'text-rose-400';
+                document.getElementById('kpi-guard-alpha').className = `text-2xl font-bold ${alphaColor}`;
+
+                // --- 5. Logs (Timeline) ---
+                const logsContainer = document.getElementById('detail-logs-container');
+                if (!logs || logs.length === 0) {
+                    logsContainer.innerHTML = '<p class="text-slate-500 text-sm py-4 italic">No events recorded today.</p>';
+                } else {
+                    let html = '<div class="space-y-4 relative border-l-2 border-slate-700 ml-3 pl-6 py-2">';
+                    logs.slice().reverse().forEach((log, index) => { // Reverse to show latest first
+                        const date = new Date(log.timestamp);
+                        const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        
+                        let dotColor = "bg-slate-600 shadow-slate-900";
+                        if (log.event_type.includes("armed")) dotColor = "bg-amber-500 shadow-amber-500/20";
+                        if (log.event_type.includes("disarmed")) dotColor = "bg-slate-500 shadow-slate-500/20";
+                        if (log.event_type === "triggered") dotColor = "bg-rose-500 shadow-rose-500/20 border-rose-400";
+                        if (log.event_type === "execution") dotColor = "bg-emerald-500 shadow-emerald-500/20";
+                        if (log.event_type === "warning") dotColor = "bg-orange-500 shadow-orange-500/20";
+
+                        html += `
+                            <div class="relative group">
+                                <div class="absolute -left-[35px] top-1.5 flex items-center justify-center w-4 h-4 rounded-full border-2 border-slate-900 ${dotColor} z-10"></div>
+                                <div class="p-3 rounded-xl border border-slate-700 bg-slate-800/50 shadow">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <time class="text-xs font-mono text-slate-400">${timeStr}</time>
+                                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">${log.event_type}</span>
+                                    </div>
+                                    <div class="text-sm text-slate-300 leading-snug">${log.message}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    logsContainer.innerHTML = html;
+                }
+
+                // --- 6. Risk Math ---
+                const riskMathContainer = document.getElementById('detail-risk-math');
+                const mcProb = state.mc_prob || 0;
+                const vol20d = state.symphony_vol !== undefined ? state.symphony_vol.toFixed(2) : 'N/A';
+                const paraSqueeze = state.para_armed ? 'ACTIVE' : 'INACTIVE';
+                const beLock = state.breakeven_locked ? 'LOCKED' : 'UNLOCKED';
+                
+                riskMathContainer.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="text-slate-400">MC Probability</span>
+                                <span class="text-white font-mono">${mcProb.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-slate-700/50 rounded-full h-1.5">
+                                <div class="bg-blue-500 h-1.5 rounded-full" style="width: ${Math.min(100, Math.max(0, mcProb))}%"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-slate-700/50">
+                            <span class="text-xs text-slate-400">Volatility (20d)</span>
+                            <span class="text-xs font-mono text-slate-200">${vol20d}</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-slate-700/50">
+                            <span class="text-xs text-slate-400">Parabolic Squeeze</span>
+                            <span class="text-xs font-mono ${state.para_armed ? 'text-amber-400' : 'text-slate-500'}">${paraSqueeze}</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2">
+                            <span class="text-xs text-slate-400">Breakeven Lock</span>
+                            <span class="text-xs font-mono ${state.breakeven_locked ? 'text-emerald-400' : 'text-slate-500'}">${beLock}</span>
+                        </div>
+                    </div>
+                `;
+
+                // --- 7. Chart ---
+                if (chartData.length === 0) {
+                    // Do nothing for chart, but open modal anyway
+                } else {
+                    const isTriggered = state.triggered;
+                    const exitRet = isTriggered ? (state.triggered_at_return || 0) : null;
+                    let currentExit = null;
+                    const exitReturns = chartData.map(d => {
+                        if (['Triggered', 'Trailing Stop', 'Take-Profit', 'VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) {
+                            currentExit = exitRet !== null ? exitRet : d.return;
+                        }
+                        return currentExit;
+                    });
+                    if (isTriggered && currentExit === null) {
+                        exitReturns.fill(exitRet);
                     }
-                    return currentExit;
-                });
-                // If it triggered before the current chart window, fill the whole array
-                if (isTriggered && currentExit === null) {
-                    exitReturns.fill(exitRet);
-                }
 
-                // --- Inject Stats Badge Logic ---
-                const statsHeader = document.getElementById('chart-stats-header');
-                const badgeClass = "px-2.5 py-1 rounded border text-xs font-bold transition-all duration-300";
+                    // --- Fetch Specific Symphony Parameters ---
+                    const symNameKey = Object.keys(currentStrategyData).find(k => k.toLowerCase() === symphonyName.toLowerCase());
+                    const params = symNameKey && currentStrategyData[symNameKey] ? currentStrategyData[symNameKey].params : {};
+                    const tpMcThreshold = params.TAKE_PROFIT_MC_PCT || 5.0;
+                    const vwapBleedMultiplier = params.VWAP_BLEED_MULTIPLIER || 1.5;
 
-                statsHeader.innerHTML = `
-                    ${isTriggered ? `
-                    <div class="${badgeClass} bg-rose-500/10 text-rose-400 border-rose-500/20">
-                        EXIT: ${exitRet.toFixed(2)}%
-                    </div>` : ''}
-                    <div class="${badgeClass} ${latestRet >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600/50'}">
-                        ${isTriggered ? 'SHADOW' : 'LATEST'}: ${latestRet.toFixed(2)}%
-                    </div>
-                    <div class="${badgeClass} bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                        MAX: ${maxRet.toFixed(2)}%
-                    </div>
-                    <div class="${badgeClass} bg-rose-500/10 text-rose-400 border-rose-500/20">
-                        MIN: ${minRet.toFixed(2)}%
-                    </div>
-                    <div class="${badgeClass} ${latestStop !== null ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-slate-700/50 text-slate-500 border-slate-600/50'}">
-                        STOP: ${latestStop !== null ? latestStop.toFixed(2) + '%' : 'OFF'}
-                    </div>
-                    <div class="${badgeClass} bg-blue-500/10 text-blue-400 border-blue-500/20">
-                        MC PROB: ${latestMcProb.toFixed(1)}%
-                    </div>
-                `;
-                statsHeader.classList.remove('hidden');
+                    // Calculate dynamic Breakeven Activation based on Volatility
+                    const currentVol = chartData[chartData.length - 1].vol || 1.0;
+                    const beActivation = Math.max(0.4, Math.min(3.0, currentVol));
 
-                // 2. Only proceed with rendering the modal if we have data
-                const modal = document.getElementById('chart-modal');
-                const content = document.getElementById('chart-modal-content');
+                    const labels = chartData.map(d => d.time);
+                    const returns = chartData.map(d => d.return);
+                    const stops = chartData.map(d => d.stop);
+                    const mcProbs = chartData.map(d => d.mc_prob || 0);
 
-                document.getElementById('chart-modal-title').innerHTML = `
-                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                    <div class="truncate max-w-[400px]" title="${symphonyName}">${symphonyName}</div>
-                `;
+                    const beActivationLine = chartData.map(() => beActivation);
+                    const vwapBleedLine = chartData.map(d => {
+                        const vol = d.vol || 1.0;
+                        const rawBleed = -(vol * vwapBleedMultiplier);
+                        return Math.max(-3.0, Math.min(-0.5, rawBleed));
+                    });
+                    const tpThresholdLine = chartData.map(() => tpMcThreshold);
 
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modal.classList.remove('opacity-0');
-                    content.classList.remove('scale-95');
-                }, 10);
+                    const pointStyles = chartData.map(d => {
+                        if (d.event === 'Armed' || d.event === 'TP-Armed' || d.event === 'Para-Armed') return 'triangle';
+                        if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(d.event)) return 'rectRot';
+                        if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) return 'star';
+                        return 'circle';
+                    });
 
-                // --- Fetch Specific Symphony Parameters ---
-                const symNameKey = Object.keys(currentStrategyData).find(k => k.toLowerCase() === symphonyName.toLowerCase());
-                const params = symNameKey && currentStrategyData[symNameKey] ? currentStrategyData[symNameKey].params : {};
-                const tpMcThreshold = params.TAKE_PROFIT_MC_PCT || 5.0;
-                const vwapBleedMultiplier = params.VWAP_BLEED_MULTIPLIER || 1.5;
+                    const pointRadii = chartData.map(d => {
+                        if (d.event === 'Armed' || d.event === 'TP-Armed' || d.event === 'Para-Armed') return 6;
+                        if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(d.event)) return 8;
+                        if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) return 10;
+                        return 0; // Hide normal points for clean line
+                    });
 
-                // Calculate dynamic Breakeven Activation based on Volatility
-                const currentVol = data.length > 0 ? (data[data.length - 1].vol || 1.0) : 1.0;
-                const beActivation = Math.max(0.4, Math.min(3.0, currentVol));
+                    const pointColors = chartData.map(d => {
+                        if (d.event === 'Para-Armed') return '#06b6d4'; // cyan-500
+                        if (d.event === 'Armed' || d.event === 'TP-Armed') return '#eab308'; // amber-500
+                        if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(d.event)) return '#e11d48'; // rose-600
+                        if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) return '#8b5cf6'; // violet-500
+                        return '#10b981';
+                    });
 
-                // Process Chart.js Data Arrays
-                const labels = data.map(d => d.time);
-                const returns = data.map(d => d.return);
-                const stops = data.map(d => d.stop);
-                const mcProbs = data.map(d => d.mc_prob || 0);
+                    const ctx = document.getElementById('detailIntradayChart').getContext('2d');
 
-                // Generate Threshold Arrays
-                const beActivationLine = data.map(() => beActivation);
-                const vwapBleedLine = data.map(d => {
-                    const vol = d.vol || 1.0;
-                    const rawBleed = -(vol * vwapBleedMultiplier);
-                    return Math.max(-3.0, Math.min(-0.5, rawBleed));
-                });
-                const tpThresholdLine = data.map(() => tpMcThreshold);
+                    if (detailActiveChart) { detailActiveChart.destroy(); }
 
-
-
-                // Create custom point shapes for events
-                const pointStyles = data.map(d => {
-                    if (d.event === 'Armed' || d.event === 'TP-Armed' || d.event === 'Para-Armed') return 'triangle';
-                    if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(d.event)) return 'rectRot';
-                    if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) return 'star';
-                    return 'circle';
-                });
-
-                const pointRadii = data.map(d => {
-                    if (d.event === 'Armed' || d.event === 'TP-Armed' || d.event === 'Para-Armed') return 8;
-                    if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(d.event)) return 10;
-                    if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) return 12;
-                    return 0; // Hide normal points for clean line
-                });
-
-                const pointColors = data.map(d => {
-                    if (d.event === 'Para-Armed') return '#06b6d4'; // cyan-500
-                    if (d.event === 'Armed' || d.event === 'TP-Armed') return '#eab308'; // amber-500
-                    if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(d.event)) return '#e11d48'; // rose-600
-                    if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(d.event)) return '#8b5cf6'; // violet-500
-                    return '#10b981';
-                });
-
-                const ctx = document.getElementById('intradayChart').getContext('2d');
-
-                // Destroy old instance if exists
-                if (activeChart) { activeChart.destroy(); }
-
-                activeChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Current Return (%)',
-                                data: returns,
-                                borderColor: '#10b981', // Emerald
-                                borderWidth: 3,
-                                tension: 0.3, // smooth curve
-                                fill: true,
-                                backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                                pointStyle: pointStyles,
-                                pointRadius: pointRadii,
-                                pointBackgroundColor: pointColors,
-                                pointBorderColor: pointColors,
-                                yAxisID: 'y',
-                                order: 2
-                            },
-                            {
-                                label: 'Exit Return (%)',
-                                data: exitReturns,
-                                borderColor: '#e11d48', // Rose-600
-                                borderWidth: 2,
-                                borderDash: [5, 5],
-                                pointRadius: 0,
-                                yAxisID: 'y',
-                                order: 1
-                            },
-                            {
-                                label: 'Trailing Stop Floor (%)',
-                                data: stops,
-                                borderColor: '#f97316', // Orange
-                                borderWidth: 2,
-                                borderDash: [5, 5],
-                                stepped: true,
-                                spanGaps: false, // Breaks the line when stop is null (unarmed)
-                                pointRadius: 0,
-                                yAxisID: 'y',
-                                order: 1
-                            },
-                            {
-                                label: 'MC Probability (%)',
-                                data: mcProbs,
-                                type: 'line',
-                                borderColor: 'rgba(59, 130, 246, 0.4)',
-                                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                fill: 'start',
-                                tension: 0.2,
-                                pointRadius: 0,
-                                yAxisID: 'y1', // Secondary Axis for bottom rendering
-                                order: 3
-                            },
-                            {
-                                label: 'Breakeven Threshold (%)',
-                                data: beActivationLine,
-                                borderColor: 'rgba(16, 185, 129, 0.4)', // Faded Emerald
-                                borderWidth: 1,
-                                borderDash: [4, 4],
-                                pointRadius: 0,
-                                yAxisID: 'y',
-                                order: 4
-                            },
-                            {
-                                label: 'VWAP Bleed Floor (%)',
-                                data: vwapBleedLine,
-                                borderColor: 'rgba(139, 92, 246, 0.4)', // Faded Violet
-                                borderWidth: 1,
-                                borderDash: [4, 4],
-                                pointRadius: 0,
-                                yAxisID: 'y',
-                                order: 5
-                            },
-                            {
-                                label: 'Take-Profit MC Threshold (%)',
-                                data: tpThresholdLine,
-                                borderColor: 'rgba(217, 70, 239, 0.4)', // Faded Fuchsia
-                                borderWidth: 1,
-                                borderDash: [4, 4],
-                                pointRadius: 0,
-                                yAxisID: 'y1',
-                                order: 6
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false,
+                    detailActiveChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Current Return (%)',
+                                    data: returns,
+                                    borderColor: '#10b981', // Emerald
+                                    borderWidth: 2,
+                                    tension: 0.3,
+                                    fill: true,
+                                    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                                    pointStyle: pointStyles,
+                                    pointRadius: pointRadii,
+                                    pointBackgroundColor: pointColors,
+                                    pointBorderColor: pointColors,
+                                    yAxisID: 'y',
+                                    order: 2
+                                },
+                                {
+                                    label: 'Exit Return (%)',
+                                    data: exitReturns,
+                                    borderColor: '#e11d48', // Rose-600
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    pointRadius: 0,
+                                    yAxisID: 'y',
+                                    order: 1
+                                },
+                                {
+                                    label: 'Trailing Stop Floor (%)',
+                                    data: stops,
+                                    borderColor: '#f97316', // Orange
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    stepped: true,
+                                    spanGaps: false,
+                                    pointRadius: 0,
+                                    yAxisID: 'y',
+                                    order: 1
+                                },
+                                {
+                                    label: 'MC Probability (%)',
+                                    data: mcProbs,
+                                    type: 'line',
+                                    borderColor: 'rgba(59, 130, 246, 0.4)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                    fill: 'start',
+                                    tension: 0.2,
+                                    pointRadius: 0,
+                                    yAxisID: 'y1',
+                                    order: 3
+                                },
+                                {
+                                    label: 'Breakeven Threshold (%)',
+                                    data: beActivationLine,
+                                    borderColor: 'rgba(16, 185, 129, 0.4)',
+                                    borderWidth: 1,
+                                    borderDash: [4, 4],
+                                    pointRadius: 0,
+                                    yAxisID: 'y',
+                                    order: 4
+                                },
+                                {
+                                    label: 'VWAP Bleed Floor (%)',
+                                    data: vwapBleedLine,
+                                    borderColor: 'rgba(139, 92, 246, 0.4)',
+                                    borderWidth: 1,
+                                    borderDash: [4, 4],
+                                    pointRadius: 0,
+                                    yAxisID: 'y',
+                                    order: 5
+                                },
+                                {
+                                    label: 'Take-Profit MC Threshold (%)',
+                                    data: tpThresholdLine,
+                                    borderColor: 'rgba(217, 70, 239, 0.4)',
+                                    borderWidth: 1,
+                                    borderDash: [4, 4],
+                                    pointRadius: 0,
+                                    yAxisID: 'y1',
+                                    order: 6
+                                }
+                            ]
                         },
-                        plugins: {
-                            legend: { display: false }, // Using custom HTML legend below
-                            tooltip: {
-                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                                titleColor: '#e2e8f0',
-                                bodyColor: '#94a3b8',
-                                borderColor: '#334155',
-                                borderWidth: 1,
-                                callbacks: {
-                                    label: function (context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) { label += ': '; }
-                                        if (context.parsed.y !== null) {
-                                            label += context.parsed.y.toFixed(2) + '%';
-                                        }
-                                        return label;
-                                    },
-                                    afterBody: function (context) {
-                                        const event = data[context[0].dataIndex].event;
-                                        if (event) {
-                                            if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(event)) {
-                                                return `\n📉 [VWAP EXIT]`;
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                    titleColor: '#e2e8f0',
+                                    bodyColor: '#94a3b8',
+                                    borderColor: '#334155',
+                                    borderWidth: 1,
+                                    callbacks: {
+                                        label: function (context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) { label += ': '; }
+                                            if (context.parsed.y !== null) {
+                                                label += context.parsed.y.toFixed(2) + '%';
                                             }
-                                            if (event === 'Para-Armed') {
-                                                return `\n⚡ [Parabolic Squeeze]`;
+                                            return label;
+                                        },
+                                        afterBody: function (context) {
+                                            const event = chartData[context[0].dataIndex].event;
+                                            if (event) {
+                                                if (['VWAP_Break', 'VWAP Breakdown', 'VWAP Bleed Cut'].includes(event)) {
+                                                    return `\n📉 [VWAP EXIT]`;
+                                                }
+                                                if (event === 'Para-Armed') {
+                                                    return `\n⚡ [Parabolic Squeeze]`;
+                                                }
+                                                if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(event)) {
+                                                    const reason = state.triggered_reason || event;
+                                                    return `\nEvent: Triggered (${reason})`;
+                                                }
+                                                return `\nEvent: ${event}`;
                                             }
-                                            if (['Triggered', 'Trailing Stop', 'Take-Profit'].includes(event)) {
-                                                const reason = globalStateCache[symphonyId]?.triggered_reason || event;
-                                                return `\nEvent: Triggered (${reason})`;
-                                            }
-                                            return `\nEvent: ${event}`;
                                         }
                                     }
                                 }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                grid: { color: '#334155', drawBorder: false },
-                                ticks: { color: '#94a3b8', maxTicksLimit: 12 }
                             },
-                            y: {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                grace: '5%',
-                                grid: {
-                                    color: (ctx) => ctx.tick.value === 0 ? '#64748b' : '#334155',
-                                    lineWidth: (ctx) => ctx.tick.value === 0 ? 2 : 1,
-                                    drawBorder: false
+                            scales: {
+                                x: {
+                                    grid: { color: '#334155', drawBorder: false },
+                                    ticks: { color: '#94a3b8', maxTicksLimit: 12 }
                                 },
-                                ticks: {
-                                    color: '#94a3b8',
-                                    callback: function (value) { return value.toFixed(2) + '%'; }
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    grace: '5%',
+                                    grid: {
+                                        color: (ctx) => ctx.tick.value === 0 ? '#64748b' : '#334155',
+                                        lineWidth: (ctx) => ctx.tick.value === 0 ? 2 : 1,
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        color: '#94a3b8',
+                                        callback: function (value) { return value.toFixed(2) + '%'; }
+                                    }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    display: false,
+                                    position: 'right',
+                                    min: 0,
+                                    max: 400,
+                                    grid: { drawOnChartArea: false }
                                 }
-                            },
-                            y1: {
-                                type: 'linear',
-                                display: false, // Hides the labels/axis line to keep it clean
-                                position: 'right',
-                                min: 0,
-                                max: 400, // Forces the 0-100 bars to only occupy the bottom 25% of the chart area
-                                grid: { drawOnChartArea: false }
                             }
                         }
-                    }
-                });
+                    });
+                }
 
+                // 8. Open modal
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    content.classList.remove('scale-95');
+                }, 10);
+                
             } catch (error) {
-                showNotification("Failed to load chart data. Ensure bot has completed its first tick.", "error");
+                console.error("Error opening details modal:", error);
+                showNotification("Failed to load details.", "error");
             }
         }
 
-        function closeChartModal() {
-            const modal = document.getElementById('chart-modal');
-            const content = document.getElementById('chart-modal-content');
+        function closeSymphonyDetailModal() {
+            const modal = document.getElementById('symphony-detail-modal');
+            const content = document.getElementById('symphony-detail-modal-content');
             modal.classList.add('opacity-0');
             content.classList.add('scale-95');
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
@@ -1532,6 +1572,10 @@
                 document.getElementById('env-acc-ind').value = vars.ACCOUNT_INDIVIDUAL || '';
                 document.getElementById('env-acc-roth').value = vars.ACCOUNT_ROTH || '';
                 document.getElementById('env-acc-trad').value = vars.ACCOUNT_TRAD || '';
+
+                document.getElementById('env-bal-ind').value = vars.MANUAL_BAL_IND || '';
+                document.getElementById('env-bal-roth').value = vars.MANUAL_BAL_ROTH || '';
+                document.getElementById('env-bal-trad').value = vars.MANUAL_BAL_TRAD || '';
 
                 if (typeof renderStrategyTabs === "function") {
                     renderStrategyTabs(data.symphonies || {});
@@ -1571,6 +1615,9 @@
                 ACCOUNT_INDIVIDUAL: document.getElementById('env-acc-ind').value.trim(),
                 ACCOUNT_ROTH: document.getElementById('env-acc-roth').value.trim(),
                 ACCOUNT_TRAD: document.getElementById('env-acc-trad').value.trim(),
+                MANUAL_BAL_IND: document.getElementById('env-bal-ind').value.trim(),
+                MANUAL_BAL_ROTH: document.getElementById('env-bal-roth').value.trim(),
+                MANUAL_BAL_TRAD: document.getElementById('env-bal-trad').value.trim(),
                 DISCORD_WEBHOOK_URL: document.getElementById('env-discord').value.trim()
             };
 
