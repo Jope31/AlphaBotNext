@@ -138,14 +138,10 @@
                         <tr class="hover:bg-slate-800 transition-colors">
                             <td class="px-3 py-2.5 text-slate-200">
                                 <div class="flex items-center gap-2 max-w-[250px]">
-                                    <button onclick="openLogModal('{{ sym.id }}', '{{ safe_name }}')" class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="View Logs">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    <button onclick="openSymphonyDetailModal('{{ sym.id }}', '{{ safe_name }}')" class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="Command Center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </button>
-                                    <button onclick="openChartModal('{{ sym.id }}', '{{ safe_name }}')" class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="View Intraday Chart">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                                    </button>
-
-                                    <div class="truncate" title="{{ name }}">{{ name }}</div>
+                                    <button onclick="openSymphonyDetailModal('{{ sym.id }}', '{{ safe_name }}')" class="truncate hover:text-blue-400 transition-colors text-left" title="{{ name }}">{{ name }}</button>
                                 </div>
                             </td>
                             <td class="px-3 py-2.5 text-right font-mono {{ mc_color }}">{{ mc_prob }}</td>
