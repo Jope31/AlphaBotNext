@@ -34,7 +34,7 @@ def fetch_bars(tickers_list, start_str, end_str, timeframe="1Day"):
 
         page_token = None
         while True:
-            url = f"{ALPACA_BASE_URL}/stocks/bars?symbols={symbol_string}&timeframe={timeframe}&start={start_str}&end={end_str}&limit=10000&adjustment=split&feed=sip"
+            url = f"{ALPACA_BASE_URL}/stocks/bars?symbols={symbol_string}&timeframe={timeframe}&start={start_str}&end={end_str}&limit=10000&adjustment=split&feed=iex"
             if page_token:
                 url += f"&page_token={page_token}"
 
