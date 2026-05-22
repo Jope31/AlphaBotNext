@@ -14,51 +14,57 @@
     {% set total_return_sign = '+' if total_return > 0 else '' %}
     {% set total_return_formatted = total_return_sign ~ "%.2f"|format(total_return) ~ "%" %}
 
-    <div class="bg-slate-900 rounded-xl border border-slate-700 overflow-hidden shadow-sm">
-        <div class="px-4 py-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-            <span class="text-sm font-semibold text-slate-300">{{ display_label }} <span class="text-blue-400 font-mono text-xs ml-1" title="{{ acc_id }}">{{ display_id }}</span></span>
-            <div class="flex items-center gap-4">
-                <span class="text-xs text-slate-500">{{ syms|length }} Symphonies</span>
-                <div class="h-4 w-px bg-slate-700"></div>
+    <div class="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden shadow-sm">
+        <!-- Account Header Area -->
+        <div class="px-5 py-4 border-b border-outline-variant/10 bg-surface-container flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">{{ display_label }} <span class="text-primary font-mono text-[10px] ml-1 font-semibold" title="{{ acc_id }}">{{ display_id }}</span></span>
+            <div class="flex items-center gap-4 text-xs">
+                <span class="text-on-surface-variant/80 font-semibold">{{ syms|length }} Symphonies</span>
+                <div class="h-4 w-px bg-outline-variant/20"></div>
                 <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold" title="Capital-Weighted Account Return">Actual Return:</span>
-                    <span class="text-sm font-mono font-bold {{ total_return_color }}">{{ total_return_formatted }}</span>
+                    <span class="text-[9px] uppercase tracking-widest text-on-surface-variant/70 font-bold" title="Capital-Weighted Account Return">Actual Return:</span>
+                    <span class="font-mono font-bold {{ total_return_color }}">{{ total_return_formatted }}</span>
                 </div>
-                <div class="h-4 w-px bg-slate-700"></div>
-                <button onclick="openConfirmModal('{{ acc_id }}')" class="text-[11px] bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 px-3 py-1.5 rounded transition-colors font-bold tracking-wide flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div class="h-4 w-px bg-outline-variant/20"></div>
+                <button onclick="triggerPortfolioOverhaul('{{ acc_id }}')" class="text-[9px] bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 px-3 py-1.5 rounded transition-colors font-bold tracking-widest flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.253 8H18"></path></svg>
+                    SYNC & FLUSH PORTFOLIO
+                </button>
+                <div class="h-4 w-px bg-outline-variant/20"></div>
+                <button onclick="openConfirmModal('{{ acc_id }}')" class="text-[9px] bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1.5 rounded transition-colors font-bold tracking-widest flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     GO TO CASH
                 </button>
             </div>
         </div>
-        <div class="overflow-x-auto overflow-y-auto" style="max-height: calc(48px + (var(--max-rows, 10) * 49px));">
-            <table class="w-full text-left text-sm whitespace-nowrap relative">
-                <thead class="text-slate-400 bg-slate-900 text-xs uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+        <div class="overflow-x-auto overflow-y-auto custom-scrollbar" style="max-height: calc(48px + (var(--max-rows, 10) * 49px));">
+            <table class="w-full text-left text-xs whitespace-nowrap relative">
+                <thead class="text-on-surface-variant bg-surface-container uppercase tracking-wider font-semibold border-b border-outline-variant/10 sticky top-0 z-10 shadow-sm">
                     <tr>
-                        <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white transition-colors group select-none" onclick="setSort('name')">
-                            Symphony Name <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'name' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'name' else '↑' }}</span>
+                        <th class="px-4 py-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" onclick="setSort('name')">
+                            Symphony Name <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'name' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'name' else '↑' }}</span>
                         </th>
-                        <th class="px-3 py-2.5 font-medium text-right cursor-pointer hover:text-white transition-colors group select-none" onclick="setSort('mc_prob')">
-                            MC Prob <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'mc_prob' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'mc_prob' else '↑' }}</span>
+                        <th class="px-4 py-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" onclick="setSort('mc_prob')">
+                            MC Prob <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'mc_prob' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'mc_prob' else '↑' }}</span>
                         </th>
-                        <th class="px-3 py-2.5 font-medium text-center cursor-pointer hover:text-white transition-colors group select-none" onclick="setSort('status')">
-                            Status <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'status' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'status' else '↑' }}</span>
+                        <th class="px-4 py-3 text-center cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" onclick="setSort('status')">
+                            Status <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'status' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'status' else '↑' }}</span>
                         </th>
-                        <th class="px-3 py-2.5 font-medium text-right cursor-pointer hover:text-white transition-colors group select-none" onclick="setSort('stop_level')">
-                            Stop Level <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'stop_level' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'stop_level' else '↑' }}</span>
+                        <th class="px-4 py-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" onclick="setSort('stop_level')">
+                            Stop Level <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'stop_level' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'stop_level' else '↑' }}</span>
                         </th>
-                        <th class="px-3 py-2.5 font-medium text-right cursor-pointer hover:text-white transition-colors group select-none" onclick="setSort('current_return')">
-                            Exit Return <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'current_return' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'current_return' else '↑' }}</span>
+                        <th class="px-4 py-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" onclick="setSort('current_return')">
+                            Exit Return <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'current_return' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'current_return' else '↑' }}</span>
                         </th>
-                        <th class="px-3 py-2.5 font-medium text-right cursor-pointer hover:text-white transition-colors group select-none" onclick="setSort('high_water_mark')">
-                            High Water Mark <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'high_water_mark' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'high_water_mark' else '↑' }}</span>
+                        <th class="px-4 py-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" onclick="setSort('high_water_mark')">
+                            High Water Mark <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'high_water_mark' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'high_water_mark' else '↑' }}</span>
                         </th>
-                        <th class="px-3 py-2.5 font-medium text-right cursor-pointer hover:text-white transition-colors group select-none" title="The current live return of the symphony model. Shows what you would have if the bot didn't trigger." onclick="setSort('shadow')">
-                            If Held (Shadow) <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-blue-400' if sort_col == 'shadow' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'shadow' else '↑' }}</span>
+                        <th class="px-4 py-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group select-none" title="The current live return of the symphony model. Shows what you would have if the bot didn't trigger." onclick="setSort('shadow')">
+                            If Held (Shadow) <span class="inline-block ml-1 transition-opacity opacity-{{ '100 text-primary' if sort_col == 'shadow' else '0 group-hover:opacity-50' }}">{{ '↓' if sort_dir == 'desc' and sort_col == 'shadow' else '↑' }}</span>
                         </th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-800">
+                <tbody class="divide-y divide-outline-variant/10 bg-surface-container-low">
                     {% for sym in syms %}
                         {% set name = sym.name or sym.id %}
                         {% set safe_name = name | replace("'", "\\'") %}
@@ -69,7 +75,7 @@
                         {% set is_armed = sym.armed %}
                         {% set is_locked = sym.breakeven_locked %}
                         
-                        {% set status_badge = '<span class="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest">STANDBY</span>' %}
+                        {% set status_badge = '<span class="bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold tracking-widest border border-outline-variant/20">STANDBY</span>' %}
                         {% if is_triggered %}
                             {% set reason_upper = sym.triggered_reason | upper if sym.triggered_reason else 'TRIGGERED' %}
                             {% if sym.triggered_reason == "VWAP Breakdown" or sym.triggered_reason == "VWAP Bleed Cut" %}
@@ -88,14 +94,14 @@
                         {% endif %}
 
                         {% set mc_prob = "%.1f"|format(sym.mc_prob) ~ "%" if sym.mc_prob is not none else "---" %}
-                        {% set mc_color = 'text-fuchsia-400 font-bold' if is_tp_armed else ('text-amber-400 font-medium' if (sym.mc_prob is not none and sym.mc_prob < 15.0) else 'text-slate-400') %}
+                        {% set mc_color = 'text-fuchsia-400 font-bold' if is_tp_armed else ('text-amber-400 font-medium' if (sym.mc_prob is not none and sym.mc_prob < 15.0) else 'text-on-surface-variant') %}
                         
                         {% set cur_ret_str = '---' %}
                         {% set hwm_str = '---' %}
                         {% set stop_level_str = '---' %}
-                        {% set shadow_str = '<span class="text-slate-600">---</span>' %}
-                        {% set cur_ret_color = 'text-slate-400' %}
-                        {% set hwm_color = 'text-slate-400' %}
+                        {% set shadow_str = '<span class="text-on-surface-variant/40">---</span>' %}
+                        {% set cur_ret_color = 'text-on-surface-variant' %}
+                        {% set hwm_color = 'text-on-surface-variant' %}
 
                         {% if is_triggered %}
                             {% set f_ret = sym.triggered_at_return if sym.triggered_at_return is not none else (sym.current_return or 0) %}
@@ -106,50 +112,50 @@
                             
                             {% set cur_ret_color = '' %}
                             {% set sign = '+' if f_ret > 0 else '' %}
-                            {% set text_col = 'text-emerald-500' if f_ret >= 0 else 'text-rose-500' %}
-                            {% set cur_ret_str = '<div class="flex flex-col items-end leading-tight"><span class="' ~ text_col ~ '" title="Frozen Exit Return">' ~ sign ~ "%.2f"|format(f_ret) ~ '%</span><span class="text-[10px] text-slate-500 font-bold mt-0.5 flex items-center gap-1" title="Time of Execution"><span class="opacity-70 text-[9px]">🔒</span>' ~ trigger_time ~ '</span></div>' %}
+                            {% set text_col = 'text-emerald-400 font-bold' if f_ret >= 0 else 'text-rose-400 font-bold' %}
+                            {% set cur_ret_str = '<div class="flex flex-col items-end leading-tight"><span class="' ~ text_col ~ '" title="Frozen Exit Return">' ~ sign ~ "%.2f"|format(f_ret) ~ '%</span><span class="text-[10px] text-on-surface-variant/60 font-semibold mt-0.5 flex items-center gap-1" title="Time of Execution"><span class="opacity-70 text-[9px]">🔒</span>' ~ trigger_time ~ '</span></div>' %}
 
                             {% set hwm_str = "%.2f"|format(f_hwm) ~ "%" if f_hwm is not none else "---" %}
-                            {% set hwm_color = 'text-emerald-500/70' if f_hwm is not none and f_hwm > 0 else 'text-slate-400' %}
+                            {% set hwm_color = 'text-emerald-500/70 font-semibold' if f_hwm is not none and f_hwm > 0 else 'text-on-surface-variant' %}
                             {% set stop_level_str = "%.2f"|format(f_stop) ~ "%" if f_stop is not none and f_stop != -999.0 else "---" %}
 
                             {% set live_ret = sym.current_return if sym.current_return is not none else 0 %}
                             {% set diff = f_ret - live_ret %}
                             {% set diff_sign = '+' if diff > 0 else '' %}
-                            {% set diff_color = 'text-emerald-400' if diff > 0 else ('text-rose-400' if diff < 0 else 'text-slate-500') %}
-                            {% set live_col = 'text-emerald-500/50' if live_ret >= 0 else 'text-rose-500/50' %}
+                            {% set diff_color = 'text-emerald-400' if diff > 0 else ('text-rose-400' if diff < 0 else 'text-on-surface-variant/40') %}
+                            {% set live_col = 'text-emerald-400/50' if live_ret >= 0 else 'text-rose-400/50' %}
                             {% set live_sign = '+' if live_ret > 0 else '' %}
                             
                             {% set shadow_str = '<div class="flex flex-col items-end leading-tight"><span class="' ~ live_col ~ '" title="Live theoretical return of the symphony">' ~ live_sign ~ "%.2f"|format(live_ret) ~ '%</span><span class="text-[10px] ' ~ diff_color ~ ' font-bold mt-0.5" title="Guard Alpha (How much % you saved or lost by triggering)">' ~ diff_sign ~ "%.2f"|format(diff) ~ '% α</span></div>' %}
                         {% else %}
                             {% set cur_ret = sym.current_return if sym.current_return is not none else 0 %}
                             {% set cur_ret_str = ('+' if cur_ret > 0 else '') ~ "%.2f"|format(cur_ret) ~ '%' %}
-                            {% set cur_ret_color = 'text-emerald-400' if cur_ret >= 0 else 'text-rose-400' %}
+                            {% set cur_ret_color = 'text-emerald-400 font-semibold' if cur_ret >= 0 else 'text-rose-400 font-semibold' %}
 
                             {% set hwm = sym.high_water_mark %}
                             {% set hwm_str = "%.2f"|format(hwm) ~ '%' if hwm is not none and hwm != -999.0 else '---' %}
-                            {% set hwm_color = 'text-emerald-400' if hwm > 0 else 'text-slate-300' %}
+                            {% set hwm_color = 'text-emerald-400' if hwm > 0 else 'text-slate-700 dark:text-slate-300' %}
 
-                            {% set lock_icon = '<span class="opacity-70 text-[10px] mr-1 text-blue-400" title="Vol-Scaled Breakeven Lock Active">🔒</span>' if is_locked else '' %}
+                            {% set lock_icon = '<span class="opacity-70 text-[10px] mr-1 text-primary" title="Vol-Scaled Breakeven Lock Active">🔒</span>' if is_locked else '' %}
                             {% set stop = sym.stop_trigger %}
                             {% set stop_level_str = lock_icon ~ "%.2f"|format(stop) ~ '%' if stop is not none and stop != -999.0 else '---' %}
                         {% endif %}
 
-                        <tr class="hover:bg-slate-800 transition-colors">
-                            <td class="px-3 py-2.5 text-slate-200">
+                        <tr class="hover:bg-surface-container-high transition-colors">
+                            <td class="px-4 py-3 text-slate-800 dark:text-slate-200">
                                 <div class="flex items-center gap-2 max-w-[250px]">
-                                    <button onclick="openSymphonyDetailModal('{{ sym.id }}', '{{ safe_name }}')" class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="Command Center">
+                                    <button onclick="openSymphonyDetailModal('{{ sym.id }}', '{{ safe_name }}')" class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" title="Command Center">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     </button>
-                                    <button onclick="openSymphonyDetailModal('{{ sym.id }}', '{{ safe_name }}')" class="truncate hover:text-blue-400 transition-colors text-left" title="{{ name }}">{{ name }}</button>
+                                    <button onclick="openSymphonyDetailModal('{{ sym.id }}', '{{ safe_name }}')" class="truncate hover:text-primary transition-colors text-left font-medium" title="{{ name }}">{{ name }}</button>
                                 </div>
                             </td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ mc_color }}">{{ mc_prob }}</td>
-                            <td class="px-3 py-2.5 text-center">{{ status_badge | safe }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono text-slate-400">{{ stop_level_str | safe }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ cur_ret_color }}">{{ cur_ret_str | safe }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ hwm_color }}">{{ sym.shadow_hwm | round(2) }}%</td>
-                            <td class="px-3 py-2.5 text-right font-mono">{{ shadow_str | safe }}</td>
+                            <td class="px-4 py-3 text-right font-mono {{ mc_color }}">{{ mc_prob }}</td>
+                            <td class="px-4 py-3 text-center">{{ status_badge | safe }}</td>
+                            <td class="px-4 py-3 text-right font-mono text-on-surface-variant/80">{{ stop_level_str | safe }}</td>
+                            <td class="px-4 py-3 text-right font-mono {{ cur_ret_color }}">{{ cur_ret_str | safe }}</td>
+                            <td class="px-4 py-3 text-right font-mono {{ hwm_color }}">{{ sym.shadow_hwm | round(2) }}%</td>
+                            <td class="px-4 py-3 text-right font-mono">{{ shadow_str | safe }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
