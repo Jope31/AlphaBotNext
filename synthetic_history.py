@@ -74,6 +74,7 @@ def fetch_bars(tickers_list, start_str, end_str, timeframe="1Day"):
     return all_data
 
 def generate_synthetic_history(bot_state, current_date_str):
+    print("  -> [TELEMETRY] Starting Synthetic History Generation...")
     print("  -> Generating Synthetic Forward-Looking Intraday History...")
     
     # 1. Extract tickers
@@ -107,6 +108,11 @@ def generate_synthetic_history(bot_state, current_date_str):
             print(f"  -> Cache load failed: {e}. Regenerating...")
 
     tickers_list = list(all_tickers)
+    for sym_id, state in bot_state.items():
+        if isinstance(state, dict):
+            proxy = state.get("proxy_etf", "SPY")
+            if proxy not in tickers_list:
+                tickers_list.append(proxy)
     if "SPY" not in tickers_list:
         tickers_list.append("SPY")
     
@@ -135,7 +141,7 @@ def generate_synthetic_history(bot_state, current_date_str):
     
     # 3. Fetch Data
     daily_bars_raw = fetch_bars(tickers_list, start_daily_str, end_date_str_utc, "1Day")
-    intraday_bars_raw = fetch_bars(list(all_tickers), start_1m_str, end_date_str_utc, "1Min")
+    intraday_bars_raw = fetch_bars(tickers_list, start_1m_str, end_date_str_utc, "1Min")
     
     # 4. Process Daily Bars into historical_data format
     historical_daily = {}
@@ -152,7 +158,8 @@ def generate_synthetic_history(bot_state, current_date_str):
                     "daily_ret": (curr_close - prev_close) / prev_close,
                     "high": bars[i]["h"],
                     "low": bars[i]["l"],
-                    "close": curr_close
+                    "close": curr_close,
+                    "volume": bars[i].get("v", 0)
                 }
                 
     daily_dates = sorted(list(historical_daily.keys()))
@@ -198,14 +205,79 @@ def generate_synthetic_history(bot_state, current_date_str):
         for sym_id, holdings in symphony_holdings.items():
             ticks = []
             
+            proxy_etf = bot_state.get(sym_id, {}).get("proxy_etf", "SPY")
             ref_sym = holdings[0]["ticker"] if holdings else None
-            if not ref_sym or ref_sym not in intraday_by_date[date_str]:
+            
+            anchor_sym = None
+            if ref_sym and ref_sym in intraday_by_date.get(date_str, {}) and intraday_by_date[date_str][ref_sym]:
+                anchor_sym = ref_sym
+            elif proxy_etf in intraday_by_date.get(date_str, {}) and intraday_by_date[date_str][proxy_etf]:
+                anchor_sym = proxy_etf
+            elif "SPY" in intraday_by_date.get(date_str, {}) and intraday_by_date[date_str]["SPY"]:
+                anchor_sym = "SPY"
+            else:
+                valid_tickers = [k for k, v in intraday_by_date.get(date_str, {}).items() if v]
+                if valid_tickers:
+                    anchor_sym = valid_tickers[0]
+            
+            if not anchor_sym:
                 continue
                 
-            timestamps = [row['t'] for row in intraday_by_date[date_str][ref_sym]]
+            anchor_bars = intraday_by_date[date_str][anchor_sym]
+            timestamps = [row['t'] for row in anchor_bars]
+            
+            # Synthesize or resolve intraday bars for each holding
+            day_intraday = intraday_by_date.get(date_str, {})
+            symphony_intraday = {}
+            for h in holdings:
+                ticker = h["ticker"]
+                if ticker in day_intraday and day_intraday[ticker]:
+                    symphony_intraday[ticker] = day_intraday[ticker]
+                else:
+                    # Mathematically construct 1-minute bars using proxy anchor trajectory
+                    target_daily_ret = 0.0
+                    if date_str in historical_daily and ticker in historical_daily[date_str]:
+                        target_daily_ret = historical_daily[date_str][ticker].get("daily_ret", 0.0)
+                    
+                    y_close_target = yesterday_closes.get(ticker)
+                    if y_close_target is None or y_close_target <= 0:
+                        if date_str in historical_daily and ticker in historical_daily[date_str]:
+                            c_today = historical_daily[date_str][ticker].get("c", 1.0)
+                            y_close_target = c_today / (1.0 + target_daily_ret) if (1.0 + target_daily_ret) != 0 else c_today
+                        else:
+                            y_close_target = 1.0
+                            
+                    y_close_anchor = yesterday_closes.get(anchor_sym)
+                    if y_close_anchor is None or y_close_anchor <= 0:
+                        y_close_anchor = anchor_bars[0]['c'] if anchor_bars else 1.0
+                        
+                    anchor_daily_ret = (anchor_bars[-1]['c'] - y_close_anchor) / y_close_anchor if y_close_anchor > 0 else 0.0
+                    
+                    synth_bars = []
+                    for idx, bar_a in enumerate(anchor_bars):
+                        c_anchor_idx = bar_a['c']
+                        if y_close_anchor > 0:
+                            anchor_ret_idx = (c_anchor_idx - y_close_anchor) / y_close_anchor
+                        else:
+                            anchor_ret_idx = 0.0
+                            
+                        if abs(anchor_daily_ret) > 1e-7:
+                            path_ratio = anchor_ret_idx / anchor_daily_ret
+                        else:
+                            path_ratio = idx / (len(anchor_bars) - 1) if len(anchor_bars) > 1 else 0.0
+                            
+                        synth_ret = path_ratio * target_daily_ret
+                        synth_close = y_close_target * (1.0 + synth_ret)
+                        
+                        synth_bars.append({
+                            't': bar_a['t'],
+                            'c': synth_close,
+                            'vwap': synth_close
+                        })
+                    symphony_intraday[ticker] = synth_bars
             
             vol = math_engine.calculate_20d_vol(holdings, hist_data_up_to_yesterday)
-            base_atr = math_engine.calculate_14d_atr_pct(holdings, hist_data_up_to_yesterday)
+            base_atr = math_engine.calculate_14d_vwatr_pct(holdings, hist_data_up_to_yesterday)
             
             # Extract multiplier from strategy params
             ref_name = bot_state.get(sym_id, {}).get("name", "")
@@ -218,11 +290,11 @@ def generate_synthetic_history(bot_state, current_date_str):
                 valid_alloc = 0.0
                 
                 for h in holdings:
-                    ticker = h["ticker"]
-                    alloc = h["allocation"]
+                    ticker = h.get("ticker")
+                    alloc = h.get("weight", h.get("allocation", 0.0))
                     
-                    if ticker in intraday_by_date[date_str] and i < len(intraday_by_date[date_str][ticker]):
-                        bar = intraday_by_date[date_str][ticker][i]
+                    if ticker in symphony_intraday and i < len(symphony_intraday[ticker]):
+                        bar = symphony_intraday[ticker][i]
                         c = bar['c']
                         v = bar['vwap']
                         
@@ -240,7 +312,20 @@ def generate_synthetic_history(bot_state, current_date_str):
                     weighted_vwap_diff = 0.0
 
                 # Reduce neighbor_k and paths for speed, 300 paths is fine for tuning approximation
-                mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(agg_ret * 100.0, holdings, hist_data_up_to_yesterday, spy_today, vol, 300, 5, volatility_multiplier=vol_mult)
+                proxy_etf = bot_state.get(sym_id, {}).get("proxy_etf", "SPY")
+                proxy_today = 0.0
+                if proxy_etf in historical_daily.get(date_str, {}):
+                    proxy_today = historical_daily[date_str][proxy_etf].get("daily_ret", 0.0) * 100.0
+                    
+                w1 = strat_data.get("params", {}).get("MC_W1", 1.0)
+                w2 = strat_data.get("params", {}).get("MC_W2", 1.0)
+                w3 = strat_data.get("params", {}).get("MC_W3", 1.0)
+
+                mc_prob, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(
+                    agg_ret * 100.0, holdings, hist_data_up_to_yesterday, spy_today, proxy_today, 
+                    vol, proxy_etf=proxy_etf, simulation_paths=300, neighbor_k=25, 
+                    volatility_multiplier=vol_mult, w1=w1, w2=w2, w3=w3
+                )
                 
                 ticks.append({
                     "time": ts[11:16], 
@@ -257,6 +342,7 @@ def generate_synthetic_history(bot_state, current_date_str):
             
         return date_str, day_history
 
+    print(f"  -> [TELEMETRY] Processing synthetic ticks for {len(intraday_dates)} days...")
     print(f"  -> Simulating {len(intraday_dates)} days of Intraday Tick Data using Parallel Processing...")
     results = Parallel(n_jobs=-1)(delayed(process_day)(d) for d in intraday_dates)
     
