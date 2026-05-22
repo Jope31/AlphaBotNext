@@ -76,10 +76,10 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
     deviation_dict = calculate_historical_deviation(current_date_str)
 
     # 1. Archive today's charts to the permanent DB
-    chart_history = database.load_chart_history()
-    if chart_history and chart_history.get("date") == current_date_str:
-        for sym_id, data in chart_history.get("symphonies", {}).items():
-            database.save_chart_archive(current_date_str, sym_id, data)
+    # chart_history = database.load_chart_history()
+    # if chart_history and chart_history.get("date") == current_date_str:
+    #     for sym_id, data in chart_history.get("symphonies", {}).items():
+    #         database.save_chart_archive(current_date_str, sym_id, data)
 
     # 2. Fetch the rolling 125-trading-day synthetic forward-looking data
     history_125d = synthetic_history.generate_synthetic_history(bot_state, current_date_str)
@@ -142,6 +142,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                     tp_armed = False
                     vwap_ticks = 0
                     vwap_bleed_ticks = 0
+                    vwap_trapped_ticks = 0
                     para_armed = False
                     breakeven_locked = False
                     gap_defense_locked = False
@@ -198,8 +199,8 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         time_ratio = tick_idx / 390.0
                         dynamic_multiplier, dynamic_min_stop = math_engine.calculate_time_decay_multipliers(time_ratio)
 
-                        # Calculate active stop distance based strictly on 20-day volatility
-                        safe_vol = vol if vol > 0 else 1.0
+                        # Calculate active stop distance based strictly on VW-ATR volatility
+                        safe_vol = base_atr_pct if base_atr_pct > 0 else (vol if vol > 0 else 1.0)
                         is_squeezed = para_armed or breakeven_locked
                         active_stop_dist = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, p.get("MAX_PARABOLIC_SQUEEZE", 0.50))
                         if gap_defense_locked:
@@ -222,11 +223,17 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         # ------------------------
 
                         is_trailing_hit = False
+                        exit_reason_trailing = "Trailing Stop"
                         if armed:
-                            if ret <= (stop_level - 0.10) and mc < 60.0:
+                            is_catastrophic_drop = ret <= (stop_level - p.get("CATASTROPHIC_DROP_PCT", 0.75))
+                            
+                            if ret <= (stop_level - 0.10) and (mc < 60.0 or is_catastrophic_drop):
                                 below_stop_count += 1
-                                if below_stop_count >= 3: is_trailing_hit = True
-                            else: below_stop_count = 0
+                                if below_stop_count >= 3:
+                                    is_trailing_hit = True
+                                    exit_reason_trailing = "Catastrophic Stop" if is_catastrophic_drop else "Trailing Stop"
+                            else:
+                                below_stop_count = 0
 
                         is_tp_hit = False
                         if mc < p.get("TAKE_PROFIT_MC_PCT", 5.0):
@@ -245,23 +252,38 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
 
                         is_vwap_broken = False
                         is_vwap_bleed_broken = False
-                        if vwap_diff < 0:
+                        
+                        current_vwap_diff_pct = vwap_diff * 100.0
+                        vwap_buffer_pct = -vol * p.get("VWAP_BAND_MULTIPLIER", 0.10)
+
+                        if current_vwap_diff_pct < vwap_buffer_pct:
+                            vwap_trapped_ticks += 1
                             if safe_hwm >= p.get("VWAP_CROSS_HWM_PCT", 1.0) and ret < safe_hwm:
                                 vwap_ticks += 1
                                 if vwap_ticks >= 3: is_vwap_broken = True
                             else: vwap_ticks = 0
-                            vwap_bleed_arm_pct = math_engine.calculate_vwap_bleed_threshold(vol, p.get("VWAP_BLEED_MULTIPLIER", 1.5))
                             
-                            if ret <= vwap_bleed_arm_pct:
-                                vwap_bleed_ticks += 1
-                                if vwap_bleed_ticks >= p.get("VWAP_BLEED_TICKS", 10): is_vwap_bleed_broken = True
+                            vwap_decay_rate = p.get("VWAP_BLEED_DECAY_RATE", 60)
+                            decay_steps = vwap_trapped_ticks // 5
+                            total_steps = max(1, vwap_decay_rate // 5)
+                            decay_fraction = max(0.0, 1.0 - (decay_steps / total_steps))
+                            eff_multiplier = p.get("VWAP_BLEED_MULTIPLIER", 1.5) * decay_fraction
+                            
+                            vwap_bleed_arm_pct = math_engine.calculate_vwap_bleed_threshold(vol, eff_multiplier)
+                            
+                            if not para_armed and not is_vwap_broken:
+                                if ret <= vwap_bleed_arm_pct:
+                                    vwap_bleed_ticks += 1
+                                    if vwap_bleed_ticks >= p.get("VWAP_BLEED_TICKS", 10): is_vwap_bleed_broken = True
+                                else: vwap_bleed_ticks = 0
                             else: vwap_bleed_ticks = 0
                         else:
+                            vwap_trapped_ticks = 0
                             vwap_ticks = 0
                             vwap_bleed_ticks = 0
 
                         if is_trailing_hit or is_tp_hit or is_vwap_broken or is_vwap_bleed_broken:
-                            reason_str = "Trailing Stop"
+                            reason_str = exit_reason_trailing
                             if is_tp_hit: reason_str = "Take-Profit"
                             elif is_vwap_broken: reason_str = "VWAP Breakdown"
                             elif is_vwap_bleed_broken: reason_str = "VWAP Bleed Cut"
@@ -294,20 +316,33 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         else:
                             total_guard_alpha += (guard_alpha * weight)
 
+                        # 4. Profit/Drawdown Prioritization
+                        safe_drawdown = max(drawdown_from_peak, 0.01)
+                        pd_ratio = triggered_return / safe_drawdown
+                            
+                        # Add scaled profit/drawdown ratio to objective
+                        total_guard_alpha += (pd_ratio * 0.5 * weight)
+
             return -total_guard_alpha
 
         def objective(trial):
             p = current_params.copy()
             if "TRIGGER_THRESHOLD_PCT" not in locked_vars:
                 p["TRIGGER_THRESHOLD_PCT"] = trial.suggest_float("TRIGGER_THRESHOLD_PCT", 5.0, 25.0)
+            if "CATASTROPHIC_DROP_PCT" not in locked_vars:
+                p["CATASTROPHIC_DROP_PCT"] = trial.suggest_float("CATASTROPHIC_DROP_PCT", 0.25, 2.50)
             if "TAKE_PROFIT_MC_PCT" not in locked_vars:
                 p["TAKE_PROFIT_MC_PCT"] = trial.suggest_float("TAKE_PROFIT_MC_PCT", 2.0, 10.0)
             if "VWAP_CROSS_HWM_PCT" not in locked_vars:
                 p["VWAP_CROSS_HWM_PCT"] = trial.suggest_float("VWAP_CROSS_HWM_PCT", 0.5, 2.5)
+            if "VWAP_BAND_MULTIPLIER" not in locked_vars:
+                p["VWAP_BAND_MULTIPLIER"] = trial.suggest_float("VWAP_BAND_MULTIPLIER", 0.02, 0.40)
             if "VWAP_BLEED_MULTIPLIER" not in locked_vars:
                 p["VWAP_BLEED_MULTIPLIER"] = trial.suggest_float("VWAP_BLEED_MULTIPLIER", 0.5, 3.0)
             if "VWAP_BLEED_TICKS" not in locked_vars:
                 p["VWAP_BLEED_TICKS"] = trial.suggest_int("VWAP_BLEED_TICKS", 3, 30)
+            if "VWAP_BLEED_DECAY_RATE" not in locked_vars:
+                p["VWAP_BLEED_DECAY_RATE"] = trial.suggest_int("VWAP_BLEED_DECAY_RATE", 15, 120)
             if "PARABOLIC_VELOCITY_THRESHOLD" not in locked_vars:
                 p["PARABOLIC_VELOCITY_THRESHOLD"] = trial.suggest_float("PARABOLIC_VELOCITY_THRESHOLD", 1.0, 4.0)
             if "MAX_PARABOLIC_SQUEEZE" not in locked_vars:
@@ -318,6 +353,12 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                 p["GAP_DEFENSE_THRESHOLD_PCT"] = trial.suggest_float("GAP_DEFENSE_THRESHOLD_PCT", 1.0, 5.0)
             if "GAP_DEFENSE_MULTIPLIER" not in locked_vars:
                 p["GAP_DEFENSE_MULTIPLIER"] = trial.suggest_float("GAP_DEFENSE_MULTIPLIER", 0.2, 0.8)
+            if "MC_W1" not in locked_vars:
+                p["MC_W1"] = trial.suggest_float("MC_W1", 0.0, 2.0)
+            if "MC_W2" not in locked_vars:
+                p["MC_W2"] = trial.suggest_float("MC_W2", 0.0, 2.0)
+            if "MC_W3" not in locked_vars:
+                p["MC_W3"] = trial.suggest_float("MC_W3", 0.0, 2.0)
 
             acc_sym_ids = [k for k, v in bot_state.items() if isinstance(v, dict) and database.normalize_name(v.get("name", "")) == normalized_name]
             if not acc_sym_ids: return 0.0
