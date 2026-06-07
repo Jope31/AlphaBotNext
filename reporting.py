@@ -15,7 +15,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
         if os.path.exists(report_file):
             return
 
-        print(f"  -> Generating Stage 1 Post-Mortem (Locking Math): {report_file}")
+        print(f"  -> Generating Stage 1 Post-Mortem (Locking Math): {report_file}", flush=True)
 
         report = {
             "date": current_date_str,
@@ -26,13 +26,34 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
             },
             "tomorrow_target_holdings": {"STATUS": "Pending Composer Rebalance"},
             "triggers": [],
+            "daily_pnl": [],
         }
 
         for sym_id, sym in bot_state.items():
             if not isinstance(sym, dict):
                 continue
+                
+            # Exclude system dictionaries (like account_totals) and circuit-broken ghost symphonies
+            if "name" not in sym or sym.get("removed_by_user"):
+                continue
 
             report["summary"]["total_monitored"] += 1
+
+            is_triggered = sym.get("triggered", False)
+            val = sym.get("current_value", 0.0)
+            f_ret = sym.get("triggered_at_return", 0.0)
+            live_ret = sym.get("current_return", 0.0)
+
+            shadow_ret = live_ret if is_triggered else live_ret
+            strat_ret = f_ret if is_triggered else live_ret
+
+            report["daily_pnl"].append({
+                "symphony_id": sym_id,
+                "account_id": sym.get("account", "Unknown"),
+                "value": val,
+                "strat_ret": strat_ret,
+                "held_ret": shadow_ret
+            })
 
             if sym.get("triggered"):
                 report["summary"]["total_triggered"] += 1
@@ -92,7 +113,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
     else:
         # STAGE 2 (16:00 ET): Inject Tomorrow's Holdings and Fix Final Math
         if not os.path.exists(report_file):
-            print("  -> Warning: Stage 1 snapshot missing. Cannot inject new holdings.")
+            print("  -> Warning: Stage 1 snapshot missing. Cannot inject new holdings.", flush=True)
             return
 
         with open(report_file, "r", encoding="utf-8") as f:
@@ -101,7 +122,7 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
         if "STATUS" not in report.get("tomorrow_target_holdings", {}):
             return
 
-        print(f"  -> Generating Stage 2 Post-Mortem (Injecting Holdings & Correcting EOD Alpha): {report_file}")
+        print(f"  -> Generating Stage 2 Post-Mortem (Injecting Holdings & Correcting EOD Alpha): {report_file}", flush=True)
 
         portfolio_holdings_summary = {}
 
@@ -141,10 +162,10 @@ def send_eod_discord_post(current_date_str, report_file, optimization_results, d
     if not discord_webhook_url:
         return
         
-    print("  -> Pushing EOD Snapshot to Discord...")
+    print("  -> Pushing EOD Snapshot to Discord...", flush=True)
     try:
         if not os.path.exists(report_file):
-            print(f"  -> Error: Report file {report_file} not found.")
+            print(f"  -> Error: Report file {report_file} not found.", flush=True)
             return
 
         with open(report_file, "r", encoding="utf-8") as f:
@@ -247,7 +268,7 @@ def send_eod_discord_post(current_date_str, report_file, optimization_results, d
                 )
                 chart_url = resp.json().get('url')
             except Exception as e:
-                print(f"  -> QuickChart failed: {e}")
+                print(f"  -> QuickChart failed: {e}", flush=True)
 
         # Multi-Timeframe Performance Stats (1d, 7d, 30d)
         windows = [1, 7, 30]
@@ -313,7 +334,7 @@ def send_eod_discord_post(current_date_str, report_file, optimization_results, d
                 except:
                     continue
         except Exception as e:
-            print(f"  -> Minor error calculating history: {e}")
+            print(f"  -> Minor error calculating history: {e}", flush=True)
 
         # 1. Main Summary Embed
         desc_lines = [
@@ -391,28 +412,36 @@ def send_eod_discord_post(current_date_str, report_file, optimization_results, d
                 "description": "No optimization changes."
             })
 
-        # Discord enforces a strict limit of 10 embeds per webhook message.
-        # Chunk the embeds into batches of 10 to ensure all data is sent.
+        # --- DISCORD PAYLOAD SEGREGATION ---
         
+        # Split the main EOD summary embed from the optimization embeds
+        main_embed = [embeds[0]]
+        optimization_embeds = embeds[1:]
+
         with open(report_file, "rb") as f:
             file_data = f.read()
 
-        # Send the first batch (which includes the EOD JSON file attachment)
-        first_batch = embeds[:10]
-        payload_data = {"payload_json": json.dumps({"embeds": first_batch})}
+        # 1. Send the first message containing ONLY the EOD Summary and the JSON file attachment
+        payload_data = {"payload_json": json.dumps({"embeds": main_embed})}
         files_payload = {"file": (report_file, file_data, "application/json")}
-        requests.post(discord_webhook_url, data=payload_data, files=files_payload, timeout=10)
+        try:
+            requests.post(discord_webhook_url, data=payload_data, files=files_payload, timeout=10)
+        except Exception as e:
+            print(f"  -> Error sending main EOD Discord payload: {e}", flush=True)
         
-        # Loop through and send any remaining batches (no file attached)
-        for i in range(10, len(embeds), 10):
+        # 2. Loop through and send the optimization embeds in strict batches of 10 (Discord limit)
+        for i in range(0, len(optimization_embeds), 10):
             time.sleep(1.5)  # Pause briefly to respect Discord's rate limits
-            next_batch = embeds[i:i+10]
-            requests.post(discord_webhook_url, json={"embeds": next_batch}, timeout=10)
-            
-        print("  -> Discord Push Complete.")
+            next_batch = optimization_embeds[i:i+10]
+            try:
+                requests.post(discord_webhook_url, json={"embeds": next_batch}, timeout=10)
+            except Exception as e:
+                print(f"  -> Error sending optimization batch {i//10 + 1}: {e}", flush=True)
+                
+        print("  -> Discord Push Complete.", flush=True)
         
     except Exception as e:
-        print(f"Failed to send EOD Discord webhook: {e}")
+        print(f"Failed to send EOD Discord webhook: {e}", flush=True)
 
 def send_discord_alert(
     symphony_name, current_return, prob_beating, stop_trigger_level, high_water_mark, is_live, discord_webhook_url, exit_reason="Trailing Stop", vwap_bleed_arm_pct=None, vwap_bleed_ticks=None, vwap_diff=None, vwap_breakdown_ticks=None, tp_threshold=None, vwap_bleed_multiplier=None, symphony_vol=None, prob_loss_dynamic=None, dynamic_floor=None, volatility_multiplier=None
@@ -421,14 +450,14 @@ def send_discord_alert(
         return
 
     if exit_reason == "Take-Profit":
-        base_title = "🎯 Smart Take-Profit Locked"
-        live_color = 5763719 # Green
+        base_title = "🎯 Relative Peak Take-Profit"
+        live_color = 5763719 if current_return > 0 else 15548997 # Green if positive, Orange if negative
     elif exit_reason == "VWAP Breakdown":
         base_title = "📉 VWAP Breakdown Exit"
         live_color = 15548997 # Red/Orange
-    elif exit_reason == "VWAP Bleed Cut":
-        base_title = "🩸 VWAP Bleed Protection"
-        live_color = 15548997 # Red/Orange
+    elif "Breakeven" in exit_reason:
+        base_title = "🛡️ Breakeven Defense"
+        live_color = 3447003 # Blue
     elif current_return > 0:
         base_title = "✅ Profit Locked"
         live_color = 5763719
@@ -458,13 +487,6 @@ def send_discord_alert(
     if exit_reason == "Trailing Stop" and prob_loss_dynamic is not None and dynamic_floor is not None:
         fields.append({"name": "Downside Risk (Vol-Scaled)", "value": f"{prob_loss_dynamic:.1f}% chance of dropping below {dynamic_floor:.2f}% (Multiplier: {volatility_multiplier}x)", "inline": False})
 
-    if exit_reason == "VWAP Bleed Cut" and vwap_bleed_arm_pct is not None:
-        bleed_val = f"Threshold: `{vwap_bleed_arm_pct}%`"
-        if vwap_bleed_multiplier is not None and symphony_vol is not None:
-            bleed_val += f" (Vol: `{symphony_vol:.2f}` × `{vwap_bleed_multiplier}`)"
-        bleed_val += f" | Persistence: `{vwap_bleed_ticks}` ticks"
-        fields.append({"name": "Bleed Protection", "value": bleed_val, "inline": False})
-
     if exit_reason == "VWAP Breakdown" and vwap_diff is not None:
         fields.append({"name": "VWAP Breakdown Stats", "value": f"VWAP Diff: {vwap_diff * 100:.2f}% | Ticks Below: {vwap_breakdown_ticks}", "inline": False})
 
@@ -485,7 +507,7 @@ def send_discord_alert(
     try:
         requests.post(discord_webhook_url, json=payload, timeout=10)
     except Exception as e:
-        print(f"!!! [DISCORD ERROR]: Failed to send alert: {e}")
+        print(f"!!! [DISCORD ERROR]: Failed to send alert: {e}", flush=True)
 
 def send_circuit_breaker_alert(symphony_name, webhook_url):
     if not webhook_url:
@@ -505,4 +527,4 @@ def send_circuit_breaker_alert(symphony_name, webhook_url):
     try:
         requests.post(webhook_url, json=payload, timeout=10)
     except Exception as e:
-        print(f"!!! [DISCORD ERROR]: Failed to send circuit breaker alert: {e}")
+        print(f"!!! [DISCORD ERROR]: Failed to send circuit breaker alert: {e}", flush=True)
