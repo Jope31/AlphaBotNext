@@ -56,13 +56,13 @@ def calculate_historical_deviation(current_date_str):
             if deviation_counts[k] > 0:
                 avg_dev = deviation_sums[k] / deviation_counts[k]
                 if avg_dev > 0.0:
-                    print(f"  -> WARNING: Positive slippage detected for {k} ({avg_dev:.3f}). Capping at 0.0 for conservative backtesting.")
+                    print(f"  -> WARNING: Positive slippage detected for {k} ({avg_dev:.3f}). Capping at 0.0 for conservative backtesting.", flush=True)
                     avg_dev = 0.0
                 deviation_dict[k] = round(avg_dev, 3)
     except Exception as e:
-        print(f"      -> Warning: Deviation calculation failed ({e}). Using defaults.")
+        print(f"      -> Warning: Deviation calculation failed ({e}). Using defaults.", flush=True)
 
-    print(f"  -> Historical Execution Deviation Penalties: {deviation_dict}")
+    print(f"  -> Historical Execution Deviation Penalties: {deviation_dict}", flush=True)
     return deviation_dict
 
 def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
@@ -70,7 +70,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
     Runs a 6-month walk-forward optimization to find the best variables using Bayesian Optimization per account.
     Implements True Walk-Forward Analysis (80% train, 20% OOS test).
     """
-    print(f"  -> Starting EOD Autotune (125-day WFA: 80% Train / 20% OOS per Symphony)...")
+    print(f"  -> Starting EOD Autotune (125-day WFA: 80% Train / 20% OOS per Symphony)...", flush=True)
 
     # 0. Calculate Historical Execution Deviation
     deviation_dict = calculate_historical_deviation(current_date_str)
@@ -84,7 +84,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
     # 2. Fetch the rolling 125-trading-day synthetic forward-looking data
     history_125d = synthetic_history.generate_synthetic_history(bot_state, current_date_str)
     if not history_125d:
-        print("  -> Autotuner aborted: Failed to generate synthetic history.")
+        print("  -> Autotuner aborted: Failed to generate synthetic history.", flush=True)
         return
 
     # Extract global dates and partition 80/20
@@ -95,7 +95,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
     
     total_days = len(sorted_dates)
     if total_days < 2:
-        print("  -> Autotuner aborted: Need at least 2 days of history for WFA.")
+        print("  -> Autotuner aborted: Need at least 2 days of history for WFA.", flush=True)
         return
 
     # Use 80/20 split for ~100 days train, ~25 days out-of-sample test
@@ -110,16 +110,17 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
         history_train[sym_id] = {d: t for d, t in sym_data.items() if d in train_dates}
         history_test[sym_id] = {d: t for d, t in sym_data.items() if d in test_dates}
 
-    # Extract unique normalized symphony names from the current bot_state
+    # Extract unique normalized symphony names from the current bot_state for enabled accounts only
     symphony_names = set()
     for sym_id, data in bot_state.items():
-        if isinstance(data, dict) and "name" in data:
-            symphony_names.add(database.normalize_name(data["name"]))
+        if isinstance(data, dict) and "name" in data and "account" in data:
+            if data["account"] in account_uuids:
+                symphony_names.add(database.normalize_name(data["name"]))
 
     optimization_results = {}
 
     for normalized_name in symphony_names:
-        print(f"     Optimizing Symphony: {normalized_name}")
+        print(f"     Optimizing Symphony: {normalized_name}", flush=True)
         strat_data = database.get_symphony_strategy(normalized_name)
         locked_vars = strat_data.get("locked_vars", [])
         current_params = strat_data.get("params", {})
@@ -141,16 +142,15 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                     armed = False
                     tp_armed = False
                     vwap_ticks = 0
-                    vwap_bleed_ticks = 0
-                    vwap_trapped_ticks = 0
                     para_armed = False
                     breakeven_locked = False
-                    gap_defense_locked = False
                     prev_return = None
                     hwm_hold_ticks = 0
                     below_stop_count = 0
                     above_tp_count = 0
                     mc_history = []
+                    lowest_mc_seen = 100.0
+                    lock_engaged_ticks = 0
 
                     triggered_return = None
                     eod_return = ticks[-1]["return"]
@@ -159,6 +159,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                     for tick_idx, tick in enumerate(ticks):
                         ret = tick.get("return", 0.0)
                         mc = tick.get("mc_prob", 50.0)
+                        lowest_mc_seen = min(lowest_mc_seen, mc)
                         prob_loss_dynamic = tick.get("prob_loss_dynamic", 0.0)
                         vol = tick.get("vol", 1.0)
                         vwap_diff = tick.get("vwap_diff", 0.0)
@@ -169,8 +170,6 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         
                         # --- PARABOLIC SQUEEZE LOGIC ---
                         if prev_return is None:
-                            if ret >= p.get("GAP_DEFENSE_THRESHOLD_PCT", 2.5):
-                                gap_defense_locked = True
                             prev_return = ret
                             velocity = 0.0
                             is_para = False
@@ -196,15 +195,23 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
 
                         # --- TIME SQUEEZE DECAY LOGIC ---
                         # Assuming ticks are minute bars (9:30-16:00 = 390 mins)
-                        time_ratio = tick_idx / 390.0
-                        dynamic_multiplier, dynamic_min_stop = math_engine.calculate_time_decay_multipliers(time_ratio)
+                        time_ratio = min(1.0, max(0.0, tick_idx / 390.0))
+                        
+                        m_open = p.get("VOLATILITY_MAGNITUDE_MULTIPLIER", 1.5)
+                        m_close = p.get("VOLATILITY_CLOSE_MULTIPLIER", 0.5)
+                        
+                        dynamic_multiplier, dynamic_min_stop = math_engine.calculate_time_decay_multipliers(
+                            time_ratio,
+                            mult_open=m_open,
+                            mult_close=m_close,
+                            min_stop_open=0.3,
+                            min_stop_close=0.15
+                        )
 
                         # Calculate active stop distance based strictly on VW-ATR volatility
                         safe_vol = base_atr_pct if base_atr_pct > 0 else (vol if vol > 0 else 1.0)
                         is_squeezed = para_armed or breakeven_locked
                         active_stop_dist = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, p.get("MAX_PARABOLIC_SQUEEZE", 0.50))
-                        if gap_defense_locked:
-                            active_stop_dist *= p.get("GAP_DEFENSE_MULTIPLIER", 0.5)
 
                         base_stop = safe_hwm - active_stop_dist
                         
@@ -217,23 +224,49 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         if hwm_hold_ticks >= 5:
                             breakeven_locked = True
                         
+                        if breakeven_locked:
+                            lock_engaged_ticks += 1
+                        else:
+                            lock_engaged_ticks = 0
+                        
                         stop_level = max(base_stop, 0.0) if breakeven_locked else base_stop
                         highest_stop_level = max(stop_level, highest_stop_level)
                         stop_level = highest_stop_level
                         # ------------------------
 
                         is_trailing_hit = False
+                        is_breakeven_hit = False
                         exit_reason_trailing = "Trailing Stop"
+                        
+                        is_magnitude_breached = ret <= (stop_level - 0.10)
+
                         if armed:
-                            is_catastrophic_drop = ret <= (stop_level - p.get("CATASTROPHIC_DROP_PCT", 0.75))
-                            
-                            if ret <= (stop_level - 0.10) and (mc < 60.0 or is_catastrophic_drop):
+                            if is_magnitude_breached and mc < 60.0:
                                 below_stop_count += 1
                                 if below_stop_count >= 3:
                                     is_trailing_hit = True
-                                    exit_reason_trailing = "Catastrophic Stop" if is_catastrophic_drop else "Trailing Stop"
+                                    exit_reason_trailing = "Trailing Stop"
                             else:
                                 below_stop_count = 0
+                                
+                        if breakeven_locked and not is_trailing_hit:
+                            if is_magnitude_breached:
+                                be_path_a = mc < 60.0
+                                # 1 tick = 1 minute in the simulation
+                                be_path_b = (lock_engaged_ticks >= 60 and lowest_mc_seen >= 60.0) 
+                                
+                                if be_path_a or be_path_b:
+                                    below_lock_count = bot_state.get("dummy", 0) + 1 # Use local counter
+                                    if 'below_lock_sim' not in locals(): below_lock_sim = 0
+                                    below_lock_sim += 1
+                                    
+                                    if below_lock_sim >= 3:
+                                        is_breakeven_hit = True
+                                        exit_reason_trailing = "Breakeven Path B (MC-Stuck)" if be_path_b else "Breakeven Path A"
+                                else:
+                                    below_lock_sim = 0
+                            else:
+                                below_lock_sim = 0
 
                         is_tp_hit = False
                         if mc < p.get("TAKE_PROFIT_MC_PCT", 5.0):
@@ -244,49 +277,26 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                             if mc >= p.get("TAKE_PROFIT_MC_PCT", 5.0):
                                 above_tp_count += 1
                                 if above_tp_count >= 2:
-                                    if ret > 0: is_tp_hit = True
-                                    else:
-                                        tp_armed = False
-                                        above_tp_count = 0
+                                    is_tp_hit = True
                             else: above_tp_count = 0
 
                         is_vwap_broken = False
-                        is_vwap_bleed_broken = False
                         
                         current_vwap_diff_pct = vwap_diff * 100.0
                         vwap_buffer_pct = -vol * p.get("VWAP_BAND_MULTIPLIER", 0.10)
 
                         if current_vwap_diff_pct < vwap_buffer_pct:
-                            vwap_trapped_ticks += 1
                             if safe_hwm >= p.get("VWAP_CROSS_HWM_PCT", 1.0) and ret < safe_hwm:
                                 vwap_ticks += 1
                                 if vwap_ticks >= 3: is_vwap_broken = True
                             else: vwap_ticks = 0
-                            
-                            vwap_decay_rate = p.get("VWAP_BLEED_DECAY_RATE", 60)
-                            decay_steps = vwap_trapped_ticks // 5
-                            total_steps = max(1, vwap_decay_rate // 5)
-                            decay_fraction = max(0.0, 1.0 - (decay_steps / total_steps))
-                            eff_multiplier = p.get("VWAP_BLEED_MULTIPLIER", 1.5) * decay_fraction
-                            
-                            vwap_bleed_arm_pct = math_engine.calculate_vwap_bleed_threshold(vol, eff_multiplier)
-                            
-                            if not para_armed and not is_vwap_broken:
-                                if ret <= vwap_bleed_arm_pct:
-                                    vwap_bleed_ticks += 1
-                                    if vwap_bleed_ticks >= p.get("VWAP_BLEED_TICKS", 10): is_vwap_bleed_broken = True
-                                else: vwap_bleed_ticks = 0
-                            else: vwap_bleed_ticks = 0
                         else:
-                            vwap_trapped_ticks = 0
                             vwap_ticks = 0
-                            vwap_bleed_ticks = 0
 
-                        if is_trailing_hit or is_tp_hit or is_vwap_broken or is_vwap_bleed_broken:
+                        if is_trailing_hit or is_breakeven_hit or is_tp_hit or is_vwap_broken:
                             reason_str = exit_reason_trailing
                             if is_tp_hit: reason_str = "Take-Profit"
                             elif is_vwap_broken: reason_str = "VWAP Breakdown"
-                            elif is_vwap_bleed_broken: reason_str = "VWAP Bleed Cut"
                             
                             penalty = deviation_dict.get(reason_str, -0.20)
                             triggered_return = ret + penalty
@@ -329,36 +339,20 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
             p = current_params.copy()
             if "TRIGGER_THRESHOLD_PCT" not in locked_vars:
                 p["TRIGGER_THRESHOLD_PCT"] = trial.suggest_float("TRIGGER_THRESHOLD_PCT", 5.0, 25.0)
-            if "CATASTROPHIC_DROP_PCT" not in locked_vars:
-                p["CATASTROPHIC_DROP_PCT"] = trial.suggest_float("CATASTROPHIC_DROP_PCT", 0.25, 2.50)
             if "TAKE_PROFIT_MC_PCT" not in locked_vars:
                 p["TAKE_PROFIT_MC_PCT"] = trial.suggest_float("TAKE_PROFIT_MC_PCT", 2.0, 10.0)
             if "VWAP_CROSS_HWM_PCT" not in locked_vars:
                 p["VWAP_CROSS_HWM_PCT"] = trial.suggest_float("VWAP_CROSS_HWM_PCT", 0.5, 2.5)
             if "VWAP_BAND_MULTIPLIER" not in locked_vars:
                 p["VWAP_BAND_MULTIPLIER"] = trial.suggest_float("VWAP_BAND_MULTIPLIER", 0.02, 0.40)
-            if "VWAP_BLEED_MULTIPLIER" not in locked_vars:
-                p["VWAP_BLEED_MULTIPLIER"] = trial.suggest_float("VWAP_BLEED_MULTIPLIER", 0.5, 3.0)
-            if "VWAP_BLEED_TICKS" not in locked_vars:
-                p["VWAP_BLEED_TICKS"] = trial.suggest_int("VWAP_BLEED_TICKS", 3, 30)
-            if "VWAP_BLEED_DECAY_RATE" not in locked_vars:
-                p["VWAP_BLEED_DECAY_RATE"] = trial.suggest_int("VWAP_BLEED_DECAY_RATE", 15, 120)
+            if "VOLATILITY_MAGNITUDE_MULTIPLIER" not in locked_vars:
+                p["VOLATILITY_MAGNITUDE_MULTIPLIER"] = trial.suggest_float("VOLATILITY_MAGNITUDE_MULTIPLIER", 0.5, 2.5, step=0.1)
+            if "VOLATILITY_CLOSE_MULTIPLIER" not in locked_vars:
+                p["VOLATILITY_CLOSE_MULTIPLIER"] = trial.suggest_float("VOLATILITY_CLOSE_MULTIPLIER", 0.1, 1.0, step=0.1)
             if "PARABOLIC_VELOCITY_THRESHOLD" not in locked_vars:
                 p["PARABOLIC_VELOCITY_THRESHOLD"] = trial.suggest_float("PARABOLIC_VELOCITY_THRESHOLD", 1.0, 4.0)
             if "MAX_PARABOLIC_SQUEEZE" not in locked_vars:
                 p["MAX_PARABOLIC_SQUEEZE"] = trial.suggest_float("MAX_PARABOLIC_SQUEEZE", 0.1, 0.8)
-            if "VOLATILITY_MAGNITUDE_MULTIPLIER" not in locked_vars:
-                p["VOLATILITY_MAGNITUDE_MULTIPLIER"] = trial.suggest_float("VOLATILITY_MAGNITUDE_MULTIPLIER", 0.2, 1.0, step=0.1)
-            if "GAP_DEFENSE_THRESHOLD_PCT" not in locked_vars:
-                p["GAP_DEFENSE_THRESHOLD_PCT"] = trial.suggest_float("GAP_DEFENSE_THRESHOLD_PCT", 1.0, 5.0)
-            if "GAP_DEFENSE_MULTIPLIER" not in locked_vars:
-                p["GAP_DEFENSE_MULTIPLIER"] = trial.suggest_float("GAP_DEFENSE_MULTIPLIER", 0.2, 0.8)
-            if "MC_W1" not in locked_vars:
-                p["MC_W1"] = trial.suggest_float("MC_W1", 0.0, 2.0)
-            if "MC_W2" not in locked_vars:
-                p["MC_W2"] = trial.suggest_float("MC_W2", 0.0, 2.0)
-            if "MC_W3" not in locked_vars:
-                p["MC_W3"] = trial.suggest_float("MC_W3", 0.0, 2.0)
 
             acc_sym_ids = [k for k, v in bot_state.items() if isinstance(v, dict) and database.normalize_name(v.get("name", "")) == normalized_name]
             if not acc_sym_ids: return 0.0
@@ -368,13 +362,32 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
 
         start_time = time.time()
         
-        # Parallel Bayesian Optimization
-        db_url = "sqlite:///optuna_studies.db"
+        # --- MULTI-ACCOUNT OPTUNA ISOLATION LAYER ---
+        # Derive a unique, thread-safe database filename for each specific account UUID
+        account_suffix = "unknown"
+        if len(account_uuids) == 1:
+            # If tuning a specific account array, isolate the file target cleanly
+            target_uuid = account_uuids[0]
+            account_suffix = target_uuid[:8] # Key off the first 8 characters of the account UUID
+        else:
+            account_suffix = "shared"
+
+        db_url = f"sqlite:///optuna_studies_{account_suffix}.db"
         storage = optuna.storages.RDBStorage(
             url=db_url,
             engine_kwargs={"connect_args": {"timeout": 60}}
         )
-        study = optuna.create_study(study_name=f"{normalized_name}_{current_date_str}", storage=storage, load_if_exists=True, direction="maximize")
+
+        # Initialize the thread-isolated study referencing its unique account file database
+        study = optuna.create_study(
+            study_name=f"{normalized_name}_{current_date_str}", 
+            storage=storage, 
+            load_if_exists=True, 
+            direction="maximize"
+        )
+        # ---------------------------------------------
+        
+        # Execute the 500-trial walk-forward optimization across all parallel CPU cores safely
         study.optimize(objective, n_trials=500, n_jobs=-1)
         
 
@@ -409,34 +422,45 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
         avg_oos_alpha = oos_alpha / test_days_count if test_days_count > 0 else 0
 
         baseline_decision = ""
-        if oos_alpha >= fallback_oos_alpha and oos_alpha >= default_oos_alpha:
+        
+        # Check if the optimization process verified that an MC arm is fundamentally counter-productive for this basket
+        if best_alpha_train <= 0.0:
+            print(f"       ⚠️ Optimization failed to discover positive training savings (Train Alpha: {best_alpha_train:+.2f}%). Disabling uncooperative MC Arm for the week.", flush=True)
+            # Default to baseline parameters but permanently pin the threshold to 0 to disable arming
+            for k, v in fallback_params.items():
+                current_params[k] = v
+            current_params["TRIGGER_THRESHOLD_PCT"] = 0.0
+            baseline_decision = "Disabled MC Arm (Net-Negative Optimization)"
+            
+        elif oos_alpha >= fallback_oos_alpha and oos_alpha >= default_oos_alpha:
             if oos_alpha > 0:
-                print(f"       OOS validation passed! OOS Guard Alpha: +{oos_alpha:.2f}% (Average: {avg_oos_alpha:.2f}%)")
+                print(f"       OOS validation passed! OOS Guard Alpha: +{oos_alpha:.2f}% (Average: {avg_oos_alpha:.2f}%)", flush=True)
             else:
-                print(f"       OOS validation passed (Beat Baselines)! OOS Guard Alpha: {oos_alpha:.2f}% (Avg: {avg_oos_alpha:.2f}%) vs Fallback: {fallback_oos_alpha:.2f}% / Default: {default_oos_alpha:.2f}%")
+                print(f"       OOS validation passed (Beat Baselines)! OOS Guard Alpha: {oos_alpha:.2f}% (Avg: {avg_oos_alpha:.2f}%) vs Fallback: {fallback_oos_alpha:.2f}% / Default: {default_oos_alpha:.2f}%", flush=True)
             for name, val in best_params.items():
                 current_params[name] = round(val, 2)
             baseline_decision = "Adopted AI"
         elif fallback_oos_alpha >= default_oos_alpha:
-            print(f"       OOS validation failed (AI: {oos_alpha:.2f}%). Reverting to Fallback parameters (Fallback: {fallback_oos_alpha:.2f}% vs Default: {default_oos_alpha:.2f}%).")
+            print(f"       OOS validation failed (AI: {oos_alpha:.2f}%). Reverting to Fallback parameters (Fallback: {fallback_oos_alpha:.2f}% vs Default: {default_oos_alpha:.2f}%).", flush=True)
             for k, v in fallback_params.items():
                 current_params[k] = v
             baseline_decision = "Reverted to Fallback"
         else:
-            print(f"       OOS validation & Fallback failed. Resetting to Global Default (Default: {default_oos_alpha:.2f}% vs AI: {oos_alpha:.2f}%, Fallback: {fallback_oos_alpha:.2f}%).")
+            print(f"       OOS validation & Fallback failed. Resetting to Global Default (Default: {default_oos_alpha:.2f}% vs AI: {oos_alpha:.2f}%, Fallback: {fallback_oos_alpha:.2f}%).", flush=True)
             for k, v in default_params.items():
                 current_params[k] = v
             baseline_decision = "Reset to Global Default"
 
-        # Build Discord logs ensuring all original variables are shown
+        # Build Discord logs ensuring all newly tuned variables are captured
         optimization_results[normalized_name]["_baseline_chosen"] = baseline_decision
-        for k, original_val in original_params.items():
-            optimization_results[normalized_name][k] = {"old": original_val, "new": current_params.get(k, original_val)}
+        for k, new_val in current_params.items():
+            old_val = original_params.get(k, new_val)
+            optimization_results[normalized_name][k] = {"old": old_val, "new": new_val}
 
         elapsed = time.time() - start_time
-        print(f"       Optimization completed in {elapsed:.2f}s. Train Alpha: {best_alpha_train:+.2f}% (Average: {avg_train_alpha:.2f}%)")
+        print(f"       Optimization completed in {elapsed:.2f}s. Train Alpha: {best_alpha_train:+.2f}% (Average: {avg_train_alpha:.2f}%)", flush=True)
 
         database.save_symphony_strategy(normalized_name, current_params, locked_vars)
 
-    print("  -> Autotuner finished all symphonies.")
+    print("  -> Autotuner finished all symphonies.", flush=True)
     return optimization_results
