@@ -17,15 +17,13 @@ DECAY_LOG_BASE = 1.0
 DECAY_LOG_MULTIPLIER = 9.0
 
 # Breakeven Bounds
-BREAKEVEN_VOL_MIN = 0.4
-BREAKEVEN_VOL_MAX = 3.0
 BREAKEVEN_ACTIVATION_BUFFER = 0.2
 
 # VWAP Bleed Bounds
 VWAP_BLEED_FLOOR = -3.0
 VWAP_BLEED_CEILING = -0.5
 
-def run_monte_carlo(current_symphony_return, holdings, historical_data, spy_today_return, proxy_today_return, symphony_vol, proxy_etf="SPY", simulation_paths=5000, neighbor_k=150, volatility_multiplier=0.5, w1=1.0, w2=1.0, w3=1.0):
+def run_monte_carlo(current_symphony_return, holdings, historical_data, spy_today_return, proxy_today_return, symphony_vol, proxy_etf="SPY", simulation_paths=5000, neighbor_k=150, volatility_multiplier=0.5):
     """
     Vectorized Monte Carlo simulation using Sector-Conditioned Nearest Neighbors matching (3D).
     Includes an unconditional bootstrap fallback.
@@ -95,9 +93,9 @@ def run_monte_carlo(current_symphony_return, holdings, historical_data, spy_toda
 
     # Euclidean distance across 3 dimensions
     distances = np.sqrt(
-        w1 * ((spy_returns - spy_today_ret_dec)**2) + 
-        w2 * ((proxy_returns - proxy_today_ret_dec)**2) + 
-        w3 * ((spy_vols - today_vol)**2)
+        1.0 * ((spy_returns - spy_today_ret_dec)**2) + 
+        1.0 * ((proxy_returns - proxy_today_ret_dec)**2) + 
+        1.0 * ((spy_vols - today_vol)**2)
     )
     
     # 2. Get top K indices
@@ -279,10 +277,11 @@ def check_parabolic_velocity(current_return, prev_return, threshold):
     return (current_return - prev_return) >= threshold
 
 def calculate_time_decay_multipliers(time_ratio, mult_open=1.5, mult_close=0.5, min_stop_open=0.3, min_stop_close=0.15):
-    decay = math.log10(DECAY_LOG_BASE + DECAY_LOG_MULTIPLIER * time_ratio)
+    # Enforce logarithmic acceleration curve: width tightens slowly early, then accelerates near close
+    decay = math.log10(1.0 + 9.0 * time_ratio)
     dynamic_multiplier = mult_open - (mult_open - mult_close) * decay
     dynamic_min_stop = min_stop_open - (min_stop_open - min_stop_close) * decay
-    return dynamic_multiplier, dynamic_min_stop
+    return float(dynamic_multiplier), float(dynamic_min_stop)
 
 def calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, max_para_squeeze):
     distance = max((safe_vol * dynamic_multiplier), dynamic_min_stop)
@@ -291,11 +290,10 @@ def calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_sto
     return float(distance)
 
 def check_breakeven_activation(current_return, symphony_vol):
-    dynamic_activation = max(BREAKEVEN_VOL_MIN, min(BREAKEVEN_VOL_MAX, symphony_vol))
+    dynamic_activation = max(0.4, min(3.0, symphony_vol))
     return current_return >= (dynamic_activation - BREAKEVEN_ACTIVATION_BUFFER)
 
-def calculate_vwap_bleed_threshold(symphony_vol, bleed_multiplier):
-    return max(VWAP_BLEED_FLOOR, min(VWAP_BLEED_CEILING, -(symphony_vol * bleed_multiplier)))
+
 
 def calculate_current_rvol(holdings, historical_data):
     all_dates = sorted(list(historical_data.keys()))
