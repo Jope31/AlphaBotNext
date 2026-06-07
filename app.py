@@ -6,7 +6,9 @@ import time
 import threading
 import subprocess
 from datetime import datetime
+from datetime import time as dt_time
 import json
+import alpha_bot_execution
 import schedule
 import requests
 import logging
@@ -25,32 +27,65 @@ COMPOSER_BASE_URL = "https://api.composer.trade/api/v0.1"
 
 # --- 1. Bot Execution Logic ---
 def trigger_alpha_bot(force=False):
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Triggering Alpha Bot...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Triggering Alpha Bot...", flush=True)
     try:
-        cmd = [sys.executable, "alpha_bot_execution.py"]
-        if force:
-            cmd.append("--force")
+        cmd = [sys.executable, "-u", "alpha_bot_execution.py"]
+        if force: cmd.append("--force")
+        
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
-        # Reload latest .env configurations into subprocess environment
+        env["PYTHONUNBUFFERED"] = "1"
         try:
             env_latest = dotenv_values(ENV_FILE_PATH)
             for k, v in env_latest.items():
                 if v is not None:
                     env[k] = str(v)
         except Exception as e:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Failed to reload .env for child process: {e}")
-        subprocess.run(cmd, check=True, env=env)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: Failed to reload .env for child process: {e}", flush=True)
+        
+        process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, encoding="utf-8")
+        
+        # Readline loop prevents internal iterator block-buffering
+        for line in iter(process.stdout.readline, ''):
+            print(line, end="", flush=True)
+        process.wait()
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, cmd)
     except subprocess.CalledProcessError as e:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Execution failed: {e}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Execution failed: {e}", flush=True)
 
 def threaded_trigger():
+    # Evaluate current time to prevent overlap with the EOD pipeline
+    current_et = alpha_bot_execution.get_current_et()
+    current_time = current_et.time()
+    
+    # Bypass standard triggers during the critical EOD generation window (15:52 - 16:05)
+    # This prevents regular executions from colliding with Stage 2 and EOD lockups
+    if dt_time(15, 52) <= current_time <= dt_time(16, 5):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Standing by during EOD blackout window...", flush=True)
+        return
+        
     threading.Thread(target=trigger_alpha_bot, daemon=True).start()
 
 def run_scheduler():
+    # Regular real-time evaluation runs every minute, except during the blackout and EOD window
     schedule.every().minute.at(":00").do(threaded_trigger)
+    
     while True:
+        current_et = alpha_bot_execution.get_current_et()
+        current_time = current_et.time()
+        
+        # 1. Always evaluate pending schedule jobs to keep UI timers synchronized!
         schedule.run_pending()
+            
+        # 2. Automated EOD Post-Mortem Sequence: Single-occurrence execution completely isolated from standard threads
+        if current_time.hour == 16 and current_time.minute == 1:
+            bot_state = database.load_state()
+            if bot_state.get("post_mortem_run") != current_et.strftime("%Y-%m-%d"):
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] [SCHEDULER] Commencing single-occurrence Friday/EOD Post-Mortem pipeline...", flush=True)
+                trigger_alpha_bot(force=True)
+                time.sleep(65) # Advance clock past the active minute to prevent re-triggering
+                
         time.sleep(1)
 
 # --- 2. Web Dashboard Routes ---
@@ -61,18 +96,18 @@ def dashboard():
 @app.route("/api/state")
 def get_state():
     try:
+        now = datetime.now()
+        # Always use clock math for perfectly synchronized UI countdowns (bot runs at :00)
+        next_run_seconds = 60 - now.second
+
         state_data = database.load_state()
         if not state_data:
-            return jsonify({"status": "waiting", "message": "Bot state initializing."})
+            return jsonify({"status": "waiting", "message": "Bot state initializing.", "next_run_seconds": next_run_seconds})
 
         env_vars = dotenv_values(".env")
         live_mode = env_vars.get("LIVE_EXECUTION", "False").lower() in ("true", "1", "yes")
-
-        next_run_seconds = 0
-        valid_jobs = [job for job in schedule.get_jobs() if job.next_run]
-        if valid_jobs:
-            delta = min(job.next_run for job in valid_jobs) - datetime.now()
-            next_run_seconds = max(0, int(delta.total_seconds()))
+        # Always use clock math for perfectly synchronized UI countdowns (bot runs at :00)
+        next_run_seconds = 60 - now.second
 
         account_labels = {}
         acc_ind = env_vars.get("ACCOUNT_INDIVIDUAL", "").strip()
@@ -211,27 +246,45 @@ def force_eod():
         from datetime import datetime, timedelta
         bot_state = database.load_state()
         chart_history = database.load_chart_history()
-        prev_date_str = chart_history.get("date")
-        if not prev_date_str:
-            prev_date_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        prev_date_str = chart_history.get("date") or (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
         env_vars = dotenv_values(ENV_FILE_PATH)
         acc_ind = env_vars.get("ACCOUNT_INDIVIDUAL", "").strip()
         acc_roth = env_vars.get("ACCOUNT_ROTH", "").strip()
         acc_trad = env_vars.get("ACCOUNT_TRAD", "").strip()
-        account_uuids = [uid for uid in [acc_ind, acc_roth, acc_trad] if uid]
         discord_webhook = env_vars.get("DISCORD_WEBHOOK_URL", "")
+
+        # Build filtered list based on UI/Environment flags
+        enabled_uuids = []
+        if acc_ind and env_vars.get("ACCOUNT_INDIVIDUAL_ENABLED", "True").lower() in ("true", "1", "yes"):
+            enabled_uuids.append(acc_ind)
+        if acc_roth and env_vars.get("ACCOUNT_ROTH_ENABLED", "True").lower() in ("true", "1", "yes"):
+            enabled_uuids.append(acc_roth)
+        if acc_trad and env_vars.get("ACCOUNT_TRAD_ENABLED", "True").lower() in ("true", "1", "yes"):
+            enabled_uuids.append(acc_trad)
 
         def run_eod_tasks():
             try:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Forcing EOD Analysis for {prev_date_str}...")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Forcing EOD Analysis for {prev_date_str}...", flush=True)
                 import reporting
                 import autotuner
+                import traceback
+                
                 reporting.generate_eod_snapshot(bot_state, prev_date_str, is_post_rebalance=False, discord_webhook_url=discord_webhook)
                 reporting.generate_eod_snapshot(bot_state, prev_date_str, is_post_rebalance=True, discord_webhook_url=discord_webhook)
-                autotuner_changes = autotuner.run_autotuner(bot_state, prev_date_str, account_uuids, is_forced=True)
-                reporting.send_eod_discord_post(prev_date_str, f"post_mortem_{prev_date_str}.json", autotuner_changes, discord_webhook)
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Forced EOD Analysis complete.")
+                autotuner_changes = autotuner.run_autotuner(bot_state, prev_date_str, enabled_uuids, is_forced=True)
+                
+                try:
+                    reporting.send_eod_discord_post(prev_date_str, f"post_mortem_{prev_date_str}.json", autotuner_changes, discord_webhook)
+                except Exception as discord_err:
+                    print(f"!!! [ERROR] Failed to send Discord EOD report: {discord_err}", flush=True)
+                    traceback.print_exc()
+                    
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Forced EOD Analysis complete.", flush=True)
+            except Exception as e:
+                import traceback
+                print(f"!!! [CRITICAL ERROR] Background EOD Task failed abruptly: {e}", flush=True)
+                traceback.print_exc()
             finally:
                 database.release_lock()
 
@@ -254,11 +307,11 @@ def resend_discord():
         discord_webhook = env_vars.get("DISCORD_WEBHOOK_URL", "")
 
         def run_discord_push():
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Resending Discord Report for {prev_date_str}...")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Resending Discord Report for {prev_date_str}...", flush=True)
             import reporting
             # Pass None for optimization_results to skip tuning and just send the current JSON
             reporting.send_eod_discord_post(prev_date_str, f"post_mortem_{prev_date_str}.json", None, discord_webhook)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Discord resend complete.")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Discord resend complete.", flush=True)
 
         threading.Thread(target=run_discord_push, daemon=True).start()
         return jsonify({"status": "success", "message": "Discord push initiated for " + prev_date_str})
@@ -269,7 +322,9 @@ def resend_discord():
 def get_performance_benchmark():
     try:
         from dotenv import dotenv_values
-        import math
+        import glob
+        import json
+        import os
         
         env_vars = dotenv_values(".env")
         acc_ind = env_vars.get("ACCOUNT_INDIVIDUAL", "").strip()
@@ -281,57 +336,29 @@ def get_performance_benchmark():
         if not state_data:
             return jsonify({"status": "error", "message": "Bot state not initialized."}), 400
             
-        sym_to_acc = {}
-        sym_weights = {}
         account_balances = {acc_ind: 0.0, acc_roth: 0.0, acc_trad: 0.0, "": 0.0}
         
         for sym_id, sym in state_data.items():
             if isinstance(sym, dict) and "account" in sym:
                 acc_id = sym["account"]
-                sym_to_acc[sym_id] = acc_id
                 try:
                     val = float(sym.get("current_value", 0.0))
                 except:
                     val = 1.0
                 if val <= 0:
                     val = 1.0
-                sym_weights[sym_id] = val
                 account_balances[acc_id] = account_balances.get(acc_id, 0.0) + val
 
-        # Get last 30 trading dates from chart_archive
-        conn = database.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT date FROM chart_archive ORDER BY date DESC LIMIT 30")
-        dates = sorted([row[0] for row in cursor.fetchall()])
+        # Find and sort all post_mortem files
+        files = glob.glob("post_mortem_*.json")
+        date_files = []
+        for f in files:
+            date_part = f.replace("post_mortem_", "").replace(".json", "")
+            date_files.append((date_part, f))
+            
+        date_files.sort(key=lambda x: x[0])
+        date_files = date_files[-30:] # take last 30 files
         
-        if not dates:
-            conn.close()
-            return jsonify({
-                "dates": [],
-                "accounts": {
-                    "ind": {"strat_series": [], "held_series": [], "total_return_pct": 0, "if_held_pct": 0, "total_return_usd": 0, "if_held_usd": 0},
-                    "roth": {"strat_series": [], "held_series": [], "total_return_pct": 0, "if_held_pct": 0, "total_return_usd": 0, "if_held_usd": 0},
-                    "trad": {"strat_series": [], "held_series": [], "total_return_pct": 0, "if_held_pct": 0, "total_return_usd": 0, "if_held_usd": 0},
-                    "total": {"strat_series": [], "held_series": [], "total_return_pct": 0, "if_held_pct": 0, "total_return_usd": 0, "if_held_usd": 0}
-                }
-            })
-
-        # Load chart data for these dates
-        placeholders = ",".join("?" * len(dates))
-        cursor.execute(f"SELECT date, symphony_id, data FROM chart_archive WHERE date IN ({placeholders})", dates)
-        
-        archive_data = {} # {date: {sym_id: ticks}}
-        for row in cursor.fetchall():
-            date_str, sym_id, data_json = row[0], row[1], row[2]
-            if date_str not in archive_data:
-                archive_data[date_str] = {}
-            try:
-                archive_data[date_str][sym_id] = json.loads(data_json)
-            except:
-                pass
-        conn.close()
-
-        # Initialize daily returns for each account and total
         uuid_to_key = {}
         if acc_ind: uuid_to_key[acc_ind] = 'ind'
         if acc_roth: uuid_to_key[acc_roth] = 'roth'
@@ -344,8 +371,20 @@ def get_performance_benchmark():
             'total': []
         }
         
-        for date_str in dates:
-            day_syms = archive_data.get(date_str, {})
+        valid_dates = []
+
+        for date_str, f_path in date_files:
+            try:
+                with open(f_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except:
+                continue
+                
+            daily_pnl = data.get("daily_pnl")
+            if daily_pnl is None:
+                continue # Gracefully skip legacy files missing daily_pnl
+                
+            valid_dates.append(date_str)
             
             agg = {
                 'ind': {'strat': 0.0, 'held': 0.0, 'weight': 0.0},
@@ -354,20 +393,15 @@ def get_performance_benchmark():
                 'total': {'strat': 0.0, 'held': 0.0, 'weight': 0.0}
             }
             
-            for sym_id, ticks in day_syms.items():
-                if not ticks or sym_id not in sym_to_acc:
-                    continue
-                
-                acc_id = sym_to_acc[sym_id]
+            for pnl in daily_pnl:
+                acc_id = pnl.get("account_id")
                 key = uuid_to_key.get(acc_id)
-                weight = sym_weights.get(sym_id, 1.0)
                 
-                held_ret = ticks[-1].get("return", 0.0)
-                strat_ret = held_ret
-                for tick in ticks:
-                    if tick.get("event") in ["Take-Profit", "Trailing Stop", "VWAP Breakdown", "VWAP Bleed Cut"]:
-                        strat_ret = tick.get("return", 0.0)
-                        break
+                weight = pnl.get("value", 1.0)
+                if weight <= 0: weight = 1.0
+                
+                strat_ret = pnl.get("strat_ret", 0.0)
+                held_ret = pnl.get("held_ret", 0.0)
                 
                 if key:
                     agg[key]['strat'] += strat_ret * weight
@@ -382,19 +416,17 @@ def get_performance_benchmark():
                 w = agg[k]['weight']
                 if w > 0:
                     daily_returns[k].append({
-                        'date': date_str,
                         'strat': agg[k]['strat'] / w,
                         'held': agg[k]['held'] / w
                     })
                 else:
                     daily_returns[k].append({
-                        'date': date_str,
                         'strat': 0.0,
                         'held': 0.0
                     })
                     
         results = {
-            "dates": [d[5:] for d in dates], # format as MM-DD
+            "dates": [d[5:] for d in valid_dates], # format as MM-DD
             "accounts": {}
         }
         
@@ -459,7 +491,8 @@ def get_history(days):
         "total_saved": 0.0,
         "trigger_count": 0,
         "wins": 0,
-        "by_reason": {}
+        "by_reason": {},
+        "daily_alpha": {}
     }
     
     for f_path in files:
@@ -485,6 +518,8 @@ def get_history(days):
                         stats["by_reason"][reason]["alpha"] += alpha
                         stats["by_reason"][reason]["count"] += 1
                         if alpha > 0: stats["by_reason"][reason]["wins"] += 1
+                        
+                        stats["daily_alpha"][date_part] = stats["daily_alpha"].get(date_part, 0.0) + alpha
         except: continue
 
     # Final Averages
@@ -494,6 +529,11 @@ def get_history(days):
     else:
         stats["avg_guard_alpha"] = 0
         stats["win_rate"] = 0
+        
+    sorted_daily = []
+    for k in sorted(stats["daily_alpha"].keys()):
+        sorted_daily.append({"date": k, "alpha": stats["daily_alpha"][k]})
+    stats["daily_alpha"] = sorted_daily
         
     return jsonify(stats)
 
@@ -508,10 +548,10 @@ def perform_account_liquidation(account_id, key, secret, live_mode):
                 if live_mode:
                     sell_url = f"{COMPOSER_BASE_URL}/deploy/accounts/{account_id}/symphonies/{sym['id']}/go-to-cash"
                     sell_resp = requests.post(sell_url, headers=headers, json={}, timeout=10)
-                    print(f"Liquidated {sym.get('name')} (HTTP {sell_resp.status_code})")
+                    print(f"Liquidated {sym.get('name')} (HTTP {sell_resp.status_code})", flush=True)
                     time.sleep(1.5)
     except Exception as e:
-        print(f"Liquidation Error: {e}")
+        print(f"Liquidation Error: {e}", flush=True)
 
 @app.route("/api/sell_account", methods=["POST"])
 def sell_account():
@@ -620,8 +660,9 @@ def save_settings():
                             params[k] = int(val)
                         else:
                             params[k] = round(val, 4)
-                    except ValueError:
-                        pass
+                    except (ValueError, TypeError):
+                        if isinstance(v, str):
+                            params[k] = v
             locked = strategy_data.get("locked_vars", [])
             database.save_symphony_strategy(sym_name, params, locked)
 
@@ -634,7 +675,7 @@ def save_settings():
 if __name__ == "__main__":
     # Start the scheduler thread
     threading.Thread(target=run_scheduler, daemon=True).start()
-    print("\nStarting Alpha Bot Control Center at http://localhost:5000\n")
+    print("\nStarting Alpha Bot Control Center at http://localhost:5000\n", flush=True)
     
     # Disable use_reloader to ensure the background thread runs once and only once
     app.run(port=5000, debug=False, use_reloader=False)
