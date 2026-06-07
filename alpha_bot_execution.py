@@ -53,7 +53,6 @@ EXECUTION_START_TIME = os.getenv("EXECUTION_START_TIME", "09:30")
 
 # --- STRATEGY PARAMETERS ---
 TRIGGER_THRESHOLD_PCT = float(os.getenv("TRIGGER_THRESHOLD_PCT", "15.0"))
-MAX_SQUEEZE_FLOOR = float(os.getenv("MAX_SQUEEZE_FLOOR", "0.20"))
 TAKE_PROFIT_MC_PCT = float(os.getenv("TAKE_PROFIT_MC_PCT", "5.0"))
 
 
@@ -99,11 +98,11 @@ def fetch_symphony_stats(account_id):
                 symphonies = data.get("symphonies", [])
                 return symphonies
             except ValueError:
-                print(f"Warning: Failed to decode JSON from Composer API (HTTP 200) for account {account_id}. Returning [].")
+                print(f"Warning: Failed to decode JSON from Composer API (HTTP 200) for account {account_id}. Returning [].", flush=True)
                 return []
-        print(f"Error fetching account {account_id}: Composer API Error (HTTP {response.status_code})")
+        print(f"Error fetching account {account_id}: Composer API Error (HTTP {response.status_code})", flush=True)
     except requests.RequestException as e:
-        print(f"Exception fetching account {account_id}: {e}")
+        print(f"Exception fetching account {account_id}: {e}", flush=True)
     return []
 
 def fetch_account_total_stats(account_id):
@@ -114,7 +113,7 @@ def fetch_account_total_stats(account_id):
         if response.status_code == 200:
             return response.json()
     except requests.RequestException as e:
-        print(f"Error fetching total stats for {account_id}: {e}")
+        print(f"Error fetching total stats for {account_id}: {e}", flush=True)
     return {}
 
 def execute_sell_to_cash(actual_symphony_id, account_id, bot_state=None, sym_id=None):
@@ -124,14 +123,14 @@ def execute_sell_to_cash(actual_symphony_id, account_id, bot_state=None, sym_id=
     for attempt in range(len(backoff_intervals) + 1):
         try:
             response = requests.post(url, headers=get_composer_headers(), json={}, timeout=10)
-            print(f"     -> [API Status]: HTTP {response.status_code}")
+            print(f"     -> [API Status]: HTTP {response.status_code}", flush=True)
 
             if response.status_code in [200, 201, 202]:
                 time.sleep(0.5)
                 return True
                 
             if response.status_code in [401, 404]:
-                print(f"     !!! [COMPOSER HTTP {response.status_code}]: Symphony not found/unauthorized. Circuit breaker tripped.")
+                print(f"     !!! [COMPOSER HTTP {response.status_code}]: Symphony not found/unauthorized. Circuit breaker tripped.", flush=True)
                 if bot_state is not None and sym_id is not None:
                     if isinstance(bot_state.get(sym_id), dict):
                         bot_state[sym_id]["removed_by_user"] = True
@@ -141,25 +140,25 @@ def execute_sell_to_cash(actual_symphony_id, account_id, bot_state=None, sym_id=
 
             if response.status_code == 429:
                 retry_after = int(response.headers.get("Retry-After", 60))
-                print(f"     !!! [RATE LIMIT HIT 429] Sleeping for {retry_after}s...")
+                print(f"     !!! [RATE LIMIT HIT 429] Sleeping for {retry_after}s...", flush=True)
                 time.sleep(retry_after)
                 continue
                 
             if response.status_code >= 500 and attempt < len(backoff_intervals):
                 delay = backoff_intervals[attempt]
-                print(f"     !!! [COMPOSER ERROR HTTP {response.status_code}]")
-                print(f"     -> Retrying in {delay}s...")
+                print(f"     !!! [COMPOSER ERROR HTTP {response.status_code}]", flush=True)
+                print(f"     -> Retrying in {delay}s...", flush=True)
                 time.sleep(delay)
                 continue
 
-            print(f"     !!! [COMPOSER REJECTED]")
+            print(f"     !!! [COMPOSER REJECTED]", flush=True)
             time.sleep(1.5)
             return False
         except requests.RequestException as e:
-            print(f"     !!! [API CRASH]: {str(e)}")
+            print(f"     !!! [API CRASH]: {str(e)}", flush=True)
             if attempt < len(backoff_intervals):
                 delay = backoff_intervals[attempt]
-                print(f"     -> Retrying in {delay}s due to transient network spike...")
+                print(f"     -> Retrying in {delay}s due to transient network spike...", flush=True)
                 time.sleep(delay)
                 continue
             return False
@@ -167,7 +166,7 @@ def execute_sell_to_cash(actual_symphony_id, account_id, bot_state=None, sym_id=
 
 
 def fetch_alpaca_history(tickers, current_date_str):
-    print(f"  -> [TELEMETRY] Requesting Alpaca historical data for {len(tickers)} symbols...")
+    print(f"  -> [TELEMETRY] Requesting Alpaca historical data for {len(tickers)} symbols...", flush=True)
     if "SPY" not in tickers:
         tickers.append("SPY")
     tickers_list = sorted(list(set(tickers)))
@@ -177,12 +176,12 @@ def fetch_alpaca_history(tickers, current_date_str):
             with open(HISTORY_CACHE_FILE, "r", encoding="utf-8") as f:
                 cache = json.load(f)
             if cache.get("date") == current_date_str and cache.get("tickers") == tickers_list:
-                print("  -> Loading static 3-year history from local cache.")
+                print("  -> Loading static 3-year history from local cache.", flush=True)
                 return cache.get("data", {})
         except json.JSONDecodeError:
             pass
 
-    print(f"Fetching 3-year history from Alpaca for Monte Carlo ({len(tickers)} tickers)...")
+    print(f"Fetching 3-year history from Alpaca for Monte Carlo ({len(tickers)} tickers)...", flush=True)
     start_date = (datetime.now() - timedelta(days=365 * 3 + 30)).strftime("%Y-%m-%dT00:00:00Z")
     headers = get_alpaca_headers()
     historical_data = {}
@@ -191,7 +190,7 @@ def fetch_alpaca_history(tickers, current_date_str):
     for i in range(0, len(tickers_list), batch_size):
         batch = tickers_list[i : i + batch_size]
         symbol_string = ",".join(batch)
-        print(f"  -> Downloading batch {i // batch_size + 1}: {len(batch)} tickers...")
+        print(f"  -> Downloading batch {i // batch_size + 1}: {len(batch)} tickers...", flush=True)
 
         page_token = None
         while True:
@@ -207,19 +206,19 @@ def fetch_alpaca_history(tickers, current_date_str):
                     if response.status_code == 200:
                         success = True
                         break
-                    print(f"Alpaca API Error on batch (attempt {attempt+1}/{max_retries}): HTTP {response.status_code}")
+                    print(f"Alpaca API Error on batch (attempt {attempt+1}/{max_retries}): HTTP {response.status_code}", flush=True)
                 except requests.RequestException as e:
-                    print(f"Alpaca API Request Exception (attempt {attempt+1}/{max_retries}): {e}")
+                    print(f"Alpaca API Request Exception (attempt {attempt+1}/{max_retries}): {e}", flush=True)
                 time.sleep(2 * (attempt + 1))
 
             if not success:
-                print("Failed to download batch after multiple retries.")
+                print("Failed to download batch after multiple retries.", flush=True)
                 break
 
             try:
                 data = response.json()
             except ValueError:
-                print("Warning: Failed to decode JSON from Alpaca API for batch. Skipping batch.")
+                print("Warning: Failed to decode JSON from Alpaca API for batch. Skipping batch.", flush=True)
                 break
 
             if "bars" in data:
@@ -245,12 +244,12 @@ def fetch_alpaca_history(tickers, current_date_str):
             if not page_token:
                 break
 
-    print("  -> History download complete. Saving to daily cache.")
+    print("  -> History download complete. Saving to daily cache.", flush=True)
     try:
         with open(HISTORY_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump({"date": current_date_str, "tickers": tickers_list, "data": historical_data}, f)
     except OSError as e:
-        print(f"  -> Failed to write cache: {e}")
+        print(f"  -> Failed to write cache: {e}", flush=True)
 
     return historical_data
 
@@ -288,7 +287,7 @@ def fetch_intraday_vwaps(tickers, headers, current_et):
                         last_price = float(df['c'].iloc[-1])
                         vwap_data[sym] = {"vwap": vwap, "last_price": last_price}
         except (requests.RequestException, ValueError, KeyError) as e:
-            print(f"Error fetching VWAP for batch {batch}: {e}")
+            print(f"Error fetching VWAP for batch {batch}: {e}", flush=True)
 
     return vwap_data
 
@@ -334,20 +333,20 @@ def fetch_proxy_from_market_data(ticker):
                 else:
                     proxy = "SPY"
                     
-                print(f"  -> Searched Alpaca for {clean_ticker} ('{name}'). Assigned dynamic proxy: {proxy}.")
+                print(f"  -> Searched Alpaca for {clean_ticker} ('{name}'). Assigned dynamic proxy: {proxy}.", flush=True)
                 return proxy
                 
-            print(f"  -> Searched Alpaca for {clean_ticker}. Asset not active. Defaulting to SPY.")
+            print(f"  -> Searched Alpaca for {clean_ticker}. Asset not active. Defaulting to SPY.", flush=True)
             return "SPY"
         else:
-            print(f"  -> Warning: Could not find asset {clean_ticker} in Alpaca (HTTP {response.status_code}). Defaulting to SPY.")
+            print(f"  -> Warning: Could not find asset {clean_ticker} in Alpaca (HTTP {response.status_code}). Defaulting to SPY.", flush=True)
             return "SPY"
     except requests.RequestException as e:
-        print(f"  -> API Error querying Alpaca for {clean_ticker}: {e}. Defaulting to SPY.")
+        print(f"  -> API Error querying Alpaca for {clean_ticker}: {e}. Defaulting to SPY.", flush=True)
         return "SPY"
 
 def run_morning_initialization():
-    print("Starting morning holdings ingestion and database-driven sector mapping...")
+    print("Starting morning holdings ingestion and database-driven sector mapping...", flush=True)
     bot_state = database.load_state()
     state_changed = False
     current_date_str = get_current_et().strftime("%Y-%m-%d")
@@ -365,24 +364,24 @@ def run_morning_initialization():
                 
                 if response.status_code == 429:
                     retry_after = int(response.headers.get("Retry-After", 60))
-                    print(f"     !!! [RATE LIMIT HIT 429] Sleeping for {retry_after}s...")
+                    print(f"     !!! [RATE LIMIT HIT 429] Sleeping for {retry_after}s...", flush=True)
                     time.sleep(retry_after)
                     continue
                     
                 if response.status_code >= 500 and attempt < len(backoff_intervals):
                     delay = backoff_intervals[attempt]
-                    print(f"     !!! [COMPOSER ERROR HTTP {response.status_code}] -> Retrying in {delay}s...")
+                    print(f"     !!! [COMPOSER ERROR HTTP {response.status_code}] -> Retrying in {delay}s...", flush=True)
                     time.sleep(delay)
                     continue
                     
-                print(f"     !!! [COMPOSER REJECTED HTTP {response.status_code}]")
+                print(f"     !!! [COMPOSER REJECTED HTTP {response.status_code}]", flush=True)
                 time.sleep(1.5)
                 return []
             except requests.RequestException as e:
-                print(f"     !!! [API CRASH]: {str(e)}")
+                print(f"     !!! [API CRASH]: {str(e)}", flush=True)
                 if attempt < len(backoff_intervals):
                     delay = backoff_intervals[attempt]
-                    print(f"     -> Retrying in {delay}s due to transient network spike...")
+                    print(f"     -> Retrying in {delay}s due to transient network spike...", flush=True)
                     time.sleep(delay)
                     continue
                 return []
@@ -416,23 +415,23 @@ def run_morning_initialization():
             if s_id not in bot_state:
                 bot_state[s_id] = {}
             bot_state[s_id]["proxy_etf"] = proxy_etf
-            print(f"  -> Assigned {clean_ticker} to {proxy_etf} for Symphony {s_name}")
+            print(f"  -> Assigned {clean_ticker} to {proxy_etf} for Symphony {s_name}", flush=True)
             state_changed = True
             
     if state_changed:
         database.save_state(bot_state)
-        print("  -> Morning initialization complete. State saved.")
+        print("  -> Morning initialization complete. State saved.", flush=True)
 
 
 def main():
     if not database.acquire_lock(lease_duration=900):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Overlap Detected. Database lock is currently held by another process. Skipping...")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Overlap Detected. Database lock is currently held by another process. Skipping...", flush=True)
         return
 
     try:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Alpha Bot Waking Up...", flush=True)
         mode_text = "LIVE EXECUTION (DANGER)" if LIVE_EXECUTION else "DRY RUN (SAFE)"
-        print(f"MODE: {mode_text}")
+        print(f"MODE: {mode_text}", flush=True)
 
         force_run = "--force" in sys.argv
         current_et = get_current_et()
@@ -452,15 +451,15 @@ def main():
 
         # --- MORNING INITIALIZATION ---
         if is_weekday and current_time.hour == 9 and current_time.minute == 25 and not force_run:
-            print("  -> Running Morning Initialization (Sector Mapping)...")
+            print("  -> Running Morning Initialization (Sector Mapping)...", flush=True)
             run_morning_initialization()
             return
 
         if not is_weekday or current_time < market_open or current_time > post_mortem_cutoff:
             if not force_run:
-                print(f"  -> Market closed or in Grace Period (ET: {current_et.strftime('%a %H:%M')}). Sleeping...")
+                print(f"  -> Market closed or in Grace Period (ET: {current_et.strftime('%a %H:%M')}). Sleeping...", flush=True)
                 return
-            print("  -> Market closed, but --force flag detected! Bypassing gatekeeper...")
+            print("  -> Market closed, but --force flag detected! Bypassing gatekeeper...", flush=True)
 
         if rebalance_blackout <= current_time < market_close:
             bot_state = database.load_state()
@@ -477,12 +476,12 @@ def main():
             reporting.generate_eod_snapshot(bot_state, current_et.strftime("%Y-%m-%d"), is_post_rebalance=False, discord_webhook_url=DISCORD_WEBHOOK_URL, live_prices=live_vwaps)
 
             if not force_run:
-                print(f"  -> 🛑 COMPOSER REBALANCE BLACKOUT (ET: {current_et.strftime('%H:%M')}). Pausing...")
+                print(f"  -> 🛑 COMPOSER REBALANCE BLACKOUT (ET: {current_et.strftime('%H:%M')}). Pausing...", flush=True)
                 return
-            print("  -> Rebalance blackout active, but --force flag detected! Bypassing...")
+            print("  -> Rebalance blackout active, but --force flag detected! Bypassing...", flush=True)
 
         if not COMPOSER_KEY_ID or not ALPACA_KEY:
-            print("CRITICAL: Missing API Keys. Please check your .env file.")
+            print("CRITICAL: Missing API Keys. Please check your .env file.", flush=True)
             return
 
         bot_state = database.load_state()
@@ -495,7 +494,7 @@ def main():
         prev_live_execution = bot_state.get("last_execution_mode")
         state_changed = False
         if prev_live_execution is not None and prev_live_execution != LIVE_EXECUTION:
-            print(f"  -> Execution mode toggle detected ({prev_live_execution} -> {LIVE_EXECUTION}). Wiping transient state.")
+            print(f"  -> Execution mode toggle detected ({prev_live_execution} -> {LIVE_EXECUTION}). Wiping transient state.", flush=True)
             database.wipe_transient_state(bot_state)
             state_changed = True
         
@@ -504,7 +503,7 @@ def main():
             state_changed = True
 
         if bot_state.get("date") != current_date_str:
-            print(f"  -> New trading day detected ({current_date_str} ET). Wiping transient state keys and chart memory.")
+            print(f"  -> New trading day detected ({current_date_str} ET). Wiping transient state keys and chart memory.", flush=True)
             bot_state["date"] = current_date_str
             database.wipe_transient_state(bot_state)
             state_changed = True
@@ -516,7 +515,7 @@ def main():
                     accounts_to_purge.append(s_id)
         
         for s_id in accounts_to_purge:
-            print(f"  -> [ACCOUNT REMOVED] Purging ghost symphony from state: {s_id}")
+            print(f"  -> [ACCOUNT REMOVED] Purging ghost symphony from state: {s_id}", flush=True)
             del bot_state[s_id]
             state_changed = True
 
@@ -546,6 +545,12 @@ def main():
                 bot_state["account_totals"][account] = t_stats["portfolio_value"]
 
             for sym in symphonies:
+                s_id = sym["id"]
+                if s_id not in bot_state:
+                    bot_state[s_id] = {}
+                bot_state[s_id]["account"] = account
+                bot_state[s_id]["name"] = sym.get("name", s_id)
+                
                 for holding in sym.get("holdings", []):
                     raw_ticker = holding.get("ticker", "")
                     clean_ticker = raw_ticker.split("::")[-1].split("//")[0]
@@ -567,46 +572,46 @@ def main():
                         if t and "cash" not in t.lower():
                             all_tickers.add(t)
 
-        # Garbage Collection & Circuit Breaker: Track missing symphonies (Portfolio Sync)
-        active_symphony_ids = set()
-        for account, symphonies in symphony_data_cache.items():
-            for sym in symphonies:
-                active_symphony_ids.add(sym["id"])
-
-        for s_id, s_data in bot_state.items():
-            if s_id in ["account_totals", "date", "last_execution_mode", "post_mortem_run"]:
-                continue
-                
-            if not isinstance(s_data, dict):
-                continue
+        # --- NAME-BASED AUTOMATED PORTFOLIO REALIGNMENT ---
+        for account in ACCOUNT_UUIDS:
+            live_symphonies = symphony_data_cache.get(account, [])
             
-            if "missing_streak" not in s_data:
-                s_data["missing_streak"] = 0
+            # 1. Map out live positions by their unique normalized names
+            live_names = {database.normalize_name(sym.get("name", "")) for sym in live_symphonies if sym.get("name")}
+            
+            # 2. Map out active, untriggered positions currently held in local bot_state
+            tracked_names = set()
+            for s_id, s_data in bot_state.items():
+                if isinstance(s_data, dict) and s_data.get("account") == account:
+                    if not s_data.get("removed_by_user", False):
+                        if s_data.get("name"):
+                            tracked_names.add(database.normalize_name(s_data["name"]))
+                            
+            # 3. Assess if a structural strategy mismatch exists (Strategy added or permanently deleted)
+            has_strategy_mismatch = (len(live_names ^ tracked_names) > 0)
+            
+            if has_strategy_mismatch and live_names:
+                print(f"  🔄 [AUTOMATIC SYNC] Structural portfolio deviation detected for account {account[:8]}. Executing system flush...", flush=True)
+                database.log_symphony_event("system", "Automated portfolio realignment triggered due to strategy name mismatch/rebalance.", "sync", current_date_str)
                 
-            if not s_data.get("triggered", False):
-                if s_id not in active_symphony_ids:
-                    s_data["missing_streak"] += 1
-                    print(f"  -> [PORTFOLIO SYNC] Symphony {s_data.get('name', s_id)} missing from Composer. Streak: {s_data['missing_streak']}")
-                    state_changed = True
-                else:
-                    if s_data["missing_streak"] > 0:
-                        s_data["missing_streak"] = 0
-                        state_changed = True
-
-            if s_data.get("missing_streak", 0) >= 2:
-                if not s_data.get("removed_by_user", False):
-                    print(f"  -> [CIRCUIT BREAKER] Symphony {s_data.get('name', s_id)} missing 2+ times. Flagging removed_by_user=True")
-                    s_data["removed_by_user"] = True
-                    database.log_symphony_event(s_id, "Manual Intervention Detected. Tracking safely suspended for the day.", "warning")
-                    reporting.send_circuit_breaker_alert(s_data.get("name", s_id), DISCORD_WEBHOOK_URL)
-                    state_changed = True
+                # Execute the modular flush to clean transient state and re-ingest active targets
+                database.execute_system_flush(account)
+                
+                # Reload state memory registers immediately mid-run to capture fresh keys
+                bot_state = database.load_state()
+                chart_history = database.load_chart_history()
+                
+                # ENFORCE DATA PERSISTENCE: Write the freshly synchronized state back to disk securely
+                database.save_state(bot_state)
+                break  # Break out to allow the next loop tick to parse the updated environment cleanly
+        # --------------------------------------------------
 
         if (market_close <= current_time <= post_mortem_cutoff) or (force_run and current_et.weekday() >= 5):
             if bot_state.get("post_mortem_run") == current_date_str:
                 if not force_run:
-                    print("  -> EOD Post-Mortem already run for today. Sleeping...")
+                    print("  -> EOD Post-Mortem already run for today. Sleeping...", flush=True)
                     return
-                print("  -> EOD Post-Mortem already run, but --force flag detected! Running again...")
+                print("  -> EOD Post-Mortem already run, but --force flag detected! Running again...", flush=True)
 
             for account, symphonies in symphony_data_cache.items():
                 for sym in symphonies:
@@ -631,21 +636,30 @@ def main():
             # Daily Chart Archiving (Decoupled from Autotuner)
             chart_history = database.load_chart_history()
             if chart_history and chart_history.get("date") == current_date_str:
-                print(f"  -> Archiving chart history for {current_date_str} to database...")
+                print(f"  -> Archiving chart history for {current_date_str} to database...", flush=True)
                 for sym_id, data in chart_history.get("symphonies", {}).items():
                     database.save_chart_archive(current_date_str, sym_id, data)
 
             # NEW: Execute Autotuner (Weekly on Fridays, or Manual Weekends/Force)
             autotuner_changes = None
-            if current_et.weekday() >= 4 or force_run: # 4=Fri, 5=Sat, 6=Sun
-                print(f"  -> {'Weekend/Force' if current_et.weekday() >= 5 else 'Friday'} Detected. Starting autotune...")
-                autotuner_changes = autotuner.run_autotuner(bot_state, current_date_str, ACCOUNT_UUIDS, is_forced=force_run)
-            else:
-                print(f"  -> Day is {current_et.strftime('%A')}. Skipping weekly autotune.")
             
-            reporting.send_eod_discord_post(current_date_str, f"post_mortem_{current_date_str}.json", autotuner_changes, DISCORD_WEBHOOK_URL)
+            # NEW: Filter down to only UI-Enabled Accounts for Autotuning
+            enabled_account_uuids = [uid for uid in ACCOUNT_UUIDS if ACCOUNT_ENABLED_MAP.get(uid)]
+            
+            if current_et.weekday() >= 4 or force_run: # 4=Fri, 5=Sat, 6=Sun
+                print(f"  -> {'Weekend/Force' if current_et.weekday() >= 5 else 'Friday'} Detected. Starting autotune...", flush=True)
+                autotuner_changes = autotuner.run_autotuner(bot_state, current_date_str, enabled_account_uuids, is_forced=force_run)
+                
+                if autotuner_changes:
+                    discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", DISCORD_WEBHOOK_URL)
+                    reporting.send_eod_discord_post(current_date_str, f"post_mortem_{current_date_str}.json", autotuner_changes, discord_webhook)
+                else:
+                    reporting.send_eod_discord_post(current_date_str, f"post_mortem_{current_date_str}.json", None, DISCORD_WEBHOOK_URL)
+            else:
+                print(f"  -> Day is {current_et.strftime('%A')}. Skipping weekly autotune.", flush=True)
+                reporting.send_eod_discord_post(current_date_str, f"post_mortem_{current_date_str}.json", None, DISCORD_WEBHOOK_URL)
 
-            print("  -> EOD Post-Mortem complete. Ending execution for the day.")
+            print("  -> EOD Post-Mortem complete. Ending execution for the day.", flush=True)
             return
 
         historical_data = fetch_alpaca_history(list(all_tickers), current_date_str)
@@ -657,8 +671,8 @@ def main():
         spy_today = 0.0
         if "SPY" in historical_data.get(current_date_str, {}):
             spy_today = historical_data[current_date_str]["SPY"].get("daily_ret", 0.0) * 100.0
-        print(f"  -> Macro Environment: SPY {spy_today:.2f}%")
-        print("\nEvaluating Symphonies...")
+        print(f"  -> Macro Environment: SPY {spy_today:.2f}%", flush=True)
+        print("\nEvaluating Symphonies...", flush=True)
 
         execution_queue = []
 
@@ -676,17 +690,10 @@ def main():
                 acc_params = symphony_strat.get("params", {})
 
                 acc_TRIGGER_THRESHOLD_PCT = acc_params.get("TRIGGER_THRESHOLD_PCT", TRIGGER_THRESHOLD_PCT)
-                acc_MAX_SQUEEZE_FLOOR = acc_params.get("MAX_SQUEEZE_FLOOR", MAX_SQUEEZE_FLOOR)
                 acc_TAKE_PROFIT_MC_PCT = acc_params.get("TAKE_PROFIT_MC_PCT", TAKE_PROFIT_MC_PCT)
 
                 acc_VWAP_CROSS_HWM_PCT = acc_params.get("VWAP_CROSS_HWM_PCT", VWAP_CROSS_HWM_PCT)
-                acc_VWAP_BLEED_MULTIPLIER = acc_params.get("VWAP_BLEED_MULTIPLIER", 1.5)
-                acc_VWAP_BLEED_TICKS = acc_params.get("VWAP_BLEED_TICKS", 10)
-                acc_VWAP_BLEED_DECAY_RATE = acc_params.get("VWAP_BLEED_DECAY_RATE", 60)
-                
-                acc_GAP_DEFENSE_THRESHOLD_PCT = acc_params.get("GAP_DEFENSE_THRESHOLD_PCT", 2.5)
-                acc_GAP_DEFENSE_MULTIPLIER = acc_params.get("GAP_DEFENSE_MULTIPLIER", 0.5)
-                acc_CATASTROPHIC_DROP_PCT = acc_params.get("CATASTROPHIC_DROP_PCT", 0.75)
+
 
 
 
@@ -733,28 +740,33 @@ def main():
                         "armed": False,
                         "tp_armed": False,
                         "para_armed": False,
-                        "gap_defense_locked": False,
                         "triggered": False,
                         "mc_history": [],
+                        "lowest_mc_seen": 100.0,
+                        "lock_engaged_ticks": 0,
+                        "below_lock_count": 0,
                         "below_stop_count": 0,
                         "above_tp_count": 0,
                         "vwap_ticks": 0,
-                        "vwap_bleed_ticks": 0,
-                        "vwap_trapped_ticks": 0,
                         "breakeven_locked": False,
                         "hwm_hold_ticks": 0,
-                        "missing_streak": 0,
                     }
+                
+                # Unconditionally inject identity mapping for the autotuner and cross-referencing
+                bot_state[symphony_id]["account"] = account
+                bot_state[symphony_id]["name"] = symphony_name
 
                 prev_armed = bot_state[symphony_id].get("armed", False)
                 prev_tp_armed = bot_state[symphony_id].get("tp_armed", False)
                 prev_triggered = bot_state[symphony_id].get("triggered", False)
                 prev_para_armed = bot_state[symphony_id].get("para_armed", False)
 
-                for key in ["triggered", "tp_armed", "breakeven_locked", "para_armed", "gap_defense_locked"]:
+                for key in ["triggered", "tp_armed", "breakeven_locked", "para_armed"]:
                     if key not in bot_state[symphony_id]:
                         bot_state[symphony_id][key] = False
-                for key in ["below_stop_count", "above_tp_count", "vwap_ticks", "vwap_bleed_ticks", "vwap_trapped_ticks", "hwm_hold_ticks", "missing_streak"]:
+                if "lowest_mc_seen" not in bot_state[symphony_id]:
+                    bot_state[symphony_id]["lowest_mc_seen"] = 100.0
+                for key in ["lock_engaged_ticks", "below_lock_count", "below_stop_count", "above_tp_count", "vwap_ticks", "hwm_hold_ticks"]:
                     if key not in bot_state[symphony_id]:
                         bot_state[symphony_id][key] = 0
                 if "mc_history" not in bot_state[symphony_id]:
@@ -778,29 +790,14 @@ def main():
                 if not proxy_etf:
                     proxy_etf = "SPY"
                 proxy_today = historical_data.get(current_date_str, {}).get(proxy_etf, {}).get("daily_ret", 0.0) * 100.0
-                w1 = acc_params.get("MC_W1", 1.0)
-                w2 = acc_params.get("MC_W2", 1.0)
-                w3 = acc_params.get("MC_W3", 1.0)
-                
                 prob_beating, prob_loss_dynamic, dynamic_floor = math_engine.run_monte_carlo(
                     current_return, holdings, historical_data, spy_today, proxy_today, 
                     symphony_vol, proxy_etf=proxy_etf, simulation_paths=SIMULATION_PATHS, 
-                    neighbor_k=NEIGHBOR_K, volatility_multiplier=vol_mult,
-                    w1=w1, w2=w2, w3=w3
+                    neighbor_k=NEIGHBOR_K, volatility_multiplier=vol_mult
                 )
 
-                # Update trapped ticks for time-decay
                 if not bot_state[symphony_id]["triggered"]:
-                    if valid_vwap_weight > 0.5 and weighted_vwap_diff < 0:
-                        bot_state[symphony_id]["vwap_trapped_ticks"] += 1
-                    else:
-                        bot_state[symphony_id]["vwap_trapped_ticks"] = 0
-
-                decay_steps = bot_state[symphony_id]["vwap_trapped_ticks"] // 5
-                total_steps = max(1, acc_VWAP_BLEED_DECAY_RATE // 5)
-                decay_fraction = max(0.0, 1.0 - (decay_steps / total_steps))
-                effective_bleed_multiplier = acc_VWAP_BLEED_MULTIPLIER * decay_fraction
-                acc_VWAP_BLEED_ARM_PCT = math_engine.calculate_vwap_bleed_threshold(symphony_vol, effective_bleed_multiplier)
+                    bot_state[symphony_id]["lowest_mc_seen"] = min(bot_state[symphony_id].get("lowest_mc_seen", 100.0), prob_beating)
 
                 should_arm = False
                 arm_reason = ""
@@ -811,14 +808,14 @@ def main():
 
                 if should_arm and not bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
                     bot_state[symphony_id]["armed"] = True
-                    print(f"  *** {symphony_name} ARMED ({arm_reason}) ***")
+                    print(f"  *** {symphony_name} ARMED ({arm_reason}) ***", flush=True)
                     database.log_symphony_event(symphony_id, f"{symphony_name} ARMED ({arm_reason})", "armed", current_date_str)
 
                 elif bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
                     if prob_beating > (acc_TRIGGER_THRESHOLD_PCT * 2) and current_return > 0.0:
                         bot_state[symphony_id]["armed"] = False
                         bot_state[symphony_id]["below_stop_count"] = 0
-                        print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***")
+                        print(f"  *** {symphony_name} DISARMED (Conditions Recovered) ***", flush=True)
 
                 bot_state[symphony_id]["mc_history"].append(prob_beating)
                 if len(bot_state[symphony_id]["mc_history"]) > 5:
@@ -828,10 +825,6 @@ def main():
                 prev_return = bot_state[symphony_id].get("prev_return", current_return)
                 
                 if prev_return is None:
-                    if current_return >= acc_GAP_DEFENSE_THRESHOLD_PCT:
-                        bot_state[symphony_id]["gap_defense_locked"] = True
-                        print(f"  🛡️ {symphony_name} MORNING GAP DEFENSE ACTIVATED (Gap: {current_return:.2f}% >= Threshold: {acc_GAP_DEFENSE_THRESHOLD_PCT}%)")
-                        database.log_symphony_event(symphony_id, f"{symphony_name} MORNING GAP DEFENSE ACTIVATED (Gap: {current_return:.2f}%)", "gap-defense", current_date_str)
                     prev_return = current_return
                     velocity = 0.0
                     is_para = False
@@ -845,14 +838,25 @@ def main():
                 if is_para:
                     if not bot_state[symphony_id]["para_armed"]:
                         bot_state[symphony_id]["para_armed"] = True
-                        print(f"  🚀 {symphony_name} PARA-ARMED (Velocity: {velocity:.2f}%) 🚀")
+                        print(f"  🚀 {symphony_name} PARA-ARMED (Velocity: {velocity:.2f}%) 🚀", flush=True)
                         database.log_symphony_event(symphony_id, f"{symphony_name} PARA-ARMED (Velocity: {velocity:.2f}%)", "para-armed", current_date_str)
 
                 # --- TIME SQUEEZE DECAY LOGIC ---
                 m_open_dt = current_et.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
                 m_close_dt = current_et.replace(hour=16, minute=0, second=0, microsecond=0)
                 time_ratio = max(0.0, min(1.0, (current_et - m_open_dt).total_seconds() / (m_close_dt - m_open_dt).total_seconds()))
-                dynamic_multiplier, dynamic_min_stop = math_engine.calculate_time_decay_multipliers(time_ratio)
+                
+                # Fetch multipliers from strategy params or fall back to internal defaults
+                m_open = acc_params.get("VOLATILITY_MAGNITUDE_MULTIPLIER", 1.5)
+                m_close = acc_params.get("VOLATILITY_CLOSE_MULTIPLIER", 0.5)
+                
+                dynamic_multiplier, dynamic_min_stop = math_engine.calculate_time_decay_multipliers(
+                    time_ratio, 
+                    mult_open=m_open, 
+                    mult_close=m_close,
+                    min_stop_open=0.3, 
+                    min_stop_close=0.15
+                )
 
                 # Calculate active stop distance based strictly on VW-ATR volatility
                 
@@ -860,18 +864,21 @@ def main():
                 safe_vol = vwatr_vol if vwatr_vol > 0 else (symphony_vol if symphony_vol > 0 else 1.0)
                 is_squeezed = bot_state[symphony_id].get("para_armed") or bot_state[symphony_id].get("breakeven_locked")
                 active_trailing_stop = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE))
-                if bot_state[symphony_id].get("gap_defense_locked"):
-                    active_trailing_stop *= acc_GAP_DEFENSE_MULTIPLIER
 
                 base_stop_level = safe_hwm - active_trailing_stop
 
-                if math_engine.check_breakeven_activation(current_return, symphony_vol):
+                strat_params = bot_state[symphony_id].get("strategy_params", acc_params)
+                breakeven_vol_min = strat_params.get("BREAKEVEN_VOL_MIN", 0.4)
+                breakeven_vol_max = strat_params.get("BREAKEVEN_VOL_MAX", 3.0)
+                if math_engine.check_breakeven_activation(current_return, symphony_vol, breakeven_vol_min, breakeven_vol_max):
                     bot_state[symphony_id]["hwm_hold_ticks"] += 1
                 else:
                     bot_state[symphony_id]["hwm_hold_ticks"] = 0
                 
                 if bot_state[symphony_id]["hwm_hold_ticks"] >= 5:
-                    bot_state[symphony_id]["breakeven_locked"] = True
+                    if not bot_state[symphony_id].get("breakeven_locked"):
+                        bot_state[symphony_id]["breakeven_locked"] = True
+                        bot_state[symphony_id]["lock_engaged_at"] = datetime.now(timezone.utc).isoformat()
 
                 if bot_state[symphony_id]["breakeven_locked"]:
                     stop_trigger_level = max(base_stop_level, 0.0)
@@ -885,26 +892,60 @@ def main():
                 if bot_state[symphony_id]["triggered"]:
                     stop_trigger_level = -999.0
 
-                # Check 1: Trailing Stop
+                # Check 1: Trailing Stop & Breakeven Lock Realignment
                 is_trailing_stop_hit = False
-                if bot_state[symphony_id]["armed"] and not bot_state[symphony_id]["triggered"]:
+                is_breakeven_hit = False
+
+                if not bot_state[symphony_id]["triggered"]:
+                    is_magnitude_breached = current_return <= (stop_trigger_level - 0.10)
                     
-                    is_catastrophic_drop = current_return <= (stop_trigger_level - acc_CATASTROPHIC_DROP_PCT)
-                    
-                    # Magnitude Floor (Return <= Stop - 0.10) AND (MC Sanity Gate OR Catastrophic Drop)
-                    if current_return <= (stop_trigger_level - 0.10) and (prob_beating < 60.0 or is_catastrophic_drop):
-                        bot_state[symphony_id]["below_stop_count"] += 1
-                        if bot_state[symphony_id]["below_stop_count"] == 1:
-                            print(f"  ⚠️ {symphony_name[:35]} dipped below stop. Awaiting confirmation...")
-                        elif bot_state[symphony_id]["below_stop_count"] >= 3:
-                            is_trailing_stop_hit = True
-                            # Save the specific reason for Discord reporting
-                            bot_state[symphony_id]["stop_hit_type"] = "Catastrophic Stop" if is_catastrophic_drop else "Trailing Stop"
-                    else:
-                        if bot_state[symphony_id]["below_stop_count"] > 0:
-                            print(f"  ✅ {symphony_name[:35]} recovered or sanity check passed. Confirmation reset.")
-                        bot_state[symphony_id]["below_stop_count"] = 0
-                        bot_state[symphony_id]["stop_hit_type"] = None
+                    # PATH A: Standard Trailing Stop (Only runs when ARMED)
+                    if bot_state[symphony_id]["armed"]:
+                        if is_magnitude_breached and prob_beating < 60.0:
+                            bot_state[symphony_id]["below_stop_count"] += 1
+                            if bot_state[symphony_id]["below_stop_count"] == 1:
+                                print(f"  ⚠️ {symphony_name[:35]} dipped below trailing stop. Awaiting confirmation...", flush=True)
+                            elif bot_state[symphony_id]["below_stop_count"] >= 3:
+                                is_trailing_stop_hit = True
+                                bot_state[symphony_id]["stop_hit_type"] = "Trailing Stop"
+                        else:
+                            if bot_state[symphony_id]["below_stop_count"] > 0:
+                                print(f"  ✅ {symphony_name[:35]} recovered or trailing sanity check passed. Resetting confirmation.", flush=True)
+                            bot_state[symphony_id]["below_stop_count"] = 0
+                            if not bot_state[symphony_id]["breakeven_locked"]:
+                                bot_state[symphony_id]["stop_hit_type"] = None
+
+                    # PATH B: Independent Breakeven Lock System (Runs independently)
+                    if bot_state[symphony_id]["breakeven_locked"] and not is_trailing_stop_hit:
+                        if is_magnitude_breached:
+                            # Derive persistent lock delta across application recycles
+                            lock_duration_mins = 0.0
+                            lock_at_str = bot_state[symphony_id].get("lock_engaged_at")
+                            if lock_at_str:
+                                try:
+                                    lock_at_dt = datetime.fromisoformat(lock_at_str)
+                                    lock_duration_mins = (datetime.now(timezone.utc) - lock_at_dt).total_seconds() / 60.0
+                                except Exception:
+                                    pass
+                            
+                            # Risk Guard Breakeven Path A: Live-MC signals the basket is genuinely toxic
+                            be_path_a = prob_beating < 60.0
+                            
+                            # Risk Guard Breakeven Path B: MC-Stuck Override (Jammed model safety valve)
+                            be_path_b = (lock_duration_mins >= 60.0 and bot_state[symphony_id].get("lowest_mc_seen", 100.0) >= 60.0)
+                            
+                            if be_path_a or be_path_b:
+                                bot_state[symphony_id]["below_lock_count"] += 1
+                                if bot_state[symphony_id]["below_lock_count"] == 1:
+                                    reason_flushed = "MC-Stuck Override Pending" if be_path_b else "Standard Breakeven Breach Pending"
+                                    print(f"  ⚠️ {symphony_name[:35]} triggered {reason_flushed}. Awaiting verification...", flush=True)
+                                elif bot_state[symphony_id]["below_lock_count"] >= 3:
+                                    is_breakeven_hit = True
+                                    bot_state[symphony_id]["stop_hit_type"] = "Breakeven Path B (MC-Stuck)" if be_path_b else "Breakeven Path A"
+                            else:
+                                bot_state[symphony_id]["below_lock_count"] = 0
+                        else:
+                            bot_state[symphony_id]["below_lock_count"] = 0
 
                 # Check 2: Take Profit
                 tp_triggered_now = False
@@ -912,60 +953,39 @@ def main():
                     if not bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
                         bot_state[symphony_id]["tp_armed"] = True
                         bot_state[symphony_id]["above_tp_count"] = 0
-                        print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%) ***")
+                        print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%) ***", flush=True)
                         database.log_symphony_event(symphony_id, f"{symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%)", "tp-armed", current_date_str)
                 elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
                     if prob_beating >= acc_TAKE_PROFIT_MC_PCT:
                         bot_state[symphony_id]["above_tp_count"] += 1
                         if bot_state[symphony_id]["above_tp_count"] == 1:
-                            print(f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation...")
+                            print(f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation...", flush=True)
                         elif bot_state[symphony_id]["above_tp_count"] >= 2:
-                            if current_return > 0:
-                                tp_triggered_now = True
-                            else:
-                                bot_state[symphony_id]["tp_armed"] = False
-                                bot_state[symphony_id]["above_tp_count"] = 0
-                                print(f"  *** {symphony_name} TP-DISARMED (MC Rose but Return <= 0) ***")
+                            tp_triggered_now = True
                     else:
                         if bot_state[symphony_id]["above_tp_count"] > 0:
-                            print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.")
+                            print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.", flush=True)
                         bot_state[symphony_id]["above_tp_count"] = 0
 
                 # Check 3: True VWAP Breakdown
                 is_vwap_broken = False
-                is_vwap_bleed_broken = False
                 
-                # ADDED GATE: Only evaluate if the symphony hasn't already exited
                 if not bot_state[symphony_id]['triggered']:
                     current_vwap_diff_pct = weighted_vwap_diff * 100.0
                     vwap_buffer_pct = -(symphony_vol * acc_params.get("VWAP_BAND_MULTIPLIER", 0.10))
                     if valid_vwap_weight > 0.5 and current_vwap_diff_pct < vwap_buffer_pct:
-                        # System A (Profit):
                         if safe_hwm >= acc_VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
                             bot_state[symphony_id]['vwap_ticks'] += 1
                             if bot_state[symphony_id]['vwap_ticks'] >= 3:
                                 is_vwap_broken = True
-                                print(f'  📉 {symphony_name[:35]} Portfolio VWAP broken. Forcing exit to protect gains.')
+                                print(f'  📉 {symphony_name[:35]} Portfolio VWAP broken. Forcing exit to protect gains.', flush=True)
                         else:
                             bot_state[symphony_id]['vwap_ticks'] = 0
-                            
-                        # System B (Bleed):
-                        if not bot_state[symphony_id].get("para_armed") and not is_vwap_broken:
-                            if current_return <= acc_VWAP_BLEED_ARM_PCT:
-                                bot_state[symphony_id]['vwap_bleed_ticks'] += 1
-                                if bot_state[symphony_id]['vwap_bleed_ticks'] >= acc_VWAP_BLEED_TICKS:
-                                    is_vwap_bleed_broken = True
-                                    print(f'  🩸 {symphony_name[:35]} VWAP Bleed Limit Reached. Forcing exit.')
-                            else:
-                                bot_state[symphony_id]['vwap_bleed_ticks'] = 0
-                        else:
-                            bot_state[symphony_id]['vwap_bleed_ticks'] = 0
                     else:
                         bot_state[symphony_id]['vwap_ticks'] = 0
-                        bot_state[symphony_id]['vwap_bleed_ticks'] = 0
 
                 safe_name = symphony_name[:35].encode('ascii', 'ignore').decode('ascii')
-                print(f"  -> {safe_name}: Ret: {current_return:.2f}% | HWM: {high_water_mark:.2f}% | Stop Dist: {active_trailing_stop:.2f}% | ArmProb: {prob_beating:.1f}%")
+                print(f"  -> {safe_name}: Ret: {current_return:.2f}% | HWM: {high_water_mark:.2f}% | Stop Dist: {active_trailing_stop:.2f}% | ArmProb: {prob_beating:.1f}%", flush=True)
 
                 bot_state[symphony_id]["name"] = symphony_name
                 bot_state[symphony_id]["account"] = account
@@ -982,9 +1002,9 @@ def main():
                     bot_state[symphony_id]["current_holdings"] = [{"ticker": h.get("ticker"), "allocation": h.get("weight", h.get("allocation", 0.0))} for h in holdings]
 
                 chart_event = None
-                if is_vwap_broken or is_vwap_bleed_broken:
+                if is_vwap_broken:
                     chart_event = "VWAP_Break"
-                elif is_trailing_stop_hit or tp_triggered_now:
+                elif is_trailing_stop_hit or is_breakeven_hit or tp_triggered_now:
                     chart_event = "Triggered"
                 elif bot_state[symphony_id].get("para_armed") and not prev_para_armed:
                     chart_event = "Para-Armed"
@@ -1012,25 +1032,24 @@ def main():
                     "dynamic_multiplier": 1.0,
                     "rvol": math_engine.calculate_current_rvol(holdings, historical_data),
                     "vw_atr": vwatr_vol,
-                    "trapped_ticks": bot_state[symphony_id].get("vwap_trapped_ticks", 0),
                     "recovery_ticks": bot_state[symphony_id].get("vwap_recovery_ticks", 0)
                 })
 
-                if is_trailing_stop_hit or tp_triggered_now or is_vwap_broken or is_vwap_bleed_broken:
+                if is_trailing_stop_hit or is_breakeven_hit or tp_triggered_now or is_vwap_broken:
                     if tp_triggered_now:
                         reason = "Take-Profit"
                         attempted_level = current_return
+                    elif is_breakeven_hit:
+                        reason = bot_state[symphony_id].get("stop_hit_type", "Breakeven Lock")
+                        attempted_level = stop_trigger_level
                     elif is_vwap_broken:
                         reason = "VWAP Breakdown"
                         attempted_level = safe_hwm
-                    elif is_vwap_bleed_broken:
-                        reason = "VWAP Bleed Cut"
-                        attempted_level = acc_VWAP_BLEED_ARM_PCT
                     else:
                         reason = bot_state[symphony_id].get("stop_hit_type", "Trailing Stop")
                         attempted_level = stop_trigger_level
 
-                    print(f"  🚨 {reason.upper()} HIT FOR {symphony_name} 🚨 - Queuing for Execution")
+                    print(f"  🚨 {reason.upper()} HIT FOR {symphony_name} 🚨 - Queuing for Execution", flush=True)
                     database.log_symphony_event(symphony_id, f"{reason.upper()} HIT FOR {symphony_name}. Level: {attempted_level:.2f}", "triggered", current_date_str)
 
                     execution_queue.append({
@@ -1045,10 +1064,7 @@ def main():
                         "stop_trigger_level": stop_trigger_level,
                         "prob_beating": prob_beating,
                         "weighted_vwap_diff": weighted_vwap_diff,
-                        "acc_VWAP_BLEED_ARM_PCT": acc_VWAP_BLEED_ARM_PCT,
-                        "acc_VWAP_BLEED_MULTIPLIER": effective_bleed_multiplier,
                         "symphony_vol": symphony_vol,
-                        "acc_VWAP_BLEED_TICKS": acc_VWAP_BLEED_TICKS,
                         "vwap_ticks": bot_state[symphony_id]["vwap_ticks"],
                         "acc_TAKE_PROFIT_MC_PCT": acc_TAKE_PROFIT_MC_PCT,
                         "prob_loss_dynamic": prob_loss_dynamic,
@@ -1096,8 +1112,7 @@ def main():
                         "base_atr_pct": 0.0,
                         "dynamic_multiplier": 1.0,
                         "rvol": 1.0,
-                        "vw_atr": s_data.get("symphony_vol", 0.0),
-                        "trapped_ticks": s_data.get("vwap_trapped_ticks", 0)
+                        "vw_atr": s_data.get("symphony_vol", 0.0)
                     })
 
         # Process Execution Queue
@@ -1110,14 +1125,14 @@ def main():
                     execution_by_account[acc] = []
                 execution_by_account[acc].append(item)
 
-            print(f"\nProcessing Execution Queue ({len(execution_queue)} items)...")
+            print(f"\nProcessing Execution Queue ({len(execution_queue)} items)...", flush=True)
             
             for account, account_queue in execution_by_account.items():
                 for i in range(0, len(account_queue), 25):
                     chunk = account_queue[i:i+25]
                     
                     if i > 0:
-                        print("  -> ⏳ Rate limit chunking: Sleeping for 60 seconds before next batch...")
+                        print("  -> ⏳ Rate limit chunking: Sleeping for 60 seconds before next batch...", flush=True)
                         time.sleep(60)
 
                     pending_liquidations = []
@@ -1130,21 +1145,21 @@ def main():
 
                         is_enabled = ACCOUNT_ENABLED_MAP.get(account, True)
                         if LIVE_EXECUTION and is_enabled:
-                            print(f"  -> [LIVE EXECUTION] Sending sell-to-cash command for {item['symphony_name']}...")
+                            print(f"  -> [LIVE EXECUTION] Sending sell-to-cash command for {item['symphony_name']}...", flush=True)
                             success = execute_sell_to_cash(actual_id, account, bot_state, sym_id)
                         else:
                             mode_str = "[DRY RUN]" if not LIVE_EXECUTION else "[ACCOUNT DISABLED]"
-                            print(f"  -> {mode_str} Execution bypassed for {item['symphony_name']}.")
+                            print(f"  -> {mode_str} Execution bypassed for {item['symphony_name']}.", flush=True)
                             success = True
                         
                         if success:
                             pending_liquidations.append(sym_id)
                             pending_items[sym_id] = item
                         else:
-                            print(f"     !!! EXECUTION FAILED FOR {item['symphony_name']}. Skipping state update !!!")
+                            print(f"     !!! EXECUTION FAILED FOR {item['symphony_name']}. Skipping state update !!!", flush=True)
                             
                     if pending_liquidations:
-                        print(f"  -> Polling for liquidation settlement for {len(pending_liquidations)} symphonies...")
+                        print(f"  -> Polling for liquidation settlement for {len(pending_liquidations)} symphonies...", flush=True)
                         for poll_attempt in range(40):
                             if not pending_liquidations:
                                 break
@@ -1183,7 +1198,8 @@ def main():
                                         if all_cash:
                                             is_liquidated = True
                                             
-                                if is_liquidated or not LIVE_EXECUTION:
+                                is_enabled = ACCOUNT_ENABLED_MAP.get(account, True)
+                                if is_liquidated or not LIVE_EXECUTION or not is_enabled:
                                     verified_liquidations.append(pending_id)
                                     
                             for v_id in verified_liquidations:
@@ -1228,24 +1244,22 @@ def main():
                                 reporting.send_discord_alert(
                                     item["symphony_name"], item["current_return"], item["prob_beating"], 
                                     item["stop_trigger_level"], item["safe_hwm"], LIVE_EXECUTION, DISCORD_WEBHOOK_URL, 
-                                    exit_reason=reason, vwap_bleed_arm_pct=item["acc_VWAP_BLEED_ARM_PCT"], 
-                                    vwap_bleed_ticks=item["acc_VWAP_BLEED_TICKS"], vwap_diff=item["weighted_vwap_diff"], 
+                                    exit_reason=reason, vwap_diff=item["weighted_vwap_diff"], 
                                     vwap_breakdown_ticks=item["vwap_ticks"], tp_threshold=item["acc_TAKE_PROFIT_MC_PCT"],
-                                    vwap_bleed_multiplier=item.get("acc_VWAP_BLEED_MULTIPLIER"),
                                     symphony_vol=item.get("symphony_vol"),
                                     prob_loss_dynamic=item.get("prob_loss_dynamic"),
                                     dynamic_floor=item.get("dynamic_floor"),
                                     volatility_multiplier=item.get("acc_VOLATILITY_MAGNITUDE_MULTIPLIER")
                                 )
                                 database.log_symphony_event(v_id, "Sell-to-Cash Settlement Confirmed", "execution")
-                                print(f"  -> [SETTLED] {item['symphony_name']} successfully moved to cash.")
+                                print(f"  -> [SETTLED] {item['symphony_name']} successfully moved to cash.", flush=True)
                                 database.save_state(bot_state)
                             
                             if pending_liquidations:
                                 time.sleep(3)
                                 
                         if pending_liquidations:
-                            print(f"     !!! TIMEOUT waiting for settlement on {len(pending_liquidations)} symphonies. They will retry or sync on next run.")
+                            print(f"     !!! TIMEOUT waiting for settlement on {len(pending_liquidations)} symphonies. They will retry or sync on next run.", flush=True)
 
         database.save_state(bot_state)
         database.save_chart_history(chart_history)
