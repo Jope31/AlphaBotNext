@@ -534,6 +534,8 @@ def main():
         
         if "account_totals" not in bot_state:
             bot_state["account_totals"] = {}
+        if "account_performance" not in bot_state:
+            bot_state["account_performance"] = {}
 
         for account in ACCOUNT_UUIDS:
             symphonies = fetch_symphony_stats(account)
@@ -543,6 +545,9 @@ def main():
             t_stats = fetch_account_total_stats(account)
             if t_stats and "portfolio_value" in t_stats:
                 bot_state["account_totals"][account] = t_stats["portfolio_value"]
+                bot_state["account_performance"][account] = {
+                    "simple_return": t_stats.get("simple_return", 0.0)
+                }
 
             for sym in symphonies:
                 s_id = sym["id"]

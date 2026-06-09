@@ -548,8 +548,11 @@
             }
         }
 
+        let cachedStateData = null;
+
         // --- Core State Display & Calculations ---
         function renderState(data) {
+            cachedStateData = data;
             if (data.next_run_seconds !== undefined) {
                 countdownSeconds = data.next_run_seconds;
             }
@@ -696,9 +699,19 @@
             let todayWins = 0;
             let totalSavedToday = 0;
 
+            const indChecked = document.getElementById('chart-toggle-ind')?.checked;
+            const rothChecked = document.getElementById('chart-toggle-roth')?.checked;
+            const tradChecked = document.getElementById('chart-toggle-trad')?.checked;
+
             symphonyKeys.forEach(id => {
                 const sym = stateObj[id];
                 if (sym.triggered) {
+                    let isChecked = false;
+                    if (sym.account === indUuid && indChecked) isChecked = true;
+                    else if (sym.account === rothUuid && rothChecked) isChecked = true;
+                    else if (sym.account === tradUuid && tradChecked) isChecked = true;
+                    
+                    if (!isChecked) return;
                     const f_ret = sym.triggered_at_return !== undefined && sym.triggered_at_return !== null ? sym.triggered_at_return : (sym.current_return || 0);
                     const live_ret = sym.current_return !== undefined && sym.current_return !== null ? sym.current_return : 0;
                     const alpha = f_ret - live_ret;
@@ -878,6 +891,8 @@
             if (cachedBenchmarkData) {
                 renderPerformanceBenchmarkChart(cachedBenchmarkData);
             }
+            if (typeof renderCumulativeStats === 'function') renderCumulativeStats();
+            if (cachedStateData) renderState(cachedStateData);
         }
 
         async function loadPerformanceBenchmarkData() {
@@ -959,38 +974,69 @@
             handleStatus(hasTrad, 'trad');
         }
 
+        let cachedHistoryData = null;
+
         async function loadCumulativeStats() {
             try {
                 const response = await fetch('/api/history/30');
-                const data = await response.json();
-                
-                // Update cumulative alpha
-                const alphaEl = document.getElementById('cumulative-alpha');
-                if (alphaEl) {
-                    alphaEl.textContent = `${data.total_alpha >= 0 ? '+' : ''}${data.total_alpha.toFixed(2)}%`;
-                    if (data.total_alpha < 0) {
-                        alphaEl.classList.add('text-error');
-                        alphaEl.classList.remove('text-on-surface-variant/80');
-                    } else {
-                        alphaEl.classList.add('text-on-surface-variant/80');
-                        alphaEl.classList.remove('text-error');
-                    }
-                }
-                
-                // Update cumulative win rate
-                const winRateEl = document.getElementById('cumulative-win-rate');
-                if (winRateEl) {
-                    winRateEl.textContent = `${data.win_rate.toFixed(1)}%`;
-                }
-                
-                // Update cumulative saved
-                const savedEl = document.getElementById('cumulative-saved');
-                if (savedEl) {
-                    savedEl.dataset.raw = Math.round(data.total_saved);
-                    applyBalanceMasking();
-                }
+                cachedHistoryData = await response.json();
+                renderCumulativeStats();
             } catch (error) {
                 console.error("Failed to load cumulative stats:", error);
+            }
+        }
+
+        function renderCumulativeStats() {
+            if (!cachedHistoryData) return;
+            
+            let totalAlpha = 0;
+            let totalSaved = 0;
+            let triggerCount = 0;
+            let wins = 0;
+
+            const indChecked = document.getElementById('chart-toggle-ind')?.checked;
+            const rothChecked = document.getElementById('chart-toggle-roth')?.checked;
+            const tradChecked = document.getElementById('chart-toggle-trad')?.checked;
+
+            const addStats = (accKey) => {
+                const stats = cachedHistoryData[accKey];
+                if (stats) {
+                    totalAlpha += stats.total_alpha || 0;
+                    totalSaved += stats.total_saved || 0;
+                    triggerCount += stats.trigger_count || 0;
+                    wins += stats.wins || 0;
+                }
+            };
+
+            if (indChecked) addStats('ind');
+            if (rothChecked) addStats('roth');
+            if (tradChecked) addStats('trad');
+            if (!indChecked && !rothChecked && !tradChecked) addStats('total'); // fallback
+
+            const avgGuardAlpha = triggerCount > 0 ? (totalAlpha / triggerCount) : 0;
+            const winRate = triggerCount > 0 ? (wins / triggerCount) * 100 : 0;
+
+            const alphaEl = document.getElementById('cumulative-alpha');
+            if (alphaEl) {
+                alphaEl.textContent = `${avgGuardAlpha >= 0 ? '+' : ''}${avgGuardAlpha.toFixed(2)}%`;
+                if (avgGuardAlpha < 0) {
+                    alphaEl.classList.add('text-error');
+                    alphaEl.classList.remove('text-on-surface-variant/80');
+                } else {
+                    alphaEl.classList.add('text-on-surface-variant/80');
+                    alphaEl.classList.remove('text-error');
+                }
+            }
+            
+            const winRateEl = document.getElementById('cumulative-win-rate');
+            if (winRateEl) {
+                winRateEl.textContent = `${winRate.toFixed(1)}%`;
+            }
+            
+            const savedEl = document.getElementById('cumulative-saved');
+            if (savedEl) {
+                savedEl.dataset.raw = Math.round(totalSaved);
+                applyBalanceMasking();
             }
         }
 
@@ -1072,7 +1118,7 @@
                 });
             };
 
-            addDatasetPair('Total Portfolio', 'total', '#4d8eff', '#8c909f');
+            // Total Portfolio line removed as requested
 
             const cbInd = document.getElementById('chart-toggle-ind');
             const cbRoth = document.getElementById('chart-toggle-roth');

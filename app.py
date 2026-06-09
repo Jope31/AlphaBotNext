@@ -325,31 +325,29 @@ def get_performance_benchmark():
         import glob
         import json
         import os
+        from datetime import datetime, timedelta
         
         env_vars = dotenv_values(".env")
         acc_ind = env_vars.get("ACCOUNT_INDIVIDUAL", "").strip()
         acc_roth = env_vars.get("ACCOUNT_ROTH", "").strip()
         acc_trad = env_vars.get("ACCOUNT_TRAD", "").strip()
         
+        composer_key = env_vars.get("COMPOSER_KEY_ID", "")
+        composer_secret = env_vars.get("COMPOSER_SECRET", "")
+        headers = {"x-api-key-id": composer_key, "authorization": f"Bearer {composer_secret}", "Content-Type": "application/json"}
+        
         # Load state to get current values & account mapping
         state_data = database.load_state()
         if not state_data:
             return jsonify({"status": "error", "message": "Bot state not initialized."}), 400
             
-        account_balances = {acc_ind: 0.0, acc_roth: 0.0, acc_trad: 0.0, "": 0.0}
+        uuid_to_key = {}
+        if acc_ind: uuid_to_key[acc_ind] = 'ind'
+        if acc_roth: uuid_to_key[acc_roth] = 'roth'
+        if acc_trad: uuid_to_key[acc_trad] = 'trad'
         
-        for sym_id, sym in state_data.items():
-            if isinstance(sym, dict) and "account" in sym:
-                acc_id = sym["account"]
-                try:
-                    val = float(sym.get("current_value", 0.0))
-                except:
-                    val = 1.0
-                if val <= 0:
-                    val = 1.0
-                account_balances[acc_id] = account_balances.get(acc_id, 0.0) + val
-
-        # Find and sort all post_mortem files
+        # 1. Fetch Local Logs for Shadow Alpha ("If Held")
+        target_points = 30
         files = glob.glob("post_mortem_*.json")
         date_files = []
         for f in files:
@@ -357,22 +355,57 @@ def get_performance_benchmark():
             date_files.append((date_part, f))
             
         date_files.sort(key=lambda x: x[0])
-        date_files = date_files[-30:] # take last 30 files
+        date_files = date_files[-target_points:]
         
-        uuid_to_key = {}
-        if acc_ind: uuid_to_key[acc_ind] = 'ind'
-        if acc_roth: uuid_to_key[acc_roth] = 'roth'
-        if acc_trad: uuid_to_key[acc_trad] = 'trad'
+        valid_dates_full = [d[0] for d in date_files] # YYYY-MM-DD
+        global_dates = [d[5:] for d in valid_dates_full] # MM-DD
+        target_points = len(valid_dates_full)
         
-        daily_returns = {
-            'ind': [],
-            'roth': [],
-            'trad': [],
-            'total': []
-        }
+        # 2. Fetch True Historical Series from Composer API
+        composer_history = {}
         
-        valid_dates = []
+        for acc_uuid, acc_key in uuid_to_key.items():
+            composer_history[acc_key] = {"strat_series": [], "total_val": 0.0, "simple_return": 0.0}
+            
+            # Fetch true headline performance from bot_state
+            if "account_performance" in state_data and acc_uuid in state_data["account_performance"]:
+                composer_history[acc_key]["simple_return"] = state_data["account_performance"][acc_uuid].get("simple_return", 0.0)
+            
+            url = f"{COMPOSER_BASE_URL}/portfolio/accounts/{acc_uuid}/portfolio-history"
+            try:
+                resp = requests.get(url, headers=headers, timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    series = data.get("series", [])
+                    epochs = data.get("epoch_ms", [])
+                    
+                    if series:
+                        composer_history[acc_key]["total_val"] = series[-1]
+                        
+                        date_to_val = {}
+                        for epoch, val in zip(epochs, series):
+                            dt_str = datetime.fromtimestamp(epoch/1000).strftime("%Y-%m-%d")
+                            date_to_val[dt_str] = val
+                            
+                        # Extract exactly the dates from post_mortem logs
+                        recent_series = []
+                        last_val = series[0] if series else 1.0
+                        for d_str in valid_dates_full:
+                            if d_str in date_to_val:
+                                last_val = date_to_val[d_str]
+                            recent_series.append(last_val)
+                        
+                        if recent_series:
+                            start_val = recent_series[0] if recent_series[0] > 0 else 1.0
+                            strat_series = [round(((v / start_val) - 1.0) * 100.0, 2) for v in recent_series]
+                            composer_history[acc_key]["strat_series"] = strat_series
+            except Exception as e:
+                print(f"Failed to fetch portfolio history for {acc_uuid}: {e}", flush=True)
 
+        # (Logs already fetched above)
+        
+        daily_returns = {'ind': [], 'roth': [], 'trad': [], 'total': []}
+        
         for date_str, f_path in date_files:
             try:
                 with open(f_path, "r", encoding="utf-8") as f:
@@ -382,79 +415,74 @@ def get_performance_benchmark():
                 
             daily_pnl = data.get("daily_pnl")
             if daily_pnl is None:
-                continue # Gracefully skip legacy files missing daily_pnl
+                continue
                 
-            valid_dates.append(date_str)
-            
             agg = {
-                'ind': {'strat': 0.0, 'held': 0.0, 'weight': 0.0},
-                'roth': {'strat': 0.0, 'held': 0.0, 'weight': 0.0},
-                'trad': {'strat': 0.0, 'held': 0.0, 'weight': 0.0},
-                'total': {'strat': 0.0, 'held': 0.0, 'weight': 0.0}
+                'ind': {'held': 0.0, 'weight': 0.0},
+                'roth': {'held': 0.0, 'weight': 0.0},
+                'trad': {'held': 0.0, 'weight': 0.0},
+                'total': {'held': 0.0, 'weight': 0.0}
             }
             
             for pnl in daily_pnl:
+                symphony_id = pnl.get("symphony_id", "")
+                if "mock_held_baseline" in symphony_id:
+                    continue
+                    
                 acc_id = pnl.get("account_id")
                 key = uuid_to_key.get(acc_id)
-                
                 weight = pnl.get("value", 1.0)
                 if weight <= 0: weight = 1.0
                 
-                strat_ret = pnl.get("strat_ret", 0.0)
                 held_ret = pnl.get("held_ret", 0.0)
                 
                 if key:
-                    agg[key]['strat'] += strat_ret * weight
                     agg[key]['held'] += held_ret * weight
                     agg[key]['weight'] += weight
                     
-                agg['total']['strat'] += strat_ret * weight
                 agg['total']['held'] += held_ret * weight
                 agg['total']['weight'] += weight
                 
             for k in ['ind', 'roth', 'trad', 'total']:
                 w = agg[k]['weight']
                 if w > 0:
-                    daily_returns[k].append({
-                        'strat': agg[k]['strat'] / w,
-                        'held': agg[k]['held'] / w
-                    })
+                    daily_returns[k].append(agg[k]['held'] / w)
                 else:
-                    daily_returns[k].append({
-                        'strat': 0.0,
-                        'held': 0.0
-                    })
-                    
+                    daily_returns[k].append(0.0)
+
         results = {
-            "dates": [d[5:] for d in valid_dates], # format as MM-DD
+            "dates": global_dates,
             "accounts": {}
         }
         
-        usd_balances = {
-            'ind': account_balances.get(acc_ind, 0.0),
-            'roth': account_balances.get(acc_roth, 0.0),
-            'trad': account_balances.get(acc_trad, 0.0),
-            'total': sum(account_balances.values())
-        }
+        # 3. Assemble Final Payload
+        total_strat_series = [0.0] * target_points
+        total_val_sum = 0.0
+        total_simple_return_weighted = 0.0
         
-        for k in ['ind', 'roth', 'trad', 'total']:
-            strat_mult = 1.0
-            held_mult = 1.0
-            
-            strat_series = []
-            held_series = []
-            
-            for day in daily_returns[k]:
-                strat_mult *= (1.0 + day['strat'] / 100.0)
-                held_mult *= (1.0 + day['held'] / 100.0)
+        for k in ['ind', 'roth', 'trad']:
+            if k not in composer_history:
+                continue
                 
-                strat_series.append(round((strat_mult - 1.0) * 100.0, 2))
+            c_hist = composer_history[k]
+            strat_series = c_hist["strat_series"]
+            # Pad strat series if needed
+            while len(strat_series) < target_points:
+                strat_series.insert(0, 0.0)
+                
+            held_mult = 1.0
+            held_series = []
+            for h_ret in daily_returns[k]:
+                held_mult *= (1.0 + h_ret / 100.0)
                 held_series.append(round((held_mult - 1.0) * 100.0, 2))
+                
+            while len(held_series) < target_points:
+                held_series.insert(0, 0.0)
                 
             final_strat_pct = strat_series[-1] if strat_series else 0.0
             final_held_pct = held_series[-1] if held_series else 0.0
+            current_bal = c_hist["total_val"]
             
-            current_bal = usd_balances[k]
             if final_strat_pct > -100.0:
                 b_start = current_bal / (1.0 + final_strat_pct / 100.0)
             else:
@@ -462,6 +490,12 @@ def get_performance_benchmark():
                 
             strat_usd = current_bal - b_start
             held_usd = b_start * (final_held_pct / 100.0)
+            
+            total_val_sum += current_bal
+            total_simple_return_weighted += final_strat_pct * current_bal
+            
+            for i in range(target_points):
+                total_strat_series[i] += strat_series[i] * current_bal
             
             results["accounts"][k] = {
                 "strat_series": strat_series,
@@ -471,33 +505,74 @@ def get_performance_benchmark():
                 "total_return_usd": round(strat_usd, 2),
                 "if_held_usd": round(held_usd, 2)
             }
+
+        # Calculate Total Portfolio
+        total_strat_series = [round((val / total_val_sum), 2) if total_val_sum > 0 else 0.0 for val in total_strat_series]
+        
+        total_held_mult = 1.0
+        total_held_series = []
+        for h_ret in daily_returns['total']:
+            total_held_mult *= (1.0 + h_ret / 100.0)
+            total_held_series.append(round((total_held_mult - 1.0) * 100.0, 2))
+        while len(total_held_series) < target_points:
+            total_held_series.insert(0, 0.0)
+            
+        total_final_strat_pct = (total_simple_return_weighted / total_val_sum) if total_val_sum > 0 else 0.0
+        total_final_held_pct = total_held_series[-1] if total_held_series else 0.0
+        
+        if total_final_strat_pct > -100.0:
+            b_start_total = total_val_sum / (1.0 + total_final_strat_pct / 100.0)
+        else:
+            b_start_total = 0.0
+            
+        results["accounts"]['total'] = {
+            "strat_series": total_strat_series,
+            "held_series": total_held_series,
+            "total_return_pct": round(total_final_strat_pct, 2),
+            "if_held_pct": round(total_final_held_pct, 2),
+            "total_return_usd": round(total_val_sum - b_start_total, 2),
+            "if_held_usd": round(b_start_total * (total_final_held_pct / 100.0), 2)
+        }
             
         return jsonify(results)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 @app.route("/api/history/<int:days>")
 def get_history(days):
     import glob, json, os
     from datetime import datetime, timedelta
+    from dotenv import dotenv_values
     
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     files = glob.glob("post_mortem_*.json")
     
-    stats = {
-        "total_alpha": 0.0,
-        "total_saved": 0.0,
-        "trigger_count": 0,
-        "wins": 0,
-        "by_reason": {},
-        "daily_alpha": {}
-    }
+    env_vars = dotenv_values(".env")
+    acc_ind = env_vars.get("ACCOUNT_INDIVIDUAL", "").strip()
+    acc_roth = env_vars.get("ACCOUNT_ROTH", "").strip()
+    acc_trad = env_vars.get("ACCOUNT_TRAD", "").strip()
+    
+    uuid_to_key = {}
+    if acc_ind: uuid_to_key[acc_ind] = 'ind'
+    if acc_roth: uuid_to_key[acc_roth] = 'roth'
+    if acc_trad: uuid_to_key[acc_trad] = 'trad'
+    
+    accounts_stats = {}
+    for k in ['ind', 'roth', 'trad', 'total']:
+        accounts_stats[k] = {
+            "total_alpha": 0.0,
+            "total_saved": 0.0,
+            "trigger_count": 0,
+            "wins": 0,
+            "by_reason": {},
+            "daily_alpha": {}
+        }
     
     for f_path in files:
         try:
-            # Extract date from filename: post_mortem_YYYY-MM-DD.json
             date_part = f_path.replace("post_mortem_", "").replace(".json", "")
             file_date = datetime.strptime(date_part, "%Y-%m-%d")
             if start_date <= file_date <= end_date:
@@ -507,35 +582,44 @@ def get_history(days):
                         alpha = t.get("saved_pct_guard_alpha", 0.0)
                         dollars = t.get("saved_dollars", 0.0)
                         reason = t.get("exit_reason", "Unknown")
+                        acc_id = t.get("account_id", "")
+                        acc_key = uuid_to_key.get(acc_id, "unknown")
                         
-                        stats["total_alpha"] += alpha
-                        stats["total_saved"] += dollars
-                        stats["trigger_count"] += 1
-                        if alpha > 0: stats["wins"] += 1
-                        
-                        if reason not in stats["by_reason"]:
-                            stats["by_reason"][reason] = {"alpha": 0.0, "count": 0, "wins": 0}
-                        stats["by_reason"][reason]["alpha"] += alpha
-                        stats["by_reason"][reason]["count"] += 1
-                        if alpha > 0: stats["by_reason"][reason]["wins"] += 1
-                        
-                        stats["daily_alpha"][date_part] = stats["daily_alpha"].get(date_part, 0.0) + alpha
+                        keys_to_update = ['total']
+                        if acc_key in ['ind', 'roth', 'trad']:
+                            keys_to_update.append(acc_key)
+                            
+                        for k in keys_to_update:
+                            accounts_stats[k]["total_alpha"] += alpha
+                            accounts_stats[k]["total_saved"] += dollars
+                            accounts_stats[k]["trigger_count"] += 1
+                            if alpha > 0: accounts_stats[k]["wins"] += 1
+                            
+                            if reason not in accounts_stats[k]["by_reason"]:
+                                accounts_stats[k]["by_reason"][reason] = {"alpha": 0.0, "count": 0, "wins": 0}
+                            accounts_stats[k]["by_reason"][reason]["alpha"] += alpha
+                            accounts_stats[k]["by_reason"][reason]["count"] += 1
+                            if alpha > 0: accounts_stats[k]["by_reason"][reason]["wins"] += 1
+                            
+                            accounts_stats[k]["daily_alpha"][date_part] = accounts_stats[k]["daily_alpha"].get(date_part, 0.0) + alpha
         except: continue
 
-    # Final Averages
-    if stats["trigger_count"] > 0:
-        stats["avg_guard_alpha"] = stats["total_alpha"] / stats["trigger_count"]
-        stats["win_rate"] = (stats["wins"] / stats["trigger_count"]) * 100
-    else:
-        stats["avg_guard_alpha"] = 0
-        stats["win_rate"] = 0
+    for k in ['ind', 'roth', 'trad', 'total']:
+        stats = accounts_stats[k]
+        if stats["trigger_count"] > 0:
+            stats["avg_guard_alpha"] = stats["total_alpha"] / stats["trigger_count"]
+            stats["win_rate"] = (stats["wins"] / stats["trigger_count"]) * 100
+        else:
+            stats["avg_guard_alpha"] = 0
+            stats["win_rate"] = 0
+            
+        sorted_daily = []
+        for d in sorted(stats["daily_alpha"].keys()):
+            sorted_daily.append({"date": d, "alpha": stats["daily_alpha"][d]})
+        stats["daily_alpha"] = sorted_daily
         
-    sorted_daily = []
-    for k in sorted(stats["daily_alpha"].keys()):
-        sorted_daily.append({"date": k, "alpha": stats["daily_alpha"][k]})
-    stats["daily_alpha"] = sorted_daily
-        
-    return jsonify(stats)
+    return jsonify(accounts_stats)
+
 
 # --- 3. Account Liquidation ---
 def perform_account_liquidation(account_id, key, secret, live_mode):
