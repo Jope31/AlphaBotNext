@@ -472,9 +472,12 @@ def get_performance_benchmark():
                 
             held_mult = 1.0
             held_series = []
-            for h_ret in daily_returns[k]:
-                held_mult *= (1.0 + h_ret / 100.0)
-                held_series.append(round((held_mult - 1.0) * 100.0, 2))
+            for i, h_ret in enumerate(daily_returns[k]):
+                if i == 0:
+                    held_series.append(0.0)
+                else:
+                    held_mult *= (1.0 + h_ret / 100.0)
+                    held_series.append(round((held_mult - 1.0) * 100.0, 2))
                 
             while len(held_series) < target_points:
                 held_series.insert(0, 0.0)
@@ -511,9 +514,12 @@ def get_performance_benchmark():
         
         total_held_mult = 1.0
         total_held_series = []
-        for h_ret in daily_returns['total']:
-            total_held_mult *= (1.0 + h_ret / 100.0)
-            total_held_series.append(round((total_held_mult - 1.0) * 100.0, 2))
+        for i, h_ret in enumerate(daily_returns['total']):
+            if i == 0:
+                total_held_series.append(0.0)
+            else:
+                total_held_mult *= (1.0 + h_ret / 100.0)
+                total_held_series.append(round((total_held_mult - 1.0) * 100.0, 2))
         while len(total_held_series) < target_points:
             total_held_series.insert(0, 0.0)
             

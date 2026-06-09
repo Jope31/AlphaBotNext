@@ -1,25 +1,4 @@
 <div id="dashboard-tab" class="main-tab-pane space-y-6 hidden">
-            <!-- KPI Summary Cards Row -->
-            <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
-                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Avg Guard Alpha</p>
-                    <p class="text-2xl font-black text-secondary leading-tight" id="cumulative-alpha">+0.00%</p>
-                    <p class="text-[10px] text-on-surface-variant/80 mt-1 font-semibold" id="today-alpha">+0.00% Today</p>
-                </div>
-                <div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
-                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Win Rate</p>
-                    <p class="text-2xl font-black text-secondary leading-tight" id="cumulative-win-rate">0.0%</p>
-                    <p class="text-[10px] text-on-surface-variant/80 mt-1 font-semibold" id="today-win-rate">0.0% Today</p>
-                </div>
-                <div class="bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
-                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Total Saved</p>
-                    <p class="text-2xl font-black text-secondary leading-tight balance-value" id="cumulative-saved" data-raw="0">$0</p>
-                    <p class="text-[10px] text-on-surface-variant/80 mt-1 font-semibold">
-                        <span class="balance-value" id="today-saved" data-raw="0">$0</span> Today
-                    </p>
-                </div>
-            </section>
-
             <!-- Account Balances Row -->
             <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Individual Account Card -->
@@ -28,19 +7,19 @@
                         <input type="checkbox" id="chart-toggle-ind" checked onchange="syncChartCheckbox(this, 'chart-toggle-ind-perf')" class="w-3.5 h-3.5 rounded border-outline bg-surface-container text-primary focus:ring-primary focus:ring-offset-0 focus:ring-0 cursor-pointer">
                         <label for="chart-toggle-ind" class="text-[9px] text-on-surface-variant font-bold uppercase tracking-wider select-none cursor-pointer">Chart</label>
                     </div>
-                    <h3 class="font-label text-xs tracking-wider uppercase text-on-surface-variant font-bold mb-4">Individual Account</h3>
+                    <h3 class="font-label text-base tracking-wider uppercase text-on-surface-variant font-bold mb-4">Individual Account</h3>
                     <div class="flex items-end justify-between">
-                        <span class="text-2xl font-black tracking-tighter balance-value" id="portfolio-val-ind-dash" data-raw="0">$0.00</span>
-                        <span class="bg-secondary-container/20 text-secondary px-2.5 py-1 rounded text-[10px] font-bold tracking-tight" id="portfolio-ret-ind-dash">+0.00% Today</span>
+                        <span class="text-4xl font-black tracking-tighter balance-value" id="portfolio-val-ind-dash" data-raw="0">$0.00</span>
+                        <span class="bg-secondary-container/20 text-secondary px-3 py-1.5 rounded text-base font-bold tracking-tight" id="portfolio-ret-ind-dash">+0.00% Today</span>
                     </div>
-                    <div class="mt-4 pt-3 border-t border-outline-variant/10 grid grid-cols-2 gap-2 text-[10px]">
+                    <div class="mt-6 pt-4 border-t border-outline-variant/10 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-[8px] tracking-wider mb-0.5">Total Return</span>
-                            <span class="font-black text-secondary cumulative-value font-mono text-xs" id="cumulative-return-ind" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">Total Return</span>
+                            <span class="font-black text-secondary cumulative-value font-mono text-base" id="cumulative-return-ind" data-usd="0" data-pct="0">+$0.00</span>
                         </div>
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-[8px] tracking-wider mb-0.5">If Held</span>
-                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-xs" id="cumulative-held-ind" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">If Held</span>
+                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-base" id="cumulative-held-ind" data-usd="0" data-pct="0">+$0.00</span>
                         </div>
                     </div>
                 </div>
@@ -50,19 +29,19 @@
                         <input type="checkbox" id="chart-toggle-roth" checked onchange="syncChartCheckbox(this, 'chart-toggle-roth-perf')" class="w-3.5 h-3.5 rounded border-outline bg-surface-container text-primary focus:ring-primary focus:ring-offset-0 focus:ring-0 cursor-pointer">
                         <label for="chart-toggle-roth" class="text-[9px] text-on-surface-variant font-bold uppercase tracking-wider select-none cursor-pointer">Chart</label>
                     </div>
-                    <h3 class="font-label text-xs tracking-wider uppercase text-on-surface-variant font-bold mb-4">Roth IRA</h3>
+                    <h3 class="font-label text-base tracking-wider uppercase text-on-surface-variant font-bold mb-4">Roth IRA</h3>
                     <div class="flex items-end justify-between">
-                        <span class="text-2xl font-black tracking-tighter balance-value" id="portfolio-val-roth-dash" data-raw="0">$0.00</span>
-                        <span class="bg-secondary-container/20 text-secondary px-2.5 py-1 rounded text-[10px] font-bold tracking-tight" id="portfolio-ret-roth-dash">+0.00% Today</span>
+                        <span class="text-4xl font-black tracking-tighter balance-value" id="portfolio-val-roth-dash" data-raw="0">$0.00</span>
+                        <span class="bg-secondary-container/20 text-secondary px-3 py-1.5 rounded text-base font-bold tracking-tight" id="portfolio-ret-roth-dash">+0.00% Today</span>
                     </div>
-                    <div class="mt-4 pt-3 border-t border-outline-variant/10 grid grid-cols-2 gap-2 text-[10px]">
+                    <div class="mt-6 pt-4 border-t border-outline-variant/10 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-[8px] tracking-wider mb-0.5">Total Return</span>
-                            <span class="font-black text-secondary cumulative-value font-mono text-xs" id="cumulative-return-roth" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">Total Return</span>
+                            <span class="font-black text-secondary cumulative-value font-mono text-base" id="cumulative-return-roth" data-usd="0" data-pct="0">+$0.00</span>
                         </div>
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-[8px] tracking-wider mb-0.5">If Held</span>
-                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-xs" id="cumulative-held-roth" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">If Held</span>
+                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-base" id="cumulative-held-roth" data-usd="0" data-pct="0">+$0.00</span>
                         </div>
                     </div>
                 </div>
@@ -72,21 +51,42 @@
                         <input type="checkbox" id="chart-toggle-trad" checked onchange="syncChartCheckbox(this, 'chart-toggle-trad-perf')" class="w-3.5 h-3.5 rounded border-outline bg-surface-container text-primary focus:ring-primary focus:ring-offset-0 focus:ring-0 cursor-pointer">
                         <label for="chart-toggle-trad" class="text-[9px] text-on-surface-variant font-bold uppercase tracking-wider select-none cursor-pointer">Chart</label>
                     </div>
-                    <h3 class="font-label text-xs tracking-wider uppercase text-on-surface-variant font-bold mb-4">Trad. IRA</h3>
+                    <h3 class="font-label text-base tracking-wider uppercase text-on-surface-variant font-bold mb-4">Trad. IRA</h3>
                     <div class="flex items-end justify-between">
-                        <span class="text-2xl font-black tracking-tighter balance-value" id="portfolio-val-trad-dash" data-raw="0">$0.00</span>
-                        <span class="bg-secondary-container/20 text-secondary px-2.5 py-1 rounded text-[10px] font-bold tracking-tight" id="portfolio-ret-trad-dash">+0.00% Today</span>
+                        <span class="text-4xl font-black tracking-tighter balance-value" id="portfolio-val-trad-dash" data-raw="0">$0.00</span>
+                        <span class="bg-secondary-container/20 text-secondary px-3 py-1.5 rounded text-base font-bold tracking-tight" id="portfolio-ret-trad-dash">+0.00% Today</span>
                     </div>
-                    <div class="mt-4 pt-3 border-t border-outline-variant/10 grid grid-cols-2 gap-2 text-[10px]">
+                    <div class="mt-6 pt-4 border-t border-outline-variant/10 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-[8px] tracking-wider mb-0.5">Total Return</span>
-                            <span class="font-black text-secondary cumulative-value font-mono text-xs" id="cumulative-return-trad" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">Total Return</span>
+                            <span class="font-black text-secondary cumulative-value font-mono text-base" id="cumulative-return-trad" data-usd="0" data-pct="0">+$0.00</span>
                         </div>
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-[8px] tracking-wider mb-0.5">If Held</span>
-                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-xs" id="cumulative-held-trad" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">If Held</span>
+                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-base" id="cumulative-held-trad" data-usd="0" data-pct="0">+$0.00</span>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- KPI Summary Cards Row -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Avg Guard Alpha</p>
+                    <p class="text-4xl font-black text-secondary leading-tight" id="cumulative-alpha">+0.00%</p>
+                    <p class="text-base text-on-surface-variant mt-2 font-semibold" id="today-alpha">+0.00% Today</p>
+                </div>
+                <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Win Rate</p>
+                    <p class="text-4xl font-black text-secondary leading-tight" id="cumulative-win-rate">0.0%</p>
+                    <p class="text-base text-on-surface-variant mt-2 font-semibold" id="today-win-rate">0.0% Today</p>
+                </div>
+                <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Total Saved</p>
+                    <p class="text-4xl font-black text-secondary leading-tight balance-value" id="cumulative-saved" data-raw="0">$0</p>
+                    <p class="text-base text-on-surface-variant mt-2 font-semibold">
+                        <span class="balance-value" id="today-saved" data-raw="0">$0</span> Today
+                    </p>
                 </div>
             </section>
 

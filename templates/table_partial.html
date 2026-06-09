@@ -139,11 +139,11 @@
 
                         <tr class="hover:bg-surface-container-high transition-colors cursor-pointer group" onclick="toggleAccordion('{{ sym.id }}', '{{ acc_id }}', '{{ safe_name }}')">
                             <td class="px-4 py-3 text-slate-800 dark:text-slate-200">
-                                <div class="flex items-center gap-2 max-w-[250px]">
+                                <div class="flex items-center gap-2 pr-4">
                                     <span id="icon_{{ sym.id }}" class="text-on-surface-variant group-hover:text-primary transition-all duration-300 transform flex-shrink-0">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </span>
-                                    <span class="truncate group-hover:text-primary transition-colors text-left font-medium" title="{{ name }}">{{ name }}</span>
+                                    <span class="group-hover:text-primary transition-colors text-left font-medium" title="{{ name }}">{{ name }}</span>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-right font-mono {{ mc_color }}">{{ mc_prob }}</td>
