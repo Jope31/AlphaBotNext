@@ -1150,12 +1150,13 @@
                     const alphaEl = document.getElementById(`hist-alpha-${acc}-dash`);
                     if (alphaEl) {
                         alphaEl.textContent = `${accAvgAlpha >= 0 ? '+' : ''}${accAvgAlpha.toFixed(2)}%`;
-                        alphaEl.className = `font-black text-base ${accAvgAlpha >= 0 ? 'text-secondary' : 'text-error'}`;
+                        alphaEl.className = `font-black text-base ${accAvgAlpha >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
                     }
 
                     const savedEl = document.getElementById(`hist-saved-${acc}-dash`);
                     if (savedEl) {
-                        savedEl.textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats.total_saved || 0);
+                        savedEl.setAttribute('data-raw', stats.total_saved || 0);
+                        savedEl.className = `font-bold text-base balance-value ${stats.total_saved >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
                     }
 
                     const winRateEl = document.getElementById(`hist-winrate-${acc}-dash`);
@@ -1169,6 +1170,9 @@
                     }
                 }
             });
+            if (typeof applyBalanceMasking === 'function') {
+                applyBalanceMasking();
+            }
 
             const avgGuardAlpha = triggerCount > 0 ? (totalAlpha / triggerCount) : 0;
             const winRate = triggerCount > 0 ? (wins / triggerCount) * 100 : 0;

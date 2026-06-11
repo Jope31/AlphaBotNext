@@ -556,8 +556,30 @@ def get_history(days):
     from dotenv import dotenv_values
     
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
-    files = glob.glob("post_mortem_*.json")
+    raw_files = glob.glob("post_mortem_*.json")
+    
+    parsed_files = []
+    for f in raw_files:
+        try:
+            date_part = f.replace("post_mortem_", "").replace(".json", "")
+            file_date = datetime.strptime(date_part, "%Y-%m-%d")
+            parsed_files.append((file_date, f))
+        except ValueError:
+            pass
+            
+    parsed_files.sort(key=lambda x: x[0], reverse=True)
+    
+    valid_files = []
+    if days == 0:
+        valid_files = [f for _, f in parsed_files]
+    elif days == 1:
+        if parsed_files:
+            valid_files = [parsed_files[0][1]]
+    else:
+        start_date = (end_date - timedelta(days=days-1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        valid_files = [f for fd, f in parsed_files if fd >= start_date]
+
+    files = valid_files
     
     env_vars = dotenv_values(".env")
     acc_ind = env_vars.get("ACCOUNT_INDIVIDUAL", "").strip()
@@ -585,7 +607,7 @@ def get_history(days):
         try:
             date_part = f_path.replace("post_mortem_", "").replace(".json", "")
             file_date = datetime.strptime(date_part, "%Y-%m-%d")
-            if start_date <= file_date <= end_date:
+            if True: # condition already handled
                 with open(f_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for t in data.get("triggers", []):

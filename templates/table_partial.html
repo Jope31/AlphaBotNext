@@ -89,8 +89,8 @@
                             {% set status_badge = '<span class="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-[0_0_8px_rgba(245,158,11,0.15)]">ARMED' ~ (' <span class="text-[9px] animate-pulse">(1/2 Ticks)</span>' if sym.below_stop_count == 1 else '') ~ '</span>' %}
                         {% endif %}
 
-                        {% set mc_prob = "%.1f"|format(sym.mc_prob) ~ "%" if sym.mc_prob is not none else "---" %}
-                        {% set mc_color = 'text-fuchsia-400 font-bold' if is_tp_armed else ('text-amber-400 font-medium' if (sym.mc_prob is not none and sym.mc_prob < 15.0) else 'text-on-surface-variant') %}
+                        {% set mc_prob = "%.1f"|format(sym.get('mc_prob')) ~ "%" if sym.get('mc_prob') is not none else "---" %}
+                        {% set mc_color = 'text-fuchsia-400 font-bold' if is_tp_armed else ('text-amber-400 font-medium' if (sym.get('mc_prob') is not none and sym.get('mc_prob') < 15.0) else 'text-on-surface-variant') %}
                         
                         {% set cur_ret_str = '---' %}
                         {% set hwm_str = '---' %}
@@ -100,11 +100,11 @@
                         {% set hwm_color = 'text-on-surface-variant' %}
 
                         {% if is_triggered %}
-                            {% set f_ret = sym.triggered_at_return if sym.triggered_at_return is not none else (sym.current_return or 0) %}
-                            {% set f_hwm = sym.triggered_at_hwm if sym.triggered_at_hwm is not none else (sym.high_water_mark if sym.high_water_mark != -999.0 else none) %}
-                            {% set f_stop = sym.triggered_at_stop if sym.triggered_at_stop is not none else sym.stop_trigger %}
+                            {% set f_ret = sym.get('triggered_at_return') if sym.get('triggered_at_return') is not none else (sym.get('current_return') or 0) %}
+                            {% set f_hwm = sym.get('triggered_at_hwm') if sym.get('triggered_at_hwm') is not none else (sym.get('high_water_mark') if sym.get('high_water_mark') != -999.0 else none) %}
+                            {% set f_stop = sym.get('triggered_at_stop') if sym.get('triggered_at_stop') is not none else sym.get('stop_trigger') %}
                             
-                            {% set trigger_time = sym.triggered_at_time ~ ' ET' if sym.triggered_at_time else '--:--' %}
+                            {% set trigger_time = sym.get('triggered_at_time') ~ ' ET' if sym.get('triggered_at_time') else '--:--' %}
                             
                             {% set cur_ret_color = '' %}
                             {% set sign = '+' if f_ret > 0 else '' %}
@@ -115,7 +115,7 @@
                             {% set hwm_color = 'text-emerald-500/70 font-semibold' if f_hwm is not none and f_hwm > 0 else 'text-on-surface-variant' %}
                             {% set stop_level_str = "%.2f"|format(f_stop) ~ "%" if f_stop is not none and f_stop != -999.0 else "---" %}
 
-                            {% set live_ret = sym.current_return if sym.current_return is not none else 0 %}
+                            {% set live_ret = sym.get('current_return') if sym.get('current_return') is not none else 0 %}
                             {% set diff = f_ret - live_ret %}
                             {% set diff_sign = '+' if diff > 0 else '' %}
                             {% set diff_color = 'text-emerald-400' if diff > 0 else ('text-rose-400' if diff < 0 else 'text-on-surface-variant/40') %}
@@ -124,16 +124,16 @@
                             
                             {% set shadow_str = '<div class="flex flex-col items-end leading-tight"><span class="' ~ live_col ~ '" title="Live theoretical return of the symphony">' ~ live_sign ~ "%.2f"|format(live_ret) ~ '%</span><span class="text-[10px] ' ~ diff_color ~ ' font-bold mt-0.5" title="Guard Alpha (How much % you saved or lost by triggering)">' ~ diff_sign ~ "%.2f"|format(diff) ~ '% α</span></div>' %}
                         {% else %}
-                            {% set cur_ret = sym.current_return if sym.current_return is not none else 0 %}
+                            {% set cur_ret = sym.get('current_return') if sym.get('current_return') is not none else 0 %}
                             {% set cur_ret_str = ('+' if cur_ret > 0 else '') ~ "%.2f"|format(cur_ret) ~ '%' %}
                             {% set cur_ret_color = 'text-emerald-400 font-semibold' if cur_ret >= 0 else 'text-rose-400 font-semibold' %}
 
-                            {% set hwm = sym.high_water_mark %}
-                            {% set hwm_str = "%.2f"|format(hwm) ~ '%' if hwm is not none and hwm != -999.0 else '---' %}
-                            {% set hwm_color = 'text-emerald-400' if hwm > 0 else 'text-slate-700 dark:text-slate-300' %}
+                            {% set hwm = sym.get('high_water_mark') %}
+                            {% set hwm_str = "%.2f"|format(hwm) ~ "%" if hwm is not none and hwm != -999.0 else "---" %}
+                            {% set hwm_color = 'text-emerald-500/70 font-semibold' if hwm is not none and hwm > 0 else 'text-on-surface-variant' %}
 
+                            {% set stop = sym.get('stop_trigger') %}
                             {% set lock_icon = '<span class="opacity-70 text-[10px] mr-1 text-primary" title="Vol-Scaled Breakeven Lock Active">🔒</span>' if is_locked else '' %}
-                            {% set stop = sym.stop_trigger %}
                             {% set stop_level_str = lock_icon ~ "%.2f"|format(stop) ~ '%' if stop is not none and stop != -999.0 else '---' %}
                         {% endif %}
 
