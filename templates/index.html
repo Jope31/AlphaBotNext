@@ -145,7 +145,7 @@
             <!-- Navigation Tabs (Center, flex-shrink-0 for exact centering) -->
             <nav class="hidden md:flex gap-8 flex-shrink-0">
                 <button id="nav-btn-dashboard" onclick="switchMainTab('dashboard')" class="nav-tab-btn font-body text-xs tracking-wider uppercase font-bold text-on-surface-variant hover:text-on-surface transition-colors pb-1 border-b-2 border-transparent">Dashboard</button>
-                <button id="nav-btn-performance" onclick="switchMainTab('performance')" class="nav-tab-btn font-body text-xs tracking-wider uppercase font-bold text-on-surface-variant hover:text-on-surface transition-colors pb-1 border-b-2 border-transparent">Performance</button>
+                <button id="nav-btn-performance" onclick="switchMainTab('performance')" class="nav-tab-btn font-body text-xs tracking-wider uppercase font-bold text-on-surface-variant hover:text-on-surface transition-colors pb-1 border-b-2 border-transparent">Today's Performance</button>
                 <button id="nav-btn-history" onclick="switchMainTab('history')" class="nav-tab-btn font-body text-xs tracking-wider uppercase font-bold text-on-surface-variant hover:text-on-surface transition-colors pb-1 border-b-2 border-transparent">History</button>
                 <button id="nav-btn-settings" onclick="switchMainTab('settings')" class="nav-tab-btn font-body text-xs tracking-wider uppercase font-bold text-on-surface-variant hover:text-on-surface transition-colors pb-1 border-b-2 border-transparent">Settings</button>
             </nav>
@@ -356,7 +356,7 @@
                 let displayVal = rawVal;
                 let isMaskedGainLoss = false;
 
-                if (balancesHidden && el.id !== 'today-saved' && el.id !== 'cumulative-saved') {
+                if (balancesHidden && !el.id.startsWith('today-saved') && !el.id.startsWith('cumulative-saved')) {
                     if (el.dataset.ret !== undefined) {
                         const retPct = parseFloat(el.dataset.ret) || 0;
                         const todayUsd = rawVal * (retPct / 100);
@@ -370,7 +370,7 @@
                     el.textContent = formatter.format(rawVal);
                 }
                 
-                if (el.id === 'today-saved') {
+                if (el.id.startsWith('today-saved')) {
                     if (rawVal < 0) {
                         el.classList.add('text-error');
                         el.classList.remove('text-secondary');
@@ -378,7 +378,7 @@
                         el.classList.add('text-secondary');
                         el.classList.remove('text-error');
                     }
-                } else if (el.id === 'cumulative-saved') {
+                } else if (el.id.startsWith('cumulative-saved')) {
                     if (rawVal < 0) {
                         el.classList.add('text-error');
                     } else {
@@ -728,24 +728,71 @@
             const rothChecked = document.getElementById('chart-toggle-roth')?.checked;
             const tradChecked = document.getElementById('chart-toggle-trad')?.checked;
 
+            const accTodayStats = {
+                [indUuid]: { alphaSum: 0, count: 0, wins: 0, saved: 0, key: 'ind' },
+                [rothUuid]: { alphaSum: 0, count: 0, wins: 0, saved: 0, key: 'roth' },
+                [tradUuid]: { alphaSum: 0, count: 0, wins: 0, saved: 0, key: 'trad' }
+            };
+
             symphonyKeys.forEach(id => {
                 const sym = stateObj[id];
                 if (sym.triggered) {
+                    const f_ret = sym.triggered_at_return !== undefined && sym.triggered_at_return !== null ? sym.triggered_at_return : (sym.current_return || 0);
+                    const live_ret = sym.current_return !== undefined && sym.current_return !== null ? sym.current_return : 0;
+                    const alpha = f_ret - live_ret;
+                    const val = parseFloat(sym.current_value) || 0;
+                    const saved = val * (alpha / 100);
+
+                    // Global Dashboard metrics
                     let isChecked = false;
                     if (sym.account === indUuid && indChecked) isChecked = true;
                     else if (sym.account === rothUuid && rothChecked) isChecked = true;
                     else if (sym.account === tradUuid && tradChecked) isChecked = true;
                     
-                    if (!isChecked) return;
-                    const f_ret = sym.triggered_at_return !== undefined && sym.triggered_at_return !== null ? sym.triggered_at_return : (sym.current_return || 0);
-                    const live_ret = sym.current_return !== undefined && sym.current_return !== null ? sym.current_return : 0;
-                    const alpha = f_ret - live_ret;
-                    todayAlphaSum += alpha;
-                    todayAlphaCount++;
-                    if (alpha > 0) todayWins++;
+                    if (isChecked) {
+                        todayAlphaSum += alpha;
+                        todayAlphaCount++;
+                        if (alpha > 0) todayWins++;
+                        totalSavedToday += saved;
+                    }
 
-                    const val = parseFloat(sym.current_value) || 0;
-                    totalSavedToday += val * (alpha / 100);
+                    // Per-Account Performance Page metrics
+                    const accStat = accTodayStats[sym.account];
+                    if (accStat) {
+                        accStat.alphaSum += alpha;
+                        accStat.count++;
+                        if (alpha > 0) accStat.wins++;
+                        accStat.saved += saved;
+                    }
+                }
+            });
+
+            // Update per-account Performance Tab elements
+            Object.values(accTodayStats).forEach(stat => {
+                if (!stat.key) return; // Ignore missing UUIDs
+                
+                const avgAlpha = stat.count > 0 ? (stat.alphaSum / stat.count) : 0;
+                const winRate = stat.count > 0 ? (stat.wins / stat.count) * 100 : 0;
+                
+                const alphaEl = document.getElementById(`today-alpha-${stat.key}-perf`);
+                if (alphaEl) {
+                    alphaEl.textContent = `${avgAlpha >= 0 ? '+' : ''}${avgAlpha.toFixed(2)}%`;
+                    alphaEl.className = `font-black text-base ${avgAlpha >= 0 ? 'text-secondary' : 'text-error'}`;
+                }
+                
+                const savedEl = document.getElementById(`today-saved-${stat.key}-perf`);
+                if (savedEl) {
+                    savedEl.dataset.raw = stat.saved;
+                }
+                
+                const winRateEl = document.getElementById(`today-winrate-${stat.key}-perf`);
+                if (winRateEl) {
+                    winRateEl.textContent = `${winRate.toFixed(1)}%`;
+                }
+                
+                const triggersEl = document.getElementById(`today-triggers-${stat.key}-perf`);
+                if (triggersEl) {
+                    triggersEl.textContent = stat.count.toString();
                 }
             });
 
@@ -809,6 +856,20 @@
         }
 
         // --- Today's Exits Table Rendering ---
+        let currentDashSortCol = 'time';
+        let currentDashSortDir = 'desc';
+
+        function setDashSort(col) {
+            if (currentDashSortCol === col) {
+                currentDashSortDir = currentDashSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentDashSortCol = col;
+                currentDashSortDir = 'asc';
+                if (col === 'time' || col === 'pnl' || col === 'alpha') currentDashSortDir = 'desc';
+            }
+            if (cachedStateData) renderTodaysExits(cachedStateData);
+        }
+
         function renderTodaysExits(stateObj) {
             const tbody = document.getElementById('today-exits-table-body');
             if (!tbody) return;
@@ -816,19 +877,66 @@
             tbody.innerHTML = '';
             let exitsCount = 0;
             
+            const vars = globalVarsCache || {};
+            const indUuid = vars.ACCOUNT_INDIVIDUAL || '';
+            const rothUuid = vars.ACCOUNT_ROTH || '';
+            const tradUuid = vars.ACCOUNT_TRAD || '';
+            
+            const indChecked = document.getElementById('chart-toggle-ind')?.checked;
+            const rothChecked = document.getElementById('chart-toggle-roth')?.checked;
+            const tradChecked = document.getElementById('chart-toggle-trad')?.checked;
+
             const exitedSymphonies = [];
             Object.keys(stateObj).forEach(id => {
                 if (id === 'date' || id === 'account_totals' || id === 'last_execution_mode' || id === 'post_mortem_run') return;
                 const sym = stateObj[id];
                 if (sym.triggered) {
-                    exitedSymphonies.push({ id, ...sym });
+                    let isChecked = false;
+                    if (sym.account === indUuid && indChecked) isChecked = true;
+                    else if (sym.account === rothUuid && rothChecked) isChecked = true;
+                    else if (sym.account === tradUuid && tradChecked) isChecked = true;
+                    
+                    if (isChecked) {
+                        exitedSymphonies.push({ id, ...sym });
+                    }
                 }
             });
             
             exitedSymphonies.sort((a, b) => {
-                const timeA = a.triggered_at_time || '';
-                const timeB = b.triggered_at_time || '';
-                return timeB.localeCompare(timeA);
+                let valA, valB;
+                if (currentDashSortCol === 'name') {
+                    valA = a.name || a.id || '';
+                    valB = b.name || b.id || '';
+                } else if (currentDashSortCol === 'account') {
+                    valA = a.account || '';
+                    valB = b.account || '';
+                } else if (currentDashSortCol === 'reason') {
+                    valA = a.triggered_reason || '';
+                    valB = b.triggered_reason || '';
+                } else if (currentDashSortCol === 'pnl') {
+                    valA = a.triggered_at_return !== undefined && a.triggered_at_return !== null ? a.triggered_at_return : (a.current_return || 0);
+                    valB = b.triggered_at_return !== undefined && b.triggered_at_return !== null ? b.triggered_at_return : (b.current_return || 0);
+                } else if (currentDashSortCol === 'alpha') {
+                    const pnlA = a.triggered_at_return !== undefined && a.triggered_at_return !== null ? a.triggered_at_return : (a.current_return || 0);
+                    const liveA = a.current_return !== undefined && a.current_return !== null ? a.current_return : 0;
+                    valA = pnlA - liveA;
+                    
+                    const pnlB = b.triggered_at_return !== undefined && b.triggered_at_return !== null ? b.triggered_at_return : (b.current_return || 0);
+                    const liveB = b.current_return !== undefined && b.current_return !== null ? b.current_return : 0;
+                    valB = pnlB - liveB;
+                } else { // 'time'
+                    valA = a.triggered_at_time || '';
+                    valB = b.triggered_at_time || '';
+                }
+                
+                let comp = 0;
+                if (typeof valA === 'string') {
+                    comp = valA.localeCompare(valB);
+                } else {
+                    comp = valA - valB;
+                }
+                
+                return currentDashSortDir === 'asc' ? comp : -comp;
             });
             
             exitedSymphonies.forEach(sym => {
@@ -836,11 +944,6 @@
                 const name = sym.name || sym.id;
                 const safeName = name.replace(/'/g, "\\'");
                 const accLabel = accountLabels[sym.account] || sym.account || 'Unknown';
-                
-                const isLive = globalStateCache.live_mode;
-                const typeBadge = isLive 
-                    ? `<span class="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded text-[10px] font-bold">LIVE</span>`
-                    : `<span class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">DRY</span>`;
                     
                 let reasonBadge = '';
                 const reason = sym.triggered_reason || 'Triggered';
@@ -883,7 +986,6 @@
                         </div>
                     </td>
                     <td class="px-6 py-4 text-slate-700 dark:text-slate-300 font-medium">${accLabel}</td>
-                    <td class="px-6 py-4 text-center">${typeBadge}</td>
                     <td class="px-6 py-4 text-center">${reasonBadge}</td>
                     <td class="px-6 py-4 text-right font-mono font-bold ${pnlColor}">${pnlFormatted}</td>
                     <td class="px-6 py-4 text-right font-mono">${shadowHtml}</td>
@@ -896,7 +998,7 @@
             if (exitsCount === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-on-surface-variant italic text-xs">
+                        <td colspan="6" class="px-6 py-8 text-center text-on-surface-variant italic text-xs">
                             No automated exits have occurred today.
                         </td>
                     </tr>
@@ -1003,7 +1105,7 @@
 
         async function loadCumulativeStats() {
             try {
-                const response = await fetch('/api/history/30');
+                const response = await fetch('/api/history/0');
                 cachedHistoryData = await response.json();
                 renderCumulativeStats();
             } catch (error) {
@@ -1037,6 +1139,36 @@
             if (rothChecked) addStats('roth');
             if (tradChecked) addStats('trad');
             if (!indChecked && !rothChecked && !tradChecked) addStats('total'); // fallback
+
+            // Populate the individual account boxes on the Dashboard
+            ['ind', 'roth', 'trad'].forEach(acc => {
+                const stats = cachedHistoryData[acc];
+                if (stats) {
+                    const accAvgAlpha = stats.trigger_count > 0 ? (stats.total_alpha / stats.trigger_count) : 0;
+                    const accWinRate = stats.trigger_count > 0 ? (stats.wins / stats.trigger_count) * 100 : 0;
+
+                    const alphaEl = document.getElementById(`hist-alpha-${acc}-dash`);
+                    if (alphaEl) {
+                        alphaEl.textContent = `${accAvgAlpha >= 0 ? '+' : ''}${accAvgAlpha.toFixed(2)}%`;
+                        alphaEl.className = `font-black text-base ${accAvgAlpha >= 0 ? 'text-secondary' : 'text-error'}`;
+                    }
+
+                    const savedEl = document.getElementById(`hist-saved-${acc}-dash`);
+                    if (savedEl) {
+                        savedEl.textContent = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats.total_saved || 0);
+                    }
+
+                    const winRateEl = document.getElementById(`hist-winrate-${acc}-dash`);
+                    if (winRateEl) {
+                        winRateEl.textContent = `${accWinRate.toFixed(1)}%`;
+                    }
+
+                    const triggersEl = document.getElementById(`hist-triggers-${acc}-dash`);
+                    if (triggersEl) {
+                        triggersEl.textContent = (stats.trigger_count || 0).toString();
+                    }
+                }
+            });
 
             const avgGuardAlpha = triggerCount > 0 ? (totalAlpha / triggerCount) : 0;
             const winRate = triggerCount > 0 ? (wins / triggerCount) * 100 : 0;
@@ -1376,109 +1508,198 @@
             }
         }
 
+        let currentHistoryDays = 1;
+        let globalHistoryData = null;
+        let histSortCol = 'time';
+        let histSortDir = 'desc';
+
+        function syncHistCheckbox() {
+            if (globalHistoryData) {
+                renderHistoryStats(globalHistoryData);
+            }
+        }
+
         async function fetchHistory(days) {
+            currentHistoryDays = days;
             const response = await fetch(`/api/history/${days}`);
-            const stats = await response.json();
+            globalHistoryData = await response.json();
+            renderHistoryStats(globalHistoryData);
+        }
 
-            const totalSaved = stats.total_saved || 0;
-            document.getElementById('history-content').innerHTML = `
-                <div class="bg-surface-container-high/40 p-4 rounded-lg border border-outline-variant/10">
-                    <p class="text-[9px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-1">Avg Guard Alpha</p>
-                    <p class="text-2xl font-black ${stats.avg_guard_alpha >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${stats.avg_guard_alpha >= 0 ? '+' : ''}${stats.avg_guard_alpha.toFixed(2)}%</p>
-                </div>
-                <div class="bg-surface-container-high/40 p-4 rounded-lg border border-outline-variant/10">
-                    <p class="text-[9px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-1">Win Rate</p>
-                    <p class="text-2xl font-black text-slate-900 dark:text-white">${stats.win_rate.toFixed(0)}%</p>
-                    <p class="text-[9px] text-slate-500 dark:text-slate-500 font-bold">${stats.wins} Wins / ${stats.trigger_count} Triggers</p>
-                </div>
-                <div class="bg-surface-container-high/40 p-4 rounded-lg border border-outline-variant/10">
-                    <p class="text-[9px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-1">Total Saved</p>
-                    <p class="text-2xl font-bold balance-value ${totalSaved >= 0 ? 'text-emerald-400' : 'text-rose-400'}" data-raw="${totalSaved}">
-                        $0
-                    </p>
-                </div>
-            `;
+        function setHistSort(col) {
+            if (histSortCol === col) {
+                histSortDir = histSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                histSortCol = col;
+                histSortDir = 'desc';
+            }
+            if (globalHistoryData) {
+                renderHistoryStats(globalHistoryData);
+            }
+        }
 
-            let reasonHtml = '';
-            for (const [reason, rStats] of Object.entries(stats.by_reason)) {
-                const avg = rStats.alpha / rStats.count;
-                reasonHtml += `
-                    <div class="bg-surface-container-high/30 p-3 rounded-lg border border-outline-variant/10">
-                        <p class="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">${reason}</p>
-                        <p class="text-sm font-bold ${avg >= 0 ? 'text-emerald-500' : 'text-rose-500'}">${avg >= 0 ? '+' : ''}${avg.toFixed(2)}% Avg</p>
-                        <p class="text-[9px] text-slate-500 dark:text-slate-500 uppercase font-bold">${rStats.wins} Wins in ${rStats.count} Trig</p>
+        function renderHistoryStats(data) {
+            const indChecked = document.getElementById('hist-toggle-ind')?.checked;
+            const rothChecked = document.getElementById('hist-toggle-roth')?.checked;
+            const tradChecked = document.getElementById('hist-toggle-trad')?.checked;
+
+            let agg = {
+                total_alpha: 0.0,
+                total_saved: 0.0,
+                trigger_count: 0,
+                wins: 0,
+                by_reason: {},
+                events: []
+            };
+
+            const accounts = [];
+            if (indChecked) accounts.push('ind');
+            if (rothChecked) accounts.push('roth');
+            if (tradChecked) accounts.push('trad');
+
+            accounts.forEach(acc => {
+                const accData = data[acc];
+                if (!accData) return;
+                
+                agg.total_alpha += accData.total_alpha;
+                agg.total_saved += accData.total_saved;
+                agg.trigger_count += accData.trigger_count;
+                agg.wins += accData.wins;
+
+                for (const [reason, rStats] of Object.entries(accData.by_reason)) {
+                    if (!agg.by_reason[reason]) {
+                        agg.by_reason[reason] = { alpha: 0.0, count: 0, wins: 0 };
+                    }
+                    agg.by_reason[reason].alpha += rStats.alpha;
+                    agg.by_reason[reason].count += rStats.count;
+                    agg.by_reason[reason].wins += rStats.wins;
+                }
+                
+                agg.events = agg.events.concat(accData.events || []);
+            });
+
+            const avg_guard_alpha = agg.trigger_count > 0 ? (agg.total_alpha / agg.trigger_count) : 0;
+            const win_rate = agg.trigger_count > 0 ? ((agg.wins / agg.trigger_count) * 100) : 0;
+            const totalSaved = agg.total_saved;
+            const historyContentEl = document.getElementById('history-content');
+            if (historyContentEl) {
+                historyContentEl.innerHTML = `
+                    <div class="bg-surface-container-highest p-5 rounded-lg border border-outline-variant/10">
+                        <p class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-2">Guard Alpha (Avg)</p>
+                        <p class="text-2xl font-black ${avg_guard_alpha >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${avg_guard_alpha >= 0 ? '+' : ''}${avg_guard_alpha.toFixed(2)}%</p>
+                    </div>
+                    <div class="bg-surface-container-highest p-5 rounded-lg border border-outline-variant/10">
+                        <p class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-2">Total Saved</p>
+                        <p class="text-2xl font-bold balance-value ${totalSaved >= 0 ? 'text-emerald-400' : 'text-rose-400'}" data-raw="${totalSaved}">
+                            $0
+                        </p>
+                    </div>
+                    <div class="bg-surface-container-highest p-5 rounded-lg border border-outline-variant/10">
+                        <p class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-2">Win Rate</p>
+                        <p class="text-2xl font-black text-slate-900 dark:text-white">${win_rate.toFixed(0)}%</p>
+                    </div>
+                    <div class="bg-surface-container-highest p-5 rounded-lg border border-outline-variant/10">
+                        <p class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-2">Triggers</p>
+                        <p class="text-2xl font-black text-slate-900 dark:text-white">${agg.trigger_count}</p>
                     </div>
                 `;
             }
-            document.getElementById('history-reasons').innerHTML = reasonHtml || '<p class="col-span-4 text-center text-slate-500 dark:text-slate-500 italic text-xs py-4">No exit events recorded in this period.</p>';
-            applyBalanceMasking();
-            
-            // Render Daily SVG Graph
-            if (stats.daily_alpha) {
-                const svg = document.getElementById('daily-chart-svg');
-                if (svg) {
-                    svg.innerHTML = '';
-                    const list = stats.daily_alpha;
-                    if (list.length > 0) {
-                        const svgWidth = 1000;
-                        const svgHeight = 100;
-                        svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
 
-                        const numBars = list.length;
-                        const barSpacing = 4;
-                        const barWidth = (svgWidth - (numBars - 1) * barSpacing) / numBars;
+            let reasonHtml = '';
+            for (const [reason, rStats] of Object.entries(agg.by_reason)) {
+                const avg = rStats.alpha / rStats.count;
+                reasonHtml += `
+                    <div class="bg-surface-container-highest p-4 rounded-lg border border-outline-variant/10 min-w-[200px] flex-1">
+                        <p class="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase mb-1">${reason}</p>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-500 font-medium mb-3">${rStats.count} triggers · ${rStats.wins} wins</p>
+                        <p class="text-sm font-bold ${avg >= 0 ? 'text-emerald-500' : 'text-rose-500'}">${avg >= 0 ? '+' : ''}${avg.toFixed(2)}% avg</p>
+                    </div>
+                `;
+            }
+            const historyReasonsEl = document.getElementById('history-reasons');
+            if (historyReasonsEl) {
+                historyReasonsEl.innerHTML = reasonHtml || '<p class="w-full text-slate-500 dark:text-slate-500 italic text-xs py-2">No exit events recorded in this period.</p>';
+            }
 
-                        let maxAlpha = 0;
-                        let minAlpha = 0;
-                        list.forEach(d => {
-                            if (d.alpha > maxAlpha) maxAlpha = d.alpha;
-                            if (d.alpha < minAlpha) minAlpha = d.alpha;
-                        });
-
-                        const range = Math.max(Math.abs(maxAlpha), Math.abs(minAlpha));
-                        const effectiveRange = range === 0 ? 1 : range;
-                        const baselineY = svgHeight / 2;
-
-                        list.forEach((d, i) => {
-                            const x = i * (barWidth + barSpacing);
-                            const ratio = Math.abs(d.alpha) / effectiveRange;
-                            const rectHeight = ratio * (baselineY - 5); 
-                            
-                            let y = 0;
-                            let fillVar = '';
-                            if (d.alpha >= 0) {
-                                fillVar = 'var(--studio-pos, #10b981)';
-                                y = baselineY - rectHeight;
-                            } else {
-                                fillVar = 'var(--studio-neg, #f43f5e)';
-                                y = baselineY;
-                            }
-                            
-                            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                            rect.setAttribute('x', x);
-                            rect.setAttribute('y', y);
-                            rect.setAttribute('width', barWidth);
-                            rect.setAttribute('height', Math.max(rectHeight, 2));
-                            rect.setAttribute('fill', fillVar);
-                            
-                            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                            title.textContent = `${d.date}: ${d.alpha > 0 ? '+' : ''}${d.alpha.toFixed(2)}%`;
-                            rect.appendChild(title);
-                            
-                            svg.appendChild(rect);
-                        });
-                        
-                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('x1', 0);
-                        line.setAttribute('y1', baselineY);
-                        line.setAttribute('x2', svgWidth);
-                        line.setAttribute('y2', baselineY);
-                        line.setAttribute('stroke', 'var(--studio-border, rgba(203, 213, 225, 0.4))');
-                        line.setAttribute('stroke-dasharray', '4,4');
-                        svg.appendChild(line);
+            // Render Table
+            const tbody = document.getElementById('history-events-table-body');
+            if (tbody) {
+                let sortedEvents = [...agg.events];
+                sortedEvents.sort((a, b) => {
+                    let valA, valB;
+                    switch (histSortCol) {
+                        case 'time':
+                            valA = new Date(a.date + ' ' + a.time).getTime();
+                            valB = new Date(b.date + ' ' + b.time).getTime();
+                            break;
+                        case 'symphony':
+                            valA = a.symphony.toLowerCase();
+                            valB = b.symphony.toLowerCase();
+                            break;
+                        case 'reason':
+                            valA = a.reason.toLowerCase();
+                            valB = b.reason.toLowerCase();
+                            break;
+                        case 'exit_pct': valA = a.exit_pct; valB = b.exit_pct; break;
+                        case 'shadow_pct': valA = a.shadow_pct; valB = b.shadow_pct; break;
+                        case 'alpha': valA = a.alpha; valB = b.alpha; break;
+                        case 'account':
+                            valA = a.account.toLowerCase();
+                            valB = b.account.toLowerCase();
+                            break;
+                        default:
+                            valA = 0; valB = 0;
                     }
+                    if (valA < valB) return histSortDir === 'asc' ? -1 : 1;
+                    if (valA > valB) return histSortDir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                if (sortedEvents.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-on-surface-variant italic text-xs">No events found for this timeframe and account selection.</td></tr>`;
+                } else {
+                    let html = '';
+                    const accountLabels = {
+                        'ind': 'Individual',
+                        'roth': 'Roth IRA',
+                        'trad': 'Trad. IRA'
+                    };
+                    sortedEvents.forEach(sym => {
+                        const dateObj = new Date(sym.date + ' ' + sym.time);
+                        const dateStr = isNaN(dateObj) ? `${sym.date} ${sym.time}` : dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+
+                        const name = sym.symphony;
+                        const accLabel = accountLabels[sym.account] || sym.account || 'Unknown';
+                        
+                        let reasonBadge = `<span class="bg-surface-container-highest text-slate-600 dark:text-slate-400 border border-outline-variant/20 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">${sym.reason}</span>`;
+                        
+                        const pnlColor = sym.exit_pct >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                        const pnlFormatted = `${sym.exit_pct >= 0 ? '+' : ''}${sym.exit_pct.toFixed(2)}%`;
+                        
+                        const shadowColor = sym.shadow_pct >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                        const shadowFormatted = `${sym.shadow_pct >= 0 ? '+' : ''}${sym.shadow_pct.toFixed(2)}%`;
+                        
+                        const alphaColor = sym.alpha >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                        const alphaFormatted = `${sym.alpha >= 0 ? '+' : ''}${sym.alpha.toFixed(2)}%`;
+
+                        html += `
+                            <tr class="hover:bg-surface-container-high transition-colors">
+                                <td class="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono">${dateStr}</td>
+                                <td class="px-6 py-4 text-slate-800 dark:text-slate-200 font-medium">
+                                    <span class="hover:text-primary transition-colors cursor-default">${name}</span>
+                                </td>
+                                <td class="px-6 py-4 text-center">${reasonBadge}</td>
+                                <td class="px-6 py-4 text-right font-mono font-bold ${pnlColor}">${pnlFormatted}</td>
+                                <td class="px-6 py-4 text-right font-mono ${shadowColor}">${shadowFormatted}</td>
+                                <td class="px-6 py-4 text-right font-mono font-bold ${alphaColor}">${alphaFormatted}</td>
+                                <td class="px-6 py-4 text-slate-700 dark:text-slate-300 font-medium">${accLabel}</td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
                 }
             }
+            applyBalanceMasking();
         }
 
         function updateHistoryTab(days) {

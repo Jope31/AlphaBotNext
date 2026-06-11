@@ -577,7 +577,8 @@ def get_history(days):
             "trigger_count": 0,
             "wins": 0,
             "by_reason": {},
-            "daily_alpha": {}
+            "daily_alpha": {},
+            "events": []
         }
     
     for f_path in files:
@@ -598,6 +599,18 @@ def get_history(days):
                         if acc_key in ['ind', 'roth', 'trad']:
                             keys_to_update.append(acc_key)
                             
+                        event_obj = {
+                            "date": date_part,
+                            "time": t.get("time_triggered", "--:--"),
+                            "symphony": t.get("symphony_name", "Unknown Symphony"),
+                            "reason": reason,
+                            "exit_pct": t.get("exit_return", 0.0),
+                            "shadow_pct": t.get("shadow_return", 0.0),
+                            "alpha": alpha,
+                            "saved": dollars,
+                            "account": acc_key
+                        }
+                            
                         for k in keys_to_update:
                             accounts_stats[k]["total_alpha"] += alpha
                             accounts_stats[k]["total_saved"] += dollars
@@ -611,6 +624,7 @@ def get_history(days):
                             if alpha > 0: accounts_stats[k]["by_reason"][reason]["wins"] += 1
                             
                             accounts_stats[k]["daily_alpha"][date_part] = accounts_stats[k]["daily_alpha"].get(date_part, 0.0) + alpha
+                            accounts_stats[k]["events"].append(event_obj)
         except: continue
 
     for k in ['ind', 'roth', 'trad', 'total']:
@@ -626,6 +640,9 @@ def get_history(days):
         for d in sorted(stats["daily_alpha"].keys()):
             sorted_daily.append({"date": d, "alpha": stats["daily_alpha"][d]})
         stats["daily_alpha"] = sorted_daily
+        
+        # Sort events descending by date and time
+        stats["events"].sort(key=lambda x: f"{x['date']} {x['time']}", reverse=True)
         
     return jsonify(accounts_stats)
 

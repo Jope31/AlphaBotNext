@@ -27,13 +27,36 @@
                 </div>
             </div>
 
-            <!-- Historical Performance statistics section -->
+
+            <!-- AlphaBot History section -->
             <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 space-y-6">
+                <!-- Header & Controls -->
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-outline-variant/10 pb-4 gap-4">
                     <h3 class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                        <span class="material-symbols-outlined text-indigo-400">analytics</span>
-                        Performance History Aggregates
+                        <span class="material-symbols-outlined text-indigo-400">history</span>
+                        AlphaBot History — Did Stopping Out Beat Holding?
                     </h3>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" id="hist-toggle-ind" checked onchange="fetchHistory(currentHistoryDays)" class="w-3.5 h-3.5 rounded border-outline bg-surface-container text-primary focus:ring-primary focus:ring-offset-0 focus:ring-0 cursor-pointer">
+                                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider select-none">Individual</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" id="hist-toggle-roth" checked onchange="fetchHistory(currentHistoryDays)" class="w-3.5 h-3.5 rounded border-outline bg-surface-container text-primary focus:ring-primary focus:ring-offset-0 focus:ring-0 cursor-pointer">
+                                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider select-none">Roth</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" id="hist-toggle-trad" checked onchange="fetchHistory(currentHistoryDays)" class="w-3.5 h-3.5 rounded border-outline bg-surface-container text-primary focus:ring-primary focus:ring-offset-0 focus:ring-0 cursor-pointer">
+                                <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider select-none">Trad</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">Window:</span>
                     <div class="flex gap-1 bg-surface-container-highest p-1 rounded border border-outline-variant/20" id="history-tabs">
                         <button id="hist-btn-1" onclick="updateHistoryTab(1)" class="hist-tab-btn px-3 py-1 text-[9px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded uppercase tracking-tighter transition-colors">1d</button>
                         <button id="hist-btn-7" onclick="updateHistoryTab(7)" class="hist-tab-btn px-3 py-1 text-[9px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded uppercase tracking-tighter transition-colors">7d</button>
@@ -41,23 +64,38 @@
                         <button id="hist-btn-90" onclick="updateHistoryTab(90)" class="hist-tab-btn px-3 py-1 text-[9px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded uppercase tracking-tighter transition-colors">90d</button>
                     </div>
                 </div>
-                <div id="history-content" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+                <!-- KPIs -->
+                <div id="history-content" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 border-b border-outline-variant/10 pb-6">
                     <!-- Injected dynamically -->
                 </div>
-                
-                <div data-testid="daily-strip" class="section-card mt-6" style="background: var(--studio-surface, transparent); border: 1px solid var(--studio-border, rgba(203, 213, 225, 0.2)); border-radius: 1rem; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;">
-                    <div data-testid="daily-strip-header" class="section-title" style="font-size: 1.125rem; font-weight: 500; color: var(--studio-ink, inherit); margin-bottom: 1rem;">Daily Guard &alpha;</div>
-                    <div class="daily-chart-wrap" style="width: 100%; height: 100px; position: relative; overflow: hidden;">
-                        <svg id="daily-chart-svg" width="100%" height="100" preserveAspectRatio="none"></svg>
-                    </div>
-                    <div class="chart-legend" style="display: flex; gap: 1rem; margin-top: 0.625rem; font-size: 0.6875rem; color: var(--studio-ink-dim, #64748b);">
-                        <span><span class="legend-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.25rem; vertical-align: middle; background: var(--studio-pos, #10b981);"></span>Positive &alpha;</span>
-                        <span><span class="legend-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.25rem; vertical-align: middle; background: var(--studio-neg, #f43f5e);"></span>Negative &alpha;</span>
+
+                <!-- By Arm Reason -->
+                <div>
+                    <h4 class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-3">By Arm Reason</h4>
+                    <div id="history-reasons" class="flex flex-wrap gap-4 border-b border-outline-variant/10 pb-6">
+                        <!-- Injected dynamically -->
                     </div>
                 </div>
 
-                <div id="history-reasons" class="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-outline-variant/10 pt-6">
-                    <!-- Injected dynamically -->
+                <!-- Data Table -->
+                <div class="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-low relative">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="text-on-surface-variant bg-surface-container/50 uppercase tracking-wider font-semibold border-b border-outline-variant/10">
+                            <tr>
+                                <th class="px-6 py-3.5 cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('time')">Date</th>
+                                <th class="px-6 py-3.5 cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('symphony')">Symphony</th>
+                                <th class="px-6 py-3.5 text-center cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('reason')">Trigger</th>
+                                <th class="px-6 py-3.5 text-right cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('exit_pct')">Exit %</th>
+                                <th class="px-6 py-3.5 text-right cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('shadow_pct')">If Held (Shadow)</th>
+                                <th class="px-6 py-3.5 text-right cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('alpha')">Guard Alpha</th>
+                                <th class="px-6 py-3.5 cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setHistSort('account')">Account</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-events-table-body" class="divide-y divide-outline-variant/5">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

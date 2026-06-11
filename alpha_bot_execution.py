@@ -388,6 +388,8 @@ def run_morning_initialization():
         return []
 
     for account in ACCOUNT_UUIDS:
+        if not ACCOUNT_ENABLED_MAP.get(account, False):
+            continue
         symphonies = fetch_with_backoff(account)
         for sym in symphonies:
             s_id = sym["id"]
@@ -538,6 +540,8 @@ def main():
             bot_state["account_performance"] = {}
 
         for account in ACCOUNT_UUIDS:
+            if not ACCOUNT_ENABLED_MAP.get(account, False):
+                continue
             symphonies = fetch_symphony_stats(account)
             symphony_data_cache[account] = symphonies
             
@@ -567,6 +571,9 @@ def main():
         # Add proxy ETFs and frozen tickers to all_tickers for true Shadow Return tracking
         for s_id, s_data in bot_state.items():
             if isinstance(s_data, dict):
+                acc = s_data.get("account")
+                if acc and not ACCOUNT_ENABLED_MAP.get(acc, False):
+                    continue
                 proxy_etf = s_data.get("proxy_etf")
                 if proxy_etf:
                     all_tickers.add(proxy_etf)
@@ -579,16 +586,24 @@ def main():
 
         # --- NAME-BASED AUTOMATED PORTFOLIO REALIGNMENT ---
         for account in ACCOUNT_UUIDS:
+            if not ACCOUNT_ENABLED_MAP.get(account, False):
+                continue
             live_symphonies = symphony_data_cache.get(account, [])
             
-            # 1. Map out live positions by their unique normalized names
-            live_names = {database.normalize_name(sym.get("name", "")) for sym in live_symphonies if sym.get("name")}
-            
+            # 1. Map out live positions by their unique normalized names, ignoring ghosts/hidden
+            live_names = set()
+            for sym in live_symphonies:
+                s_id = sym.get("id")
+                s_data = bot_state.get(s_id, {})
+                if not s_data.get("removed_by_user", False) and not s_data.get("triggered", False):
+                    if sym.get("name"):
+                        live_names.add(database.normalize_name(sym.get("name")))
+
             # 2. Map out active, untriggered positions currently held in local bot_state
             tracked_names = set()
             for s_id, s_data in bot_state.items():
                 if isinstance(s_data, dict) and s_data.get("account") == account:
-                    if not s_data.get("removed_by_user", False):
+                    if not s_data.get("removed_by_user", False) and not s_data.get("triggered", False):
                         if s_data.get("name"):
                             tracked_names.add(database.normalize_name(s_data["name"]))
                             

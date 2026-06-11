@@ -14,12 +14,20 @@
                     </div>
                     <div class="mt-6 pt-4 border-t border-outline-variant/10 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">Total Return</span>
-                            <span class="font-black text-secondary cumulative-value font-mono text-base" id="cumulative-return-ind" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Avg Guard Alpha</span>
+                            <span class="font-black text-base" id="hist-alpha-ind-dash">0.00%</span>
                         </div>
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">If Held</span>
-                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-base" id="cumulative-held-ind" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Saved</span>
+                            <span class="font-bold text-base" id="hist-saved-ind-dash" data-raw="0">$0.00</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Win Rate</span>
+                            <span class="font-bold text-base" id="hist-winrate-ind-dash">0%</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Triggers</span>
+                            <span class="font-bold text-base" id="hist-triggers-ind-dash">0</span>
                         </div>
                     </div>
                 </div>
@@ -36,12 +44,20 @@
                     </div>
                     <div class="mt-6 pt-4 border-t border-outline-variant/10 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">Total Return</span>
-                            <span class="font-black text-secondary cumulative-value font-mono text-base" id="cumulative-return-roth" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Avg Guard Alpha</span>
+                            <span class="font-black text-base" id="hist-alpha-roth-dash">0.00%</span>
                         </div>
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">If Held</span>
-                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-base" id="cumulative-held-roth" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Saved</span>
+                            <span class="font-bold text-base" id="hist-saved-roth-dash" data-raw="0">$0.00</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Win Rate</span>
+                            <span class="font-bold text-base" id="hist-winrate-roth-dash">0%</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Triggers</span>
+                            <span class="font-bold text-base" id="hist-triggers-roth-dash">0</span>
                         </div>
                     </div>
                 </div>
@@ -58,37 +74,25 @@
                     </div>
                     <div class="mt-6 pt-4 border-t border-outline-variant/10 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">Total Return</span>
-                            <span class="font-black text-secondary cumulative-value font-mono text-base" id="cumulative-return-trad" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Avg Guard Alpha</span>
+                            <span class="font-black text-base" id="hist-alpha-trad-dash">0.00%</span>
                         </div>
                         <div>
-                            <span class="text-on-surface-variant block uppercase font-mono text-sm tracking-wider mb-1">If Held</span>
-                            <span class="font-bold text-on-surface-variant cumulative-value font-mono text-base" id="cumulative-held-trad" data-usd="0" data-pct="0">+$0.00</span>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Saved</span>
+                            <span class="font-bold text-base" id="hist-saved-trad-dash" data-raw="0">$0.00</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Win Rate</span>
+                            <span class="font-bold text-base" id="hist-winrate-trad-dash">0%</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block uppercase font-mono text-[10px] tracking-wider mb-1">Total Triggers</span>
+                            <span class="font-bold text-base" id="hist-triggers-trad-dash">0</span>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- KPI Summary Cards Row -->
-            <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
-                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Avg Guard Alpha</p>
-                    <p class="text-4xl font-black text-secondary leading-tight" id="cumulative-alpha">+0.00%</p>
-                    <p class="text-base text-on-surface-variant mt-2 font-semibold" id="today-alpha">+0.00% Today</p>
-                </div>
-                <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
-                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Win Rate</p>
-                    <p class="text-4xl font-black text-secondary leading-tight" id="cumulative-win-rate">0.0%</p>
-                    <p class="text-base text-on-surface-variant mt-2 font-semibold" id="today-win-rate">0.0% Today</p>
-                </div>
-                <div class="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
-                    <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Total Saved</p>
-                    <p class="text-4xl font-black text-secondary leading-tight balance-value" id="cumulative-saved" data-raw="0">$0</p>
-                    <p class="text-base text-on-surface-variant mt-2 font-semibold">
-                        <span class="balance-value" id="today-saved" data-raw="0">$0</span> Today
-                    </p>
-                </div>
-            </section>
 
             <!-- Bento grid content -->
             <section class="grid grid-cols-12 gap-6">
@@ -123,13 +127,12 @@
                     <table class="w-full text-left text-xs whitespace-nowrap">
                         <thead class="text-on-surface-variant bg-surface-container/50 uppercase tracking-wider font-semibold border-b border-outline-variant/10">
                             <tr>
-                                <th class="px-6 py-3.5">Asset / Symphony</th>
-                                <th class="px-6 py-3.5">Account</th>
-                                <th class="px-6 py-3.5 text-center">Type</th>
-                                <th class="px-6 py-3.5 text-center">Exit Reason</th>
-                                <th class="px-6 py-3.5 text-right">Exit %</th>
-                                <th class="px-6 py-3.5 text-right">If Held (shadow)</th>
-                                <th class="px-6 py-3.5 text-right">Timestamp</th>
+                                <th class="px-6 py-3.5 cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setDashSort('name')">Symphony</th>
+                                <th class="px-6 py-3.5 cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setDashSort('account')">Account</th>
+                                <th class="px-6 py-3.5 text-center cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setDashSort('reason')">Exit Reason</th>
+                                <th class="px-6 py-3.5 text-right cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setDashSort('pnl')">Exit %</th>
+                                <th class="px-6 py-3.5 text-right cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setDashSort('alpha')">If Held (shadow)</th>
+                                <th class="px-6 py-3.5 text-right cursor-pointer hover:text-on-surface select-none transition-colors" onclick="setDashSort('time')">Timestamp</th>
                             </tr>
                         </thead>
                         <tbody id="today-exits-table-body" class="divide-y divide-outline-variant/10">

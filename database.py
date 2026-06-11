@@ -322,38 +322,7 @@ def execute_system_flush(account_id):
         print(f"  -> Completely removed ghost symphony from state memory: {sym_name} ({s_id})", flush=True)
         del bot_state[s_id]
         
-    # Surgical Flush: Reset ONLY session runtime trackers for re-invested symphonies
-    # This leaves their finely-tuned variables in symphony_strategies completely untouched!
-    for s_id, s_data in bot_state.items():
-        if s_id in ["account_totals", "date", "last_execution_mode", "post_mortem_run"]:
-            continue
-        if isinstance(s_data, dict) and s_data.get("account") == account_id:
-            print(f"  -> Resetting runtime tracking registers for re-invested symphony: {s_data.get('name')}", flush=True)
-            s_data["high_water_mark"] = -999.0
-            s_data["shadow_hwm"] = -999.0
-            s_data["highest_stop_level"] = -999.0
-            s_data["prev_return"] = None
-            s_data["triggered"] = False
-            s_data["armed"] = False
-            s_data["tp_armed"] = False
-            s_data["para_armed"] = False
-            s_data["breakeven_locked"] = False
-            s_data["lowest_mc_seen"] = 100.0
-            s_data["lock_engaged_ticks"] = 0
-            s_data["lock_engaged_at"] = None
-            s_data["below_lock_count"] = 0
-            s_data["below_stop_count"] = 0
-            s_data["above_tp_count"] = 0
-            s_data["vwap_ticks"] = 0
-            s_data["hwm_hold_ticks"] = 0
-            s_data["mc_history"] = []
-            
-            # Clear trigger details
-            for k in ["triggered_reason", "triggered_at_return", "triggered_at_hwm", 
-                      "triggered_at_stop", "triggered_at_time", "trigger_prices", 
-                      "triggered_basket_snapshot"]:
-                if k in s_data:
-                    del s_data[k]
+
                     
     save_state(bot_state)
     
