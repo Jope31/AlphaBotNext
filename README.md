@@ -220,4 +220,4 @@ python app.py
 ```
 
 
-Open your browser to `[http://127.0.0.1:5000](http://127.0.0.1:5000)` to access the live dashboard panel[cite: 16]. Use **"Force Run Now"** to instantly map portfolio positions followed by **"Create EOD Analysis"** to build your initial optimized 7-variable baseline sets[cite: 17, 25].
+Open your browser to `[http://127.0.0.1:5000](http://127.0.0.1:5000)` to access the live dashboard panel. Use **"Force Run Now"** to instantly map portfolio positions followed by **"Create EOD Analysis"** to build your initial optimized 7-variable baseline sets.
