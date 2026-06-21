@@ -16,7 +16,9 @@ DEFAULT_STRATEGY = {
     "VOLATILITY_MAGNITUDE_MULTIPLIER": 1.5,
     "VOLATILITY_CLOSE_MULTIPLIER": 0.5,
     "PARABOLIC_VELOCITY_THRESHOLD": 2.0,
-    "MAX_PARABOLIC_SQUEEZE": 0.50
+    "MAX_PARABOLIC_SQUEEZE": 0.50,
+    "VWAP_BLEED_MULTIPLIER": 1.5,
+    "VWAP_BLEED_TICKS": 10
 }
 
 # By default, we lock the non-user-specified variables so BO only tunes the requested
@@ -62,6 +64,20 @@ def init_db():
             proxy_ticker TEXT,
             date TEXT,
             UNIQUE(symphony_name, date)
+        )
+    """)
+
+    # NEW: Autotune Runs Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS autotune_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            symphony_name TEXT,
+            num_trials INTEGER,
+            pbo_score REAL,
+            haircut_sortino REAL,
+            results_json TEXT,
+            status TEXT
         )
     """)
 
@@ -174,6 +190,7 @@ def get_rolling_60day_chart(current_date_str):
     if not dates:
         conn.close()
         return {}
+
     placeholders = ",".join("?" * len(dates))
     cursor.execute(f"SELECT date, symphony_id, data FROM chart_archive WHERE date IN ({placeholders})", dates)
     history_60d = {}
@@ -185,7 +202,16 @@ def get_rolling_60day_chart(current_date_str):
     conn.close()
     return history_60d
 
-
+def log_autotune_result(date_str, symphony_name, num_trials, pbo_score, haircut_sortino, results_dict, status):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO autotune_runs 
+        (date, symphony_name, num_trials, pbo_score, haircut_sortino, results_json, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (date_str, symphony_name, num_trials, pbo_score, haircut_sortino, json.dumps(results_dict), status))
+    conn.commit()
+    conn.close()
 
 def normalize_name(name):
     return name.strip().lower()

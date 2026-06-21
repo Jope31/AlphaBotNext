@@ -1,0 +1,26 @@
+{
+  "provenance": "Schema-derived from the autotune_runs table (database.py save_autotune_run signature; the selection_tstat column added by migration 014, replacing the pre-D3 deflated_sharpe column). Re-pinned for Decision D3: the autotuner selection-bias correction is now the Harvey & Liu 2015 multiple-testing haircut, and the persisted statistic is the winning trial's selection t-statistic (Sortino*sqrt(T)) — higher-is-better — NOT a Deflated Sharpe Ratio. naive_sharpe is the raw Optuna best Sortino; frozen_eval_sharpe is the withheld-fold Sortino. selection_tstat here is derived as naive_sharpe * sqrt(T) for an illustrative T=60 in-sample observation count: 1.8432 * sqrt(60) = 14.2772 (rounded to 4dp) — a realistic haircut t-stat, larger than the Sortino it is scaled from. Values are non-trivially distinct so formatting assertions can tell all three fields apart.",
+  "description": "Autotune run row where all three surfacing fields are present: naive_sharpe (raw Optuna best Sortino), selection_tstat (Harvey & Liu haircut winner's Sortino*sqrt(T) — higher-is-better), frozen_eval_sharpe (honest post-selection metric on the withheld fold). selection_tstat > naive_sharpe here because the t-stat scales the Sortino by sqrt(T).",
+  "row": {
+    "run_timestamp": "2026-05-14T16:00:00",
+    "symphony_id": "test_symphony_alpha",
+    "oos_alpha": 1.25,
+    "train_alpha": 3.40,
+    "baseline_decision": "Adopted AI",
+    "fallback_oos_alpha": 0.80,
+    "default_oos_alpha": 0.15,
+    "naive_sharpe": 1.8432,
+    "selection_tstat": 14.2772,
+    "validation_sharpe": 1.1050,
+    "frozen_eval_sharpe": 0.7643
+  },
+  "format_expectations": {
+    "naive_sharpe_formatted": "1.8432",
+    "selection_tstat_formatted": "14.2772",
+    "frozen_eval_sharpe_formatted": "0.7643",
+    "decimal_places": 4,
+    "selection_tstat_label": "selection t-stat",
+    "naive_label": "naive",
+    "frozen_label": "frozen-eval"
+  }
+}

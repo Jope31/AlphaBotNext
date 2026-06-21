@@ -726,6 +726,7 @@ def main():
                     f_ret = bot_state[symphony_id].get("triggered_at_return", 0.0)
                     trigger_prices = bot_state[symphony_id].get("trigger_prices", {})
                     post_trigger_move = 0.0
+                    valid_move = False
                     for h in holdings:
                         t = h.get("ticker")
                         alloc = h.get("weight", h.get("allocation", 0.0))
@@ -734,7 +735,11 @@ def main():
                             p_now = live_vwaps[t]["last_price"]
                             if p_start > 0:
                                 post_trigger_move += alloc * ((p_now - p_start) / p_start)
-                    current_return = f_ret + (post_trigger_move * 100.0)
+                                valid_move = True
+                    if valid_move:
+                        current_return = f_ret + (post_trigger_move * 100.0)
+                    else:
+                        current_return = bot_state[symphony_id].get("current_return", f_ret)
                 # -----------------------------------
 
                 # Pre-calculate True VWAP difference unconditionally so it can be logged in the chart history
@@ -828,6 +833,41 @@ def main():
                 safe_hwm = high_water_mark if high_water_mark != -999.0 else current_return
 
                 symphony_vol = math_engine.calculate_20d_vol(holdings, historical_data)
+
+                # --- REGIME CLASSIFICATION ---
+                if bot_state[symphony_id].get("regime_date") != current_date_str:
+                    import regime_classifier
+                    available_dates = sorted(list(historical_data.keys()))
+                    if len(available_dates) >= 20:
+                        window_dates = available_dates[-20:]
+                        spy_window = [historical_data[d].get("SPY", {}).get("daily_ret", 0.0) for d in window_dates]
+                        sym_window = []
+                        for d in window_dates:
+                            d_ret = 0.0
+                            valid_alloc = 0.0
+                            for h in holdings:
+                                t = h.get("working_ticker", h.get("ticker", "")).replace("/", ".")
+                                alloc = h.get("weight", h.get("allocation", 0.0))
+                                if t in historical_data[d]:
+                                    d_ret += alloc * historical_data[d][t].get("daily_ret", 0.0)
+                                    valid_alloc += alloc
+                            if valid_alloc > 0:
+                                d_ret /= valid_alloc
+                            sym_window.append(d_ret)
+                        
+                        eff_regime = regime_classifier.classify_regime(sym_window) or "unknown"
+                        reg_corr = math_engine.calculate_correlation(sym_window, spy_window)
+                    else:
+                        eff_regime = "unknown"
+                        reg_corr = "Low"
+                        
+                    bot_state[symphony_id]["effective_regime"] = eff_regime
+                    bot_state[symphony_id]["regime_correlation"] = reg_corr
+                    bot_state[symphony_id]["regime_date"] = current_date_str
+                    
+                eff_regime = bot_state[symphony_id].get("effective_regime", "unknown")
+                reg_corr = bot_state[symphony_id].get("regime_correlation", "Low")
+                # -----------------------------
                 vol_mult = acc_params.get("VOLATILITY_MAGNITUDE_MULTIPLIER", 0.5)
                 
                 proxy_etf = bot_state[symphony_id].get("proxy_etf")
@@ -906,8 +946,18 @@ def main():
                 
                 vwatr_vol = math_engine.calculate_14d_vwatr_pct(holdings, historical_data)
                 safe_vol = vwatr_vol if vwatr_vol > 0 else (symphony_vol if symphony_vol > 0 else 1.0)
-                is_squeezed = bot_state[symphony_id].get("para_armed") or bot_state[symphony_id].get("breakeven_locked")
-                active_trailing_stop = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE))
+                para_armed = bot_state[symphony_id].get("para_armed", False)
+                breakeven_locked = bot_state[symphony_id].get("breakeven_locked", False)
+                active_trailing_stop = math_engine.compute_active_trailing_stop(
+                    symphony_vol=safe_vol, 
+                    dynamic_multiplier=dynamic_multiplier, 
+                    dynamic_min_stop=dynamic_min_stop, 
+                    para_armed=para_armed,
+                    breakeven_locked=breakeven_locked,
+                    parabolic_squeeze_multiplier=acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE),
+                    effective_regime=eff_regime,
+                    regime_correlation=reg_corr
+                )
 
                 base_stop_level = safe_hwm - active_trailing_stop
 
@@ -1017,14 +1067,22 @@ def main():
                 if not bot_state[symphony_id]['triggered']:
                     current_vwap_diff_pct = weighted_vwap_diff * 100.0
                     vwap_buffer_pct = -(symphony_vol * acc_params.get("VWAP_BAND_MULTIPLIER", 0.10))
-                    if valid_vwap_weight > 0.5 and current_vwap_diff_pct < vwap_buffer_pct:
-                        if safe_hwm >= acc_VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
-                            bot_state[symphony_id]['vwap_ticks'] += 1
-                            if bot_state[symphony_id]['vwap_ticks'] >= 3:
-                                is_vwap_broken = True
-                                print(f'  📉 {symphony_name[:35]} Portfolio VWAP broken. Forcing exit to protect gains.', flush=True)
-                        else:
-                            bot_state[symphony_id]['vwap_ticks'] = 0
+                    
+                    if valid_vwap_weight > 0.5:
+                        is_vwap_broken, new_ticks = math_engine.evaluate_vwap_breakdown(
+                            current_vwap_diff_pct, vwap_buffer_pct, safe_hwm, current_return, 
+                            acc_VWAP_CROSS_HWM_PCT, bot_state[symphony_id]['vwap_ticks'], eff_regime,
+                            strategy_params=acc_params
+                        )
+                        bot_state[symphony_id]['vwap_ticks'] = new_ticks
+                        
+                        if is_vwap_broken:
+                            # Determine exit signature for precise EOD reporting logs
+                            vol_base = abs(vwap_buffer_pct) if vwap_buffer_pct != 0 else 0.15
+                            is_bleed = current_vwap_diff_pct < -(vol_base * acc_params.get("VWAP_BLEED_MULTIPLIER", 1.5))
+                            exit_label = "VWAP Bleed Cut" if is_bleed else "VWAP Breakdown"
+                            bot_state[symphony_id]["triggered_reason"] = exit_label
+                            print(f'  📉 {symphony_name[:35]} {exit_label} triggered. Forcing exit to preserve capital.', flush=True)
                     else:
                         bot_state[symphony_id]['vwap_ticks'] = 0
 
@@ -1113,7 +1171,9 @@ def main():
                         "acc_TAKE_PROFIT_MC_PCT": acc_TAKE_PROFIT_MC_PCT,
                         "prob_loss_dynamic": prob_loss_dynamic,
                         "dynamic_floor": dynamic_floor,
-                        "acc_VOLATILITY_MAGNITUDE_MULTIPLIER": vol_mult
+                        "acc_VOLATILITY_MAGNITUDE_MULTIPLIER": vol_mult,
+                        "effective_regime": eff_regime,
+                        "regime_correlation": reg_corr
                     })
 
         # --- GHOST SYMPHONY SHADOW CHART FIX ---
@@ -1126,6 +1186,7 @@ def main():
                 f_ret = s_data.get("triggered_at_return", 0.0)
                 trigger_prices = s_data.get("trigger_prices", {})
                 post_trigger_move = 0.0
+                valid_move = False
                 
                 if holdings and trigger_prices:
                     for h in holdings:
@@ -1136,10 +1197,12 @@ def main():
                             p_now = live_vwaps[t]["last_price"]
                             if p_start > 0:
                                 post_trigger_move += alloc * ((p_now - p_start) / p_start)
+                                valid_move = True
                                 
-                    shadow_return = f_ret + (post_trigger_move * 100.0)
-                    s_data["current_return"] = shadow_return
-                    s_data["shadow_hwm"] = max(s_data.get("shadow_hwm", shadow_return), shadow_return)
+                    if valid_move:
+                        shadow_return = f_ret + (post_trigger_move * 100.0)
+                        s_data["current_return"] = shadow_return
+                    s_data["shadow_hwm"] = max(s_data.get("shadow_hwm", s_data.get("current_return", f_ret)), s_data.get("current_return", f_ret))
                     
                     sym_chart_data = chart_history["symphonies"].setdefault(s_id, [])
                     tracked_stop = s_data.get("triggered_at_stop", -999.0)
@@ -1294,7 +1357,9 @@ def main():
                                     symphony_vol=item.get("symphony_vol"),
                                     prob_loss_dynamic=item.get("prob_loss_dynamic"),
                                     dynamic_floor=item.get("dynamic_floor"),
-                                    volatility_multiplier=item.get("acc_VOLATILITY_MAGNITUDE_MULTIPLIER")
+                                    volatility_multiplier=item.get("acc_VOLATILITY_MAGNITUDE_MULTIPLIER"),
+                                    effective_regime=item.get("effective_regime"),
+                                    regime_correlation=item.get("regime_correlation")
                                 )
                                 database.log_symphony_event(v_id, "Sell-to-Cash Settlement Confirmed", "execution")
                                 print(f"  -> [SETTLED] {item['symphony_name']} successfully moved to cash.", flush=True)

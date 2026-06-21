@@ -129,7 +129,7 @@
             <div class="flex items-center gap-6 flex-1 min-w-[320px]">
                 <!-- Branding Title -->
                 <span class="text-lg font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-primary-container to-primary uppercase">
-                    AlphaBot v4.0
+                    AlphaBot v4.1
                 </span>
                 
                 <!-- Live / Dry Execution Mode Badge -->
@@ -800,26 +800,33 @@
             const winRateToday = todayAlphaCount > 0 ? (todayWins / todayAlphaCount) * 100 : 0;
 
             const alphaEl = document.getElementById('today-alpha');
-            alphaEl.textContent = `${avgAlphaToday >= 0 ? '+' : ''}${avgAlphaToday.toFixed(2)}% Today`;
-            if (avgAlphaToday < 0) {
-                alphaEl.classList.add('text-error');
-                alphaEl.classList.remove('text-secondary');
-            } else {
-                alphaEl.classList.add('text-secondary');
-                alphaEl.classList.remove('text-error');
+            if (alphaEl) {
+                alphaEl.textContent = `${avgAlphaToday >= 0 ? '+' : ''}${avgAlphaToday.toFixed(2)}% Today`;
+                if (avgAlphaToday < 0) {
+                    alphaEl.classList.add('text-error');
+                    alphaEl.classList.remove('text-secondary');
+                } else {
+                    alphaEl.classList.add('text-secondary');
+                    alphaEl.classList.remove('text-error');
+                }
             }
 
             const winRateEl = document.getElementById('today-win-rate');
-            winRateEl.textContent = `${winRateToday.toFixed(1)}% Today`;
-            if (winRateToday < 0) {
-                winRateEl.classList.add('text-error');
-                winRateEl.classList.remove('text-secondary');
-            } else {
-                winRateEl.classList.add('text-secondary');
-                winRateEl.classList.remove('text-error');
+            if (winRateEl) {
+                winRateEl.textContent = `${winRateToday.toFixed(1)}% Today`;
+                if (winRateToday < 0) {
+                    winRateEl.classList.add('text-error');
+                    winRateEl.classList.remove('text-secondary');
+                } else {
+                    winRateEl.classList.add('text-secondary');
+                    winRateEl.classList.remove('text-error');
+                }
             }
 
-            document.getElementById('today-saved').dataset.raw = totalSavedToday;
+            const savedEl = document.getElementById('today-saved');
+            if (savedEl) {
+                savedEl.dataset.raw = totalSavedToday;
+            }
 
             // Apply Masking
             applyBalanceMasking();
@@ -830,11 +837,18 @@
         async function fetchState() {
             try {
                 const response = await fetch(`/api/state?sortCol=${currentSortCol}&sortDir=${currentSortDir}`);
+                if (!response.ok) throw new Error('Network error');
                 const data = await response.json();
                 renderState(data);
+                
+                document.getElementById('status-indicator').className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+                document.getElementById('status-text').textContent = "SYSTEM ACTIVE";
+                document.getElementById('status-text').className = "font-label tracking-wider uppercase text-emerald-400 font-bold";
             } catch (error) {
+                console.error("fetchState Error:", error);
                 document.getElementById('status-indicator').className = 'w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]';
-                document.getElementById('status-text').textContent = "Server Connection Lost";
+                document.getElementById('status-text').textContent = "SERVER CONNECTION LOST";
+                document.getElementById('status-text').className = "font-label tracking-wider uppercase text-rose-500 font-bold";
             }
         }
 

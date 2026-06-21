@@ -14,3 +14,6 @@ symphony_logs*
 Risk Guard.txt
 risk_guard.md
 venv
+optuna_studies_shared*
+debug_dump.json
+*driveupload*

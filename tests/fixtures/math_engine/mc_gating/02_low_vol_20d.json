@@ -1,0 +1,26 @@
+{
+  "name": "low_vol_eligible_insufficient_20d",
+  "description": "20 days of alternating SPY and AAA returns. Under team-lead Ruling 2 (AC-4 eligible-pool sufficiency), a 20-day raw history is INSUFFICIENT: after the early-window exclusion drops the first MC_VOL_WINDOW_DAYS-1 = 19 days, only 1 eligible day remains — far below MC_MIN_HISTORY_DAYS. A degenerate 1-neighbour kNN must never reach the exit gate, so run_monte_carlo returns the out-of-band insufficient sentinel. This fixture pins that eligible-insufficient short-circuit (the pre-Ruling-2 'boundary at MC-min' concept is gone — the raw-day boundary no longer exists).",
+  "function": "run_monte_carlo",
+  "inputs": {
+    "holdings": [
+      {
+        "ticker": "AAA",
+        "allocation": 1.0,
+        "last_percent_change": 0.01
+      }
+    ],
+    "historical_data_spec": {
+      "kind": "alternating",
+      "num_days": 20,
+      "spy_amplitude": 0.005,
+      "aaa_amplitude": 0.01
+    },
+    "spy_today_return": 0.5,
+    "simulation_paths": 5000,
+    "neighbor_k": 150,
+    "numpy_seed": 42
+  },
+  "expected_is_insufficient_sentinel": true,
+  "derivation": "20 raw days -> 1 eligible day after the early-window exclusion (20 - (MC_VOL_WINDOW_DAYS - 1)) -> below MC_MIN_HISTORY_DAYS. Ruling 2 (Option ii): the sufficiency guard counts eligible days, so this history is insufficient and run_monte_carlo returns MC_INSUFFICIENT_HISTORY_SENTINEL (None) — no degenerate 1-neighbour kNN ever reaches the exit gate. No producer value is pinned; the short-circuit returns before any Monte Carlo draw."
+}

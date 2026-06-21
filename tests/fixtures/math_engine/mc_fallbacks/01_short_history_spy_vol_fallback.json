@@ -1,0 +1,22 @@
+{
+  "name": "short_history_spy_vol_fallback",
+  "description": "SPY history with only 15 days (< MC_MIN_HISTORY_DAYS=20). run_monte_carlo MUST short-circuit at the MC_MIN_HISTORY_DAYS guard and return the out-of-band insufficient-history sentinel (MC_INSUFFICIENT_HISTORY_SENTINEL = None) — NOT an in-band probability. This pins the EARLY short-circuit branch. Updated for Cluster 2 AC-2: the previous in-band 100.0 return was fail-dangerous (it permanently vetoed the protective trailing stop); run_monte_carlo now signals insufficient history out-of-band so the caller can distinguish 'MC could not run' from a genuine probability.",
+  "function": "run_monte_carlo",
+  "inputs": {
+    "holdings": [
+      {"ticker": "AAA", "allocation": 1.0, "last_percent_change": 0.01}
+    ],
+    "historical_data_spec": {
+      "kind": "alternating",
+      "num_days": 15,
+      "spy_amplitude": 0.005,
+      "aaa_amplitude": 0.01
+    },
+    "spy_today_return": 0.5,
+    "simulation_paths": 5000,
+    "neighbor_k": 150,
+    "numpy_seed": 42
+  },
+  "expected_is_insufficient_sentinel": true,
+  "derivation": "15 < MC_MIN_HISTORY_DAYS(20): the sufficiency guard fires and run_monte_carlo returns MC_INSUFFICIENT_HISTORY_SENTINEL (None) — a distinct out-of-band signal, not an in-band probability. The test asserts the return IS the sentinel (None / not a [0,100] float); no producer probability is pinned because there is none — the function short-circuits before the Monte Carlo draw."
+}

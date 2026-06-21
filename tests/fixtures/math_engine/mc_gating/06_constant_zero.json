@@ -1,0 +1,22 @@
+{
+  "name": "constant_zero_returns",
+  "description": "All historical returns are exactly 0.0 across all tickers. spy_today_return=0.0. current_symphony_return = 0. Distribution is degenerate (all zeros) so searchsorted returns the full length when value equals all elements (left-insertion semantics) — pin captures present behavior.",
+  "function": "run_monte_carlo",
+  "inputs": {
+    "holdings": [
+      {"ticker": "AAA", "allocation": 1.0, "last_percent_change": 0.0}
+    ],
+    "historical_data_spec": {
+      "kind": "constant",
+      "num_days": 50,
+      "spy_ret": 0.0,
+      "aaa_ret": 0.0
+    },
+    "spy_today_return": 0.0,
+    "simulation_paths": 5000,
+    "neighbor_k": 150,
+    "numpy_seed": 42
+  },
+  "expected": 100.0,
+  "derivation": "Re-captured from the fixed producer at branch fix/mc-knn-exit-gate HEAD c3834d0 (Cluster 2) with run_monte_carlo(..., seed=42). num_days raised from 30 to 50: under Ruling 2 (AC-4 eligible-pool sufficiency) a 30-day raw history is eligible-insufficient (11 eligible < MC_MIN_HISTORY_DAYS); 50 raw days keeps this fixture on the real MC path it exercises (the constant-zero degenerate distribution). All sim_results are 0.0; current_symphony_return = 0.0 (last_percent_change=0.0); searchsorted 'left' on sorted-zeros for value 0.0 returns 0; below_count=0; prob = ((5000 - 0) / 5000) * 100.0 = 100.0. Provenance: captured-from-the-fixed-producer."
+}

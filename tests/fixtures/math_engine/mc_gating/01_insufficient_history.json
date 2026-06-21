@@ -1,0 +1,22 @@
+{
+  "name": "insufficient_history_short_circuit",
+  "description": "Fewer than the MC minimum-history threshold of valid_dates. run_monte_carlo MUST short-circuit and return the distinct out-of-band insufficient-history sentinel (MC_INSUFFICIENT_HISTORY_SENTINEL = None). Updated for Cluster 2 AC-2: the prior in-band 100.0 return was fail-dangerous (100 >= MC_SANITY_THRESHOLD permanently vetoed the protective trailing stop). This fixture pins the short-circuit path returns the out-of-band sentinel, not a probability.",
+  "function": "run_monte_carlo",
+  "inputs": {
+    "holdings": [
+      {"ticker": "AAA", "allocation": 1.0, "last_percent_change": 0.01}
+    ],
+    "historical_data_spec": {
+      "kind": "alternating",
+      "num_days": 10,
+      "spy_amplitude": 0.01,
+      "aaa_amplitude": 0.01
+    },
+    "spy_today_return": 0.5,
+    "simulation_paths": 5000,
+    "neighbor_k": 150,
+    "numpy_seed": 42
+  },
+  "expected_is_insufficient_sentinel": true,
+  "derivation": "len(valid_dates) = 10 < MC_MIN_HISTORY_DAYS (20). The function short-circuits at the first guard and returns MC_INSUFFICIENT_HISTORY_SENTINEL (None) — a distinct out-of-band signal, not an in-band probability. No producer value is pinned because the short-circuit returns before any Monte Carlo draw."
+}

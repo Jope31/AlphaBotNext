@@ -1,0 +1,26 @@
+{
+  "name": "neighbor_k_active_200d",
+  "description": "200 days forces len(distances) > neighbor_k (150), exercising the np.argpartition branch. This pins the neighbor-selection path and ensures the default neighbor_k (proposed MC_DEFAULT_NEIGHBOR_K) is wired correctly after extraction.",
+  "function": "run_monte_carlo",
+  "inputs": {
+    "holdings": [
+      {
+        "ticker": "AAA",
+        "allocation": 1.0,
+        "last_percent_change": 0.01
+      }
+    ],
+    "historical_data_spec": {
+      "kind": "alternating",
+      "num_days": 200,
+      "spy_amplitude": 0.01,
+      "aaa_amplitude": 0.015
+    },
+    "spy_today_return": 1.0,
+    "simulation_paths": 5000,
+    "neighbor_k": 150,
+    "numpy_seed": 42
+  },
+  "expected": 60.64000000000001,
+  "derivation": "Re-captured from the fixed producer at branch fix/mc-knn-exit-gate HEAD 7ff61a4 (Cluster 2) with run_monte_carlo(..., seed=42). Exercises the argpartition branch (len(eligible distances) still > neighbor_k=150 after the AC-4 early-window exclusion drops 19 of the 200 days). The value shifted from the pre-Cluster-2 66.76 because AC-1 standardizes the kNN feature vector and AC-4 trims the candidate pool — both intentionally change neighbour selection. The expected value is the EXACT float repr of the producer output ((paths-below)/paths*100 = some integer/5000*100 carries a representation residual); the zero-tolerance pin requires the exact repr. Provenance: captured-from-the-fixed-producer."
+}

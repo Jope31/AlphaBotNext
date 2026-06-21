@@ -9,6 +9,7 @@ from joblib import Parallel, delayed
 
 import math_engine
 import database
+import regime_classifier
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -184,6 +185,42 @@ def generate_synthetic_history(bot_state, current_date_str):
 
     intraday_dates = sorted(list(intraday_by_date.keys()))[-125:] # Get last 125 trading days (~6 months)
     
+    # --- PRE-COMPUTE REGIMES ---
+    regime_map = {}
+    correlation_map = {}
+    for date_str in intraday_dates:
+        regime_map[date_str] = {}
+        correlation_map[date_str] = {}
+        
+        date_idx = daily_dates.index(date_str) if date_str in daily_dates else -1
+        if date_idx < 20: 
+            continue
+            
+        window_dates = daily_dates[date_idx-20:date_idx]
+        spy_window = [historical_daily[d].get("SPY", {}).get("daily_ret", 0.0) for d in window_dates]
+        
+        for sym_id, holdings in symphony_holdings.items():
+            sym_window = []
+            for d in window_dates:
+                d_ret = 0.0
+                valid_alloc = 0.0
+                for h in holdings:
+                    ticker = h.get("ticker")
+                    alloc = h.get("weight", h.get("allocation", 0.0))
+                    if ticker in historical_daily[d]:
+                        d_ret += alloc * historical_daily[d][ticker].get("daily_ret", 0.0)
+                        valid_alloc += alloc
+                if valid_alloc > 0:
+                    d_ret /= valid_alloc
+                sym_window.append(d_ret)
+                
+            regime = regime_classifier.classify_regime(sym_window)
+            correlation = math_engine.calculate_correlation(sym_window, spy_window)
+            
+            regime_map[date_str][sym_id] = regime or "unknown"
+            correlation_map[date_str][sym_id] = correlation
+    # --------------------------
+    
     history_125d = {sym_id: {} for sym_id in symphony_holdings.keys()}
     
     def process_day(date_str):
@@ -331,7 +368,9 @@ def generate_synthetic_history(bot_state, current_date_str):
                     "dynamic_floor": dynamic_floor,
                     "vol": vol,
                     "vwap_diff": weighted_vwap_diff,
-                    "base_atr_pct": base_atr
+                    "base_atr_pct": base_atr,
+                    "effective_regime": regime_map.get(date_str, {}).get(sym_id, "unknown"),
+                    "regime_correlation": correlation_map.get(date_str, {}).get(sym_id, "Low")
                 })
                 
             day_history[sym_id] = ticks
@@ -354,3 +393,53 @@ def generate_synthetic_history(bot_state, current_date_str):
         print(f"  -> Failed to write cache file: {e}", flush=True)
                 
     return history_125d
+
+def generate_cpcv_blocks(sorted_dates, num_blocks=5, purge_buffer_days=1):
+    """
+    Divides chronological dates into blocks and applies a purge buffer at the boundaries.
+    """
+    n = len(sorted_dates)
+    block_size = n // num_blocks
+    blocks = []
+    
+    for i in range(num_blocks):
+        start_idx = i * block_size
+        end_idx = (i + 1) * block_size if i < num_blocks - 1 else n
+        block_dates = sorted_dates[start_idx:end_idx]
+        
+        if len(block_dates) > purge_buffer_days * 2:
+            if i > 0:
+                block_dates = block_dates[purge_buffer_days:]
+            if i < num_blocks - 1:
+                block_dates = block_dates[:-purge_buffer_days]
+                
+        blocks.append(block_dates)
+        
+    return blocks
+
+def generate_cpcv_paths(blocks, n_train=3):
+    """
+    Generates combinatorial paths of training and testing sets.
+    """
+    import itertools
+    num_blocks = len(blocks)
+    block_indices = list(range(num_blocks))
+    
+    paths = []
+    n_test = num_blocks - n_train
+    for test_idx in itertools.combinations(block_indices, n_test):
+        train_idx = [i for i in block_indices if i not in test_idx]
+        
+        train_dates = []
+        for idx in train_idx:
+            train_dates.extend(blocks[idx])
+            
+        test_dates = []
+        for idx in test_idx:
+            test_dates.extend(blocks[idx])
+            
+        train_dates.sort()
+        test_dates.sort()
+        paths.append((train_dates, test_dates))
+        
+    return paths

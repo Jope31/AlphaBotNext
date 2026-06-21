@@ -1,0 +1,14 @@
+{
+  "name": "early_session",
+  "description": "time_ratio = 0.1 (~10% of the session elapsed; ~10:09 ET in a standard 9:30-16:00 session). Under the M3 re-derivation f(t) = 1 - sqrt(1 - t), decay_curve ~= 0.0513 -- i.e., the new curve has consumed only ~5% of its tightening budget by 10:09 ET. The pre-M3 log10(1+9t) heuristic put decay ~0.279 at the same point (~28% of the budget); the post-M3 curve is ~0.23 looser in decay, meaning ~0.23 percentage-points-of-stop wider at 10:09. A wrong impl that left log10 in place would diverge sharply here -- this fixture catches an unchanged formula.",
+  "function": "compute_time_squeeze_decay",
+  "provenance": "DERIVED from the closed-form THEORY formula f(t) = 1 - sqrt(1 - t) (Danielsson & Zigrand, 2003, LSE FMG DP-439). NOT captured from compute_time_squeeze_decay output -- D-2 load-bearing per docs/research/m3-provenance/literature-pass.md §3.1.",
+  "inputs": {
+    "time_ratio": 0.1
+  },
+  "expected": {
+    "dynamic_multiplier": 1.4486832980505138,
+    "dynamic_min_stop": 0.2923024947075771
+  },
+  "derivation": "decay_curve = 1 - sqrt(1 - 0.1) = 1 - sqrt(0.9) = 1 - 0.9486832980505138 = 0.05131670194948623 (IEEE-754 double; sqrt is exact-rounded). dynamic_multiplier = 1.5 - 0.05131670194948623 = 1.4486832980505138. dynamic_min_stop = 0.3 - 0.15 * 0.05131670194948623 = 0.3 - 0.007697505292422935 = 0.2923024947075771."
+}

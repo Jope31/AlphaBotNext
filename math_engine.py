@@ -283,8 +283,12 @@ def calculate_time_decay_multipliers(time_ratio, mult_open=1.5, mult_close=0.5, 
     dynamic_min_stop = min_stop_open - (min_stop_open - min_stop_close) * decay
     return float(dynamic_multiplier), float(dynamic_min_stop)
 
-def calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, max_para_squeeze):
-    distance = max((safe_vol * dynamic_multiplier), dynamic_min_stop)
+def calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, max_para_squeeze, effective_regime=None, regime_correlation=None):
+    if effective_regime == "high-vol" and regime_correlation == "High":
+        distance = 2.0
+    else:
+        distance = max((safe_vol * dynamic_multiplier), dynamic_min_stop)
+        
     if is_squeezed:
         distance *= max_para_squeeze
     return float(distance)
@@ -332,4 +336,138 @@ def calculate_current_rvol(holdings, historical_data):
         
     portfolio_rvol = rvol_array.dot(weights)
     return float(portfolio_rvol)
+
+def compute_para_arm_decision(current_return: float, prev_return: float, para_threshold: float, currently_armed: bool) -> tuple[float, bool]:
+    velocity = float(current_return - prev_return)
+    should_arm = False
+    if not currently_armed and velocity >= para_threshold:
+        should_arm = True
+    return velocity, should_arm
+
+def compute_active_trailing_stop(symphony_vol, dynamic_multiplier, dynamic_min_stop, para_armed, breakeven_locked, parabolic_squeeze_multiplier, effective_regime=None, regime_correlation=None):
+    if parabolic_squeeze_multiplier <= 0:
+        raise ValueError(f"parabolic_squeeze_multiplier must be > 0; got {parabolic_squeeze_multiplier!r}")
+        
+    if effective_regime == "high-vol" and regime_correlation == "High":
+        active = 2.0
+    else:
+        # VOL_FALLBACK is defined implicitly or handled safely
+        safe_vol = symphony_vol if symphony_vol > 0 else 1.0
+        active = max(safe_vol * dynamic_multiplier, dynamic_min_stop)
+        
+    if para_armed or breakeven_locked:
+        active *= parabolic_squeeze_multiplier
+    return float(active)
+
+def calculate_sortino_ratio(returns, risk_free_rate=0.0):
+    if not returns or len(returns) == 0:
+        return 0.0
+    returns_arr = np.array(returns)
+    excess_returns = returns_arr - risk_free_rate
+    downside_returns = excess_returns[excess_returns < 0]
+    
+    expected_return = np.mean(excess_returns)
+    
+    # Calculate deviation, but enforce a minimum floor to prevent division by zero
+    raw_downside_deviation = np.sqrt(np.mean(downside_returns**2)) if len(downside_returns) > 0 else 0.0
+    safe_downside_deviation = max(raw_downside_deviation, 1e-4)
+    
+    return float(expected_return / safe_downside_deviation)
+
+def calculate_crra_utility(returns, risk_aversion_coef=2.0):
+    if not returns or len(returns) == 0:
+        return 0.0
+    returns_arr = np.array(returns)
+    wealth_ratios = 1.0 + (returns_arr / 100.0)
+    wealth_ratios = np.maximum(wealth_ratios, 1e-4)
+    
+    if risk_aversion_coef == 1.0:
+        utilities = np.log(wealth_ratios)
+    else:
+        utilities = (np.power(wealth_ratios, 1.0 - risk_aversion_coef) - 1.0) / (1.0 - risk_aversion_coef)
+        
+    return float(np.mean(utilities))
+
+def calculate_harvey_liu_haircut(raw_metric, n_trials, cov_matrix=None):
+    if n_trials <= 1:
+        return raw_metric
+    penalty = np.sqrt(2.0 * np.log(n_trials))
+    haircut_metric = raw_metric - (penalty * 0.1)
+    return float(haircut_metric)
+
+def calculate_pbo(in_sample_matrix, out_of_sample_matrix):
+    if in_sample_matrix is None or out_of_sample_matrix is None:
+        return 0.0
+    if len(in_sample_matrix) == 0 or len(out_of_sample_matrix) == 0:
+        return 0.0
+        
+    in_sample_matrix = np.array(in_sample_matrix)
+    out_of_sample_matrix = np.array(out_of_sample_matrix)
+    
+    n_trials = in_sample_matrix.shape[0]
+    n_paths = in_sample_matrix.shape[1]
+    
+    if n_trials <= 1 or n_paths == 0:
+        return 0.0
+        
+    degraded_count = 0
+    for path_idx in range(n_paths):
+        is_best_trial_idx = np.argmax(in_sample_matrix[:, path_idx])
+        oos_perf_of_is_best = out_of_sample_matrix[is_best_trial_idx, path_idx]
+        oos_median = np.median(out_of_sample_matrix[:, path_idx])
+        
+        if oos_perf_of_is_best < oos_median:
+            degraded_count += 1
+            
+    pbo = (degraded_count / n_paths) * 100.0
+    return float(pbo)
+
+def evaluate_vwap_breakdown(current_vwap_diff_pct, vwap_buffer_pct, safe_hwm, ret, vwap_cross_hwm_pct, current_ticks, effective_regime=None, strategy_params=None):
+    """
+    Dual-Path Framework:
+    Path A: Peak Breakdown (Requires high morning momentum)
+    Path B: Unconditional Bleed Guard (Protects low morning peaks from trending declines)
+    """
+    p = strategy_params or {}
+    bleed_mult = p.get("VWAP_BLEED_MULTIPLIER", 1.5)
+    bleed_ticks_threshold = int(p.get("VWAP_BLEED_TICKS", 10))
+    
+    # Derive an absolute negative deviation threshold from structural volatility
+    # Utilizing a standard fallback if vwap_buffer_pct isn't derived yet
+    vol_base = abs(vwap_buffer_pct) if vwap_buffer_pct != 0 else 0.15
+    absolute_bleed_floor = -(vol_base * bleed_mult)
+    
+    is_below_buffer = current_vwap_diff_pct < vwap_buffer_pct
+    is_below_absolute_bleed = current_vwap_diff_pct < absolute_bleed_floor
+    
+    # PATH A: Standard Peak Tracking
+    is_path_a_valid = is_below_buffer and (safe_hwm >= vwap_cross_hwm_pct and ret < safe_hwm)
+    
+    # PATH B: Unconditional Slow-Bleed Monitor (Bypasses morning peak gates)
+    is_path_b_valid = is_below_absolute_bleed
+    
+    if is_path_a_valid or is_path_b_valid:
+        new_ticks = current_ticks + 1
+        
+        # Assign context-specific tick thresholds based on the active path
+        if is_path_b_valid:
+            target_threshold = bleed_ticks_threshold
+        else:
+            target_threshold = 8 if effective_regime == "mean-reverting" else 3
+            
+        is_broken = new_ticks >= target_threshold
+        return is_broken, new_ticks
+    else:
+        return False, 0
+
+def calculate_correlation(sym_returns, proxy_returns):
+    if len(sym_returns) < 2 or len(proxy_returns) < 2 or len(sym_returns) != len(proxy_returns):
+        return "Low"
+    try:
+        corr = np.corrcoef(sym_returns, proxy_returns)[0, 1]
+        if np.isnan(corr):
+            return "Low"
+        return "High" if corr > 0.5 else "Low"
+    except Exception:
+        return "Low"
 

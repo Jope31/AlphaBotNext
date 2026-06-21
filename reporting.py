@@ -119,8 +119,10 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
                         "symphony_vol": round(sym.get("symphony_vol", 0.0), 2),
                         "prob_loss_dynamic": round(sym["prob_loss_dynamic"], 2) if sym.get("prob_loss_dynamic") is not None else None,
                         "dynamic_floor": round(sym["dynamic_floor"], 2) if sym.get("dynamic_floor") is not None else None,
+                        "Session Regime": f"{sym.get('effective_regime', 'unknown')} | Corr: {sym.get('regime_correlation', 'Low')}",
                         "strategy_params": params,
                         "next_day_holdings": ["Pending..."],
+                        "Parabolic Squeeze Engaged": sym.get("para_armed", False),
                     }
                 )
 
@@ -461,7 +463,7 @@ def send_eod_discord_post(current_date_str, report_file, optimization_results, d
         print(f"Failed to send EOD Discord webhook: {e}", flush=True)
 
 def send_discord_alert(
-    symphony_name, current_return, prob_beating, stop_trigger_level, high_water_mark, is_live, discord_webhook_url, exit_reason="Trailing Stop", vwap_bleed_arm_pct=None, vwap_bleed_ticks=None, vwap_diff=None, vwap_breakdown_ticks=None, tp_threshold=None, vwap_bleed_multiplier=None, symphony_vol=None, prob_loss_dynamic=None, dynamic_floor=None, volatility_multiplier=None
+    symphony_name, current_return, prob_beating, stop_trigger_level, high_water_mark, is_live, discord_webhook_url, exit_reason="Trailing Stop", vwap_bleed_arm_pct=None, vwap_bleed_ticks=None, vwap_diff=None, vwap_breakdown_ticks=None, tp_threshold=None, vwap_bleed_multiplier=None, symphony_vol=None, prob_loss_dynamic=None, dynamic_floor=None, volatility_multiplier=None, effective_regime=None, regime_correlation=None
 ):
     if not discord_webhook_url:
         return
@@ -469,8 +471,8 @@ def send_discord_alert(
     if exit_reason == "Take-Profit":
         base_title = "🎯 Relative Peak Take-Profit"
         live_color = 5763719 if current_return > 0 else 15548997 # Green if positive, Orange if negative
-    elif exit_reason == "VWAP Breakdown":
-        base_title = "📉 VWAP Breakdown Exit"
+    elif exit_reason in ["VWAP Breakdown", "VWAP Bleed Cut"]:
+        base_title = "📉 VWAP Breakdown Exit" if exit_reason == "VWAP Breakdown" else "🩸 VWAP Bleed Cut"
         live_color = 15548997 # Red/Orange
     elif "Breakeven" in exit_reason:
         base_title = "🛡️ Breakeven Defense"
@@ -504,11 +506,14 @@ def send_discord_alert(
     if exit_reason == "Trailing Stop" and prob_loss_dynamic is not None and dynamic_floor is not None:
         fields.append({"name": "Downside Risk (Vol-Scaled)", "value": f"{prob_loss_dynamic:.1f}% chance of dropping below {dynamic_floor:.2f}% (Multiplier: {volatility_multiplier}x)", "inline": False})
 
-    if exit_reason == "VWAP Breakdown" and vwap_diff is not None:
-        fields.append({"name": "VWAP Breakdown Stats", "value": f"VWAP Diff: {vwap_diff * 100:.2f}% | Ticks Below: {vwap_breakdown_ticks}", "inline": False})
+    if exit_reason in ["VWAP Breakdown", "VWAP Bleed Cut"] and vwap_diff is not None:
+        fields.append({"name": "VWAP Stats", "value": f"VWAP Diff: {vwap_diff * 100:.2f}% | Ticks Below: {vwap_breakdown_ticks}", "inline": False})
 
     if exit_reason == "Take-Profit" and tp_threshold is not None:
         fields.append({"name": "Take-Profit Threshold", "value": f"MC Prob Reached: {prob_beating:.1f}% >= {tp_threshold}%", "inline": False})
+
+    if effective_regime and regime_correlation:
+        fields.append({"name": "Session Regime", "value": f"{effective_regime} | Corr: {regime_correlation}", "inline": False})
 
     payload = {
         "embeds": [

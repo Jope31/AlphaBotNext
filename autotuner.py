@@ -7,6 +7,7 @@ import synthetic_history
 import glob
 import json
 import math_engine
+import numpy as np
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -98,17 +99,9 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
         print("  -> Autotuner aborted: Need at least 2 days of history for WFA.", flush=True)
         return
 
-    # Use 80/20 split for ~100 days train, ~25 days out-of-sample test
-    split_idx = int(total_days * 0.8)
-
-    train_dates = set(sorted_dates[:split_idx])
-    test_dates = set(sorted_dates[split_idx:])
-
-    history_train = {}
-    history_test = {}
-    for sym_id, sym_data in history_125d.items():
-        history_train[sym_id] = {d: t for d, t in sym_data.items() if d in train_dates}
-        history_test[sym_id] = {d: t for d, t in sym_data.items() if d in test_dates}
+    # CPCV Setup: 5 blocks, 3 train -> 10 paths
+    blocks = synthetic_history.generate_cpcv_blocks(sorted_dates, num_blocks=5, purge_buffer_days=1)
+    cpcv_paths = synthetic_history.generate_cpcv_paths(blocks, n_train=3)
 
     # Extract unique normalized symphony names from the current bot_state for enabled accounts only
     symphony_names = set()
@@ -208,10 +201,16 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                             min_stop_close=0.15
                         )
 
-                        # Calculate active stop distance based strictly on VW-ATR volatility
+                        effective_regime = tick.get("effective_regime", "unknown")
+                        regime_correlation = tick.get("regime_correlation", "Low")
+                        
                         safe_vol = base_atr_pct if base_atr_pct > 0 else (vol if vol > 0 else 1.0)
                         is_squeezed = para_armed or breakeven_locked
-                        active_stop_dist = math_engine.calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, p.get("MAX_PARABOLIC_SQUEEZE", 0.50))
+
+                        active_stop_dist = math_engine.calculate_active_stop_distance(
+                            safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, 
+                            p.get("MAX_PARABOLIC_SQUEEZE", 0.50), effective_regime, regime_correlation
+                        )
 
                         base_stop = safe_hwm - active_stop_dist
                         
@@ -280,23 +279,24 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                                     is_tp_hit = True
                             else: above_tp_count = 0
 
-                        is_vwap_broken = False
-                        
                         current_vwap_diff_pct = vwap_diff * 100.0
                         vwap_buffer_pct = -vol * p.get("VWAP_BAND_MULTIPLIER", 0.10)
 
-                        if current_vwap_diff_pct < vwap_buffer_pct:
-                            if safe_hwm >= p.get("VWAP_CROSS_HWM_PCT", 1.0) and ret < safe_hwm:
-                                vwap_ticks += 1
-                                if vwap_ticks >= 3: is_vwap_broken = True
-                            else: vwap_ticks = 0
-                        else:
-                            vwap_ticks = 0
+                        effective_regime = tick.get("effective_regime", "unknown")
+                        is_vwap_broken, vwap_ticks = math_engine.evaluate_vwap_breakdown(
+                            current_vwap_diff_pct, vwap_buffer_pct, safe_hwm, ret, 
+                            p.get("VWAP_CROSS_HWM_PCT", 1.0), vwap_ticks, effective_regime,
+                            strategy_params=p
+                        )
 
                         if is_trailing_hit or is_breakeven_hit or is_tp_hit or is_vwap_broken:
                             reason_str = exit_reason_trailing
-                            if is_tp_hit: reason_str = "Take-Profit"
-                            elif is_vwap_broken: reason_str = "VWAP Breakdown"
+                            if is_tp_hit: 
+                                reason_str = "Take-Profit"
+                            elif is_vwap_broken:
+                                vol_base = abs(vwap_buffer_pct) if vwap_buffer_pct != 0 else 0.15
+                                is_bleed = current_vwap_diff_pct < -(vol_base * p.get("VWAP_BLEED_MULTIPLIER", 1.5))
+                                reason_str = "VWAP Bleed Cut" if is_bleed else "VWAP Breakdown"
                             
                             penalty = deviation_dict.get(reason_str, -0.20)
                             triggered_return = ret + penalty
@@ -350,106 +350,110 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
             if "VOLATILITY_CLOSE_MULTIPLIER" not in locked_vars:
                 p["VOLATILITY_CLOSE_MULTIPLIER"] = trial.suggest_float("VOLATILITY_CLOSE_MULTIPLIER", 0.1, 1.0, step=0.1)
             if "PARABOLIC_VELOCITY_THRESHOLD" not in locked_vars:
-                p["PARABOLIC_VELOCITY_THRESHOLD"] = trial.suggest_float("PARABOLIC_VELOCITY_THRESHOLD", 1.0, 4.0)
+                p["PARABOLIC_VELOCITY_THRESHOLD"] = trial.suggest_float("PARABOLIC_VELOCITY_THRESHOLD", 1.5, 5.0)
             if "MAX_PARABOLIC_SQUEEZE" not in locked_vars:
-                p["MAX_PARABOLIC_SQUEEZE"] = trial.suggest_float("MAX_PARABOLIC_SQUEEZE", 0.1, 0.8)
+                p["MAX_PARABOLIC_SQUEEZE"] = trial.suggest_float("MAX_PARABOLIC_SQUEEZE", 0.25, 0.80)
+            if "VWAP_BLEED_MULTIPLIER" not in locked_vars:
+                p["VWAP_BLEED_MULTIPLIER"] = trial.suggest_float("VWAP_BLEED_MULTIPLIER", 0.5, 3.0, step=0.1)
+            if "VWAP_BLEED_TICKS" not in locked_vars:
+                p["VWAP_BLEED_TICKS"] = trial.suggest_int("VWAP_BLEED_TICKS", 3, 30)
 
             acc_sym_ids = [k for k, v in bot_state.items() if isinstance(v, dict) and database.normalize_name(v.get("name", "")) == normalized_name]
             if not acc_sym_ids: return 0.0
             target_sym_id = acc_sym_ids[0]
-            alpha = -run_simulation(p, history_train, [target_sym_id], current_date_str, deviation_dict)
-            return alpha
+            
+            path_is_returns = []
+            path_oos_returns = []
+            
+            for train_dates_list, test_dates_list in cpcv_paths:
+                train_dates_set = set(train_dates_list)
+                test_dates_set = set(test_dates_list)
+                
+                history_train_path = {sym: {d: ticks for d, ticks in data.items() if d in train_dates_set} for sym, data in history_125d.items()}
+                history_test_path = {sym: {d: ticks for d, ticks in data.items() if d in test_dates_set} for sym, data in history_125d.items()}
+                
+                alpha_is = -run_simulation(p, history_train_path, [target_sym_id], current_date_str, deviation_dict)
+                alpha_oos = -run_simulation(p, history_test_path, [target_sym_id], current_date_str, deviation_dict)
+                
+                path_is_returns.append(alpha_is)
+                path_oos_returns.append(alpha_oos)
+                
+            trial.set_user_attr("is_path_returns", path_is_returns)
+            trial.set_user_attr("oos_path_returns", path_oos_returns)
+            
+            # Calculate CRRA Expected Utility across all OOS paths
+            # Using 25th percentile of the utilities for conservatism
+            path_crra_oos = [math_engine.calculate_crra_utility([ret]) for ret in path_oos_returns]
+            return float(np.percentile(path_crra_oos, 25))
 
         start_time = time.time()
         
         # --- MULTI-ACCOUNT OPTUNA ISOLATION LAYER ---
-        # Derive a unique, thread-safe database filename for each specific account UUID
-        account_suffix = "unknown"
-        if len(account_uuids) == 1:
-            # If tuning a specific account array, isolate the file target cleanly
-            target_uuid = account_uuids[0]
-            account_suffix = target_uuid[:8] # Key off the first 8 characters of the account UUID
-        else:
-            account_suffix = "shared"
-
+        account_suffix = account_uuids[0][:8] if len(account_uuids) == 1 else "shared"
         db_url = f"sqlite:///optuna_studies_{account_suffix}.db"
         storage = optuna.storages.RDBStorage(
             url=db_url,
             engine_kwargs={"connect_args": {"timeout": 60}}
         )
 
-        # Initialize the thread-isolated study referencing its unique account file database
         study = optuna.create_study(
-            study_name=f"{normalized_name}_{current_date_str}", 
+            study_name=f"{normalized_name}_{current_date_str}_cpcv", 
             storage=storage, 
             load_if_exists=True, 
             direction="maximize"
         )
-        # ---------------------------------------------
         
-        # Execute the 500-trial walk-forward optimization across all parallel CPU cores safely
-        study.optimize(objective, n_trials=500, n_jobs=-1)
+        # Execute trials with n_jobs=1 to isolate the Tuning Engine computationally from CPCV expansion
+        study.optimize(objective, n_trials=200, n_jobs=1)
         
-
-        
-        best_alpha_train = study.best_value
         best_params = study.best_params
-
-        # Evaluate OOS robustness
-        best_p = current_params.copy()
-        for name, val in best_params.items():
-            best_p[name] = round(val, 2)
-
+        best_trial = study.best_trial
+        
+        is_matrix = []
+        oos_matrix = []
+        for trial in study.trials:
+            if trial.state == optuna.trial.TrialState.COMPLETE:
+                is_matrix.append(trial.user_attrs.get("is_path_returns", []))
+                oos_matrix.append(trial.user_attrs.get("oos_path_returns", []))
+                
+        pbo_score = math_engine.calculate_pbo(is_matrix, oos_matrix)
+        
+        best_oos_returns = best_trial.user_attrs.get("oos_path_returns", [])
+        raw_sortino = math_engine.calculate_sortino_ratio(best_oos_returns)
+        haircut_sortino = math_engine.calculate_harvey_liu_haircut(raw_sortino, len(is_matrix))
+        
+        # Evaluate baseline parameters across all CPCV OOS paths
         acc_sym_ids = [k for k, v in bot_state.items() if isinstance(v, dict) and database.normalize_name(v.get("name", "")) == normalized_name]
         target_sym_id = acc_sym_ids[0] if acc_sym_ids else None
-        oos_alpha = -run_simulation(best_p, history_test, [target_sym_id] if target_sym_id else [], current_date_str, deviation_dict)
-
+        
+        baseline_oos_returns = []
+        for _, test_dates_list in cpcv_paths:
+            test_dates_set = set(test_dates_list)
+            history_test_path = {sym: {d: ticks for d, ticks in data.items() if d in test_dates_set} for sym, data in history_125d.items()}
+            base_alpha_oos = -run_simulation(database.DEFAULT_STRATEGY, history_test_path, [target_sym_id] if target_sym_id else [], current_date_str, deviation_dict)
+            baseline_oos_returns.append(base_alpha_oos)
+            
+        baseline_sortino = math_engine.calculate_sortino_ratio(baseline_oos_returns)
+        
         optimization_results[normalized_name] = {}
-        
-        # Evaluate fallback parameters in OOS for comparison
-        fallback_params = current_params.copy()
-        fallback_oos_alpha = -run_simulation(fallback_params, history_test, [target_sym_id] if target_sym_id else [], current_date_str, deviation_dict)
-
-        # Evaluate global default parameters in OOS for comparison
-        default_params = database.DEFAULT_STRATEGY.copy()
-        default_oos_alpha = -run_simulation(default_params, history_test, [target_sym_id] if target_sym_id else [], current_date_str, deviation_dict)
-
-        # Calculate daily averages for better understanding
-        train_days_count = len(train_dates)
-        test_days_count = len(test_dates)
-        
-        avg_train_alpha = best_alpha_train / train_days_count if train_days_count > 0 else 0
-        avg_oos_alpha = oos_alpha / test_days_count if test_days_count > 0 else 0
-
         baseline_decision = ""
         
-        # Check if the optimization process verified that an MC arm is fundamentally counter-productive for this basket
-        if best_alpha_train <= 0.0:
-            print(f"       ⚠️ Optimization failed to discover positive training savings (Train Alpha: {best_alpha_train:+.2f}%). Disabling uncooperative MC Arm for the week.", flush=True)
-            # Default to baseline parameters but permanently pin the threshold to 0 to disable arming
-            for k, v in fallback_params.items():
-                current_params[k] = v
-            current_params["TRIGGER_THRESHOLD_PCT"] = 0.0
-            baseline_decision = "Disabled MC Arm (Net-Negative Optimization)"
-            
-        elif oos_alpha >= fallback_oos_alpha and oos_alpha >= default_oos_alpha:
-            if oos_alpha > 0:
-                print(f"       OOS validation passed! OOS Guard Alpha: +{oos_alpha:.2f}% (Average: {avg_oos_alpha:.2f}%)", flush=True)
-            else:
-                print(f"       OOS validation passed (Beat Baselines)! OOS Guard Alpha: {oos_alpha:.2f}% (Avg: {avg_oos_alpha:.2f}%) vs Fallback: {fallback_oos_alpha:.2f}% / Default: {default_oos_alpha:.2f}%", flush=True)
+        # The Acceptance Gate
+        if haircut_sortino > baseline_sortino and pbo_score < 15.0:
+            print(f"       OOS validation passed (CPCV)! Haircut Sortino: {haircut_sortino:.2f} > Baseline: {baseline_sortino:.2f} (PBO: {pbo_score:.1f}%)", flush=True)
             for name, val in best_params.items():
                 current_params[name] = round(val, 2)
-            baseline_decision = "Adopted AI"
-        elif fallback_oos_alpha >= default_oos_alpha:
-            print(f"       OOS validation failed (AI: {oos_alpha:.2f}%). Reverting to Fallback parameters (Fallback: {fallback_oos_alpha:.2f}% vs Default: {default_oos_alpha:.2f}%).", flush=True)
-            for k, v in fallback_params.items():
-                current_params[k] = v
-            baseline_decision = "Reverted to Fallback"
+            baseline_decision = "Adopted AI (CPCV)"
         else:
-            print(f"       OOS validation & Fallback failed. Resetting to Global Default (Default: {default_oos_alpha:.2f}% vs AI: {oos_alpha:.2f}%, Fallback: {fallback_oos_alpha:.2f}%).", flush=True)
-            for k, v in default_params.items():
+            rejection_reason = f"Haircut Sortino ({haircut_sortino:.2f}) <= Baseline ({baseline_sortino:.2f})" if haircut_sortino <= baseline_sortino else f"PBO ({pbo_score:.1f}%) >= 15.0%"
+            print(f"       OOS validation failed. {rejection_reason}. Reverting to Default.", flush=True)
+            for k, v in database.DEFAULT_STRATEGY.items():
                 current_params[k] = v
-            baseline_decision = "Reset to Global Default"
+            baseline_decision = f"Reverted to Default: {rejection_reason}"
+            
+        database.log_autotune_result(
+            current_date_str, normalized_name, len(is_matrix), pbo_score, haircut_sortino, best_params, baseline_decision
+        )
 
         # Build Discord logs ensuring all newly tuned variables are captured
         optimization_results[normalized_name]["_baseline_chosen"] = baseline_decision
@@ -458,7 +462,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
             optimization_results[normalized_name][k] = {"old": old_val, "new": new_val}
 
         elapsed = time.time() - start_time
-        print(f"       Optimization completed in {elapsed:.2f}s. Train Alpha: {best_alpha_train:+.2f}% (Average: {avg_train_alpha:.2f}%)", flush=True)
+        print(f"       Optimization completed in {elapsed:.2f}s. OOS Sortino: {haircut_sortino:.2f} (PBO: {pbo_score:.1f}%)", flush=True)
 
         database.save_symphony_strategy(normalized_name, current_params, locked_vars)
 
