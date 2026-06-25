@@ -63,23 +63,6 @@ def generate_eod_snapshot(bot_state, current_date_str, is_post_rebalance=False, 
 
                 # Pull the live-tracked shadow values directly from the Ghost Symphony bot state
                 shadow_return = sym.get("current_return", f_ret)
-                
-                # FIX: Force calculate the true final shadow return if live_prices are available
-                if live_prices:
-                    trigger_prices = sym.get("trigger_prices", {})
-                    holdings = sym.get("triggered_basket_snapshot", [])
-                    if trigger_prices and holdings:
-                        post_trigger_move = 0.0
-                        for h in holdings:
-                            t = h.get("ticker")
-                            alloc = h.get("weight", h.get("allocation", 0.0))
-                            if t in trigger_prices and t in live_prices:
-                                p_start = trigger_prices[t]
-                                p_now = live_prices[t].get("last_price", 0.0)
-                                if p_start > 0:
-                                    post_trigger_move += alloc * ((p_now - p_start) / p_start)
-                        shadow_return = f_ret + (post_trigger_move * 100.0)
-
                 shadow_hwm = sym.get("shadow_hwm", f_hwm)
                 
                 guard_alpha = f_ret - shadow_return
