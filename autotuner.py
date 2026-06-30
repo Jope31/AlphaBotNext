@@ -467,4 +467,15 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
         database.save_symphony_strategy(normalized_name, current_params, locked_vars)
 
     print("  -> Autotuner finished all symphonies.", flush=True)
+    
+    # Clean up large synthetic history JSON files to save disk space
+    try:
+        import glob
+        import os
+        for f in glob.glob("cache/synthetic_history_*.json"):
+            os.remove(f)
+            print(f"  -> Deleted synthetic history cache: {f}", flush=True)
+    except Exception as e:
+        print(f"  -> Failed to delete synthetic history cache: {e}", flush=True)
+
     return optimization_results
