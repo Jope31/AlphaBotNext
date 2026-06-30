@@ -823,6 +823,7 @@ def main():
 
                 if current_return > bot_state[symphony_id]["high_water_mark"] and not bot_state[symphony_id]["triggered"]:
                     bot_state[symphony_id]["high_water_mark"] = current_return
+                    bot_state[symphony_id]["hwm_time"] = datetime.now(timezone.utc).isoformat()
 
                 if "shadow_hwm" not in bot_state[symphony_id]:
                     bot_state[symphony_id]["shadow_hwm"] = current_return
@@ -948,15 +949,22 @@ def main():
                 safe_vol = vwatr_vol if vwatr_vol > 0 else (symphony_vol if symphony_vol > 0 else 1.0)
                 para_armed = bot_state[symphony_id].get("para_armed", False)
                 breakeven_locked = bot_state[symphony_id].get("breakeven_locked", False)
-                active_trailing_stop = math_engine.compute_active_trailing_stop(
-                    symphony_vol=safe_vol, 
+                
+                stagnation_mins = 0.0
+                if "hwm_time" in bot_state[symphony_id]:
+                    try:
+                        hwm_dt = datetime.fromisoformat(bot_state[symphony_id]["hwm_time"])
+                        stagnation_mins = (datetime.now(timezone.utc) - hwm_dt).total_seconds() / 60.0
+                    except Exception:
+                        pass
+                
+                active_trailing_stop = math_engine.calculate_active_stop_distance(
+                    safe_vol=safe_vol, 
                     dynamic_multiplier=dynamic_multiplier, 
                     dynamic_min_stop=dynamic_min_stop, 
-                    para_armed=para_armed,
-                    breakeven_locked=breakeven_locked,
-                    parabolic_squeeze_multiplier=acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE),
-                    effective_regime=eff_regime,
-                    regime_correlation=reg_corr
+                    is_squeezed=(para_armed or breakeven_locked),
+                    max_para_squeeze=acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE),
+                    stagnation_mins=stagnation_mins
                 )
 
                 base_stop_level = safe_hwm - active_trailing_stop
@@ -1050,7 +1058,7 @@ def main():
                         print(f"  *** {symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%) ***", flush=True)
                         database.log_symphony_event(symphony_id, f"{symphony_name} TP-ARMED (Exceptional Gain: MC Prob {prob_beating:.1f}% < {acc_TAKE_PROFIT_MC_PCT}%)", "tp-armed", current_date_str)
                 elif bot_state[symphony_id]["tp_armed"] and not bot_state[symphony_id]["triggered"]:
-                    if prob_beating >= acc_TAKE_PROFIT_MC_PCT:
+                    if prob_beating >= acc_TAKE_PROFIT_MC_PCT and current_return <= (safe_hwm - 0.30):
                         bot_state[symphony_id]["above_tp_count"] += 1
                         if bot_state[symphony_id]["above_tp_count"] == 1:
                             print(f"  ⚠️ {symphony_name[:35]} TP signal flashed. Awaiting 2nd tick confirmation...", flush=True)
@@ -1058,7 +1066,7 @@ def main():
                             tp_triggered_now = True
                     else:
                         if bot_state[symphony_id]["above_tp_count"] > 0:
-                            print(f"  📉 {symphony_name[:35]} TP signal vanished. Still cranking.", flush=True)
+                            print(f"  📉 {symphony_name[:35]} TP signal vanished or price holding. Still cranking.", flush=True)
                         bot_state[symphony_id]["above_tp_count"] = 0
 
                 # Check 3: True VWAP Breakdown
@@ -1068,21 +1076,15 @@ def main():
                     current_vwap_diff_pct = weighted_vwap_diff * 100.0
                     vwap_buffer_pct = -(symphony_vol * acc_params.get("VWAP_BAND_MULTIPLIER", 0.10))
                     
-                    if valid_vwap_weight > 0.5:
-                        is_vwap_broken, new_ticks = math_engine.evaluate_vwap_breakdown(
-                            current_vwap_diff_pct, vwap_buffer_pct, safe_hwm, current_return, 
-                            acc_VWAP_CROSS_HWM_PCT, bot_state[symphony_id]['vwap_ticks'], eff_regime,
-                            strategy_params=acc_params
-                        )
-                        bot_state[symphony_id]['vwap_ticks'] = new_ticks
-                        
-                        if is_vwap_broken:
-                            # Determine exit signature for precise EOD reporting logs
-                            vol_base = abs(vwap_buffer_pct) if vwap_buffer_pct != 0 else 0.15
-                            is_bleed = current_vwap_diff_pct < -(vol_base * acc_params.get("VWAP_BLEED_MULTIPLIER", 1.5))
-                            exit_label = "VWAP Bleed Cut" if is_bleed else "VWAP Breakdown"
-                            bot_state[symphony_id]["triggered_reason"] = exit_label
-                            print(f'  📉 {symphony_name[:35]} {exit_label} triggered. Forcing exit to preserve capital.', flush=True)
+                    if valid_vwap_weight > 0.5 and current_vwap_diff_pct < vwap_buffer_pct:
+                        if safe_hwm >= acc_VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
+                            bot_state[symphony_id]['vwap_ticks'] += 1
+                            if bot_state[symphony_id]['vwap_ticks'] >= 3:
+                                is_vwap_broken = True
+                                bot_state[symphony_id]["triggered_reason"] = "Portfolio VWAP broken"
+                                print(f'  📉 {symphony_name[:35]} Portfolio VWAP broken. Forcing exit to protect gains.', flush=True)
+                        else:
+                            bot_state[symphony_id]['vwap_ticks'] = 0
                     else:
                         bot_state[symphony_id]['vwap_ticks'] = 0
 
