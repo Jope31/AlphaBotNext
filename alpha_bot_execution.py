@@ -769,7 +769,8 @@ def main():
                         "mc_history": [],
                         "lowest_mc_seen": 100.0,
                         "lock_engaged_ticks": 0,
-                        "below_lock_count": 0,
+                        "below_lock_count_a": 0,
+                        "below_lock_count_b": 0,
                         "below_stop_count": 0,
                         "above_tp_count": 0,
                         "vwap_ticks": 0,
@@ -791,7 +792,8 @@ def main():
                 state.setdefault("breakeven_locked", False)
                 state.setdefault("lowest_mc_seen", 100.0)
                 state.setdefault("lock_engaged_ticks", 0)
-                state.setdefault("below_lock_count", 0)
+                state.setdefault("below_lock_count_a", 0)
+                state.setdefault("below_lock_count_b", 0)
                 state.setdefault("below_stop_count", 0)
                 state.setdefault("above_tp_count", 0)
                 state.setdefault("vwap_ticks", 0)
@@ -800,6 +802,7 @@ def main():
                 state.setdefault("lock_engaged_at", None)
                 state.setdefault("triggered", False)
                 state.setdefault("stop_hit_type", None)
+                state.setdefault("hwm_time", None)
                 
                 # Unconditionally inject identity mapping for the autotuner and cross-referencing
                 bot_state[symphony_id]["account"] = account
@@ -815,7 +818,7 @@ def main():
                         bot_state[symphony_id][key] = False
                 if "lowest_mc_seen" not in bot_state[symphony_id]:
                     bot_state[symphony_id]["lowest_mc_seen"] = 100.0
-                for key in ["lock_engaged_ticks", "below_lock_count", "below_stop_count", "above_tp_count", "vwap_ticks", "hwm_hold_ticks"]:
+                for key in ["lock_engaged_ticks", "below_lock_count_a", "below_lock_count_b", "below_stop_count", "above_tp_count", "vwap_ticks", "hwm_hold_ticks"]:
                     if key not in bot_state[symphony_id]:
                         bot_state[symphony_id][key] = 0
                 if "mc_history" not in bot_state[symphony_id]:
@@ -958,12 +961,13 @@ def main():
                     except Exception:
                         pass
                 
-                active_trailing_stop = math_engine.calculate_active_stop_distance(
-                    safe_vol=safe_vol, 
+                active_trailing_stop = math_engine.compute_active_trailing_stop(
+                    symphony_vol=symphony_vol,
                     dynamic_multiplier=dynamic_multiplier, 
                     dynamic_min_stop=dynamic_min_stop, 
-                    is_squeezed=(para_armed or breakeven_locked),
-                    max_para_squeeze=acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE),
+                    para_armed=para_armed,
+                    breakeven_locked=breakeven_locked,
+                    parabolic_squeeze_multiplier=acc_params.get("MAX_PARABOLIC_SQUEEZE", MAX_PARABOLIC_SQUEEZE),
                     stagnation_mins=stagnation_mins
                 )
 
@@ -1019,35 +1023,40 @@ def main():
 
                     # PATH B: Independent Breakeven Lock System (Runs independently)
                     if bot_state[symphony_id]["breakeven_locked"] and not is_trailing_stop_hit:
-                        if is_magnitude_breached:
-                            # Derive persistent lock delta across application recycles
-                            lock_duration_mins = 0.0
-                            lock_at_str = bot_state[symphony_id].get("lock_engaged_at")
-                            if lock_at_str:
-                                try:
-                                    lock_at_dt = datetime.fromisoformat(lock_at_str)
-                                    lock_duration_mins = (datetime.now(timezone.utc) - lock_at_dt).total_seconds() / 60.0
-                                except Exception:
-                                    pass
-                            
-                            # Risk Guard Breakeven Path A: Live-MC signals the basket is genuinely toxic
-                            be_path_a = prob_beating < 60.0
-                            
-                            # Risk Guard Breakeven Path B: MC-Stuck Override (Jammed model safety valve)
-                            be_path_b = (lock_duration_mins >= 60.0 and bot_state[symphony_id].get("lowest_mc_seen", 100.0) >= 60.0)
-                            
-                            if be_path_a or be_path_b:
-                                bot_state[symphony_id]["below_lock_count"] += 1
-                                if bot_state[symphony_id]["below_lock_count"] == 1:
-                                    reason_flushed = "MC-Stuck Override Pending" if be_path_b else "Standard Breakeven Breach Pending"
-                                    print(f"  ⚠️ {symphony_name[:35]} triggered {reason_flushed}. Awaiting verification...", flush=True)
-                                elif bot_state[symphony_id]["below_lock_count"] >= 3:
-                                    is_breakeven_hit = True
-                                    bot_state[symphony_id]["stop_hit_type"] = "Breakeven Path B (MC-Stuck)" if be_path_b else "Breakeven Path A"
-                            else:
-                                bot_state[symphony_id]["below_lock_count"] = 0
+                        is_path_a_breached = current_return <= (stop_trigger_level - 0.50)
+                        be_path_a = is_path_a_breached and prob_beating < 60.0 and current_return < 1.0
+
+                        is_path_b_breached = current_return <= (stop_trigger_level - 0.10)
+                        lock_duration_mins = 0.0
+                        lock_at_str = bot_state[symphony_id].get("lock_engaged_at")
+                        if lock_at_str:
+                            try:
+                                lock_at_dt = datetime.fromisoformat(lock_at_str)
+                                lock_duration_mins = (datetime.now(timezone.utc) - lock_at_dt).total_seconds() / 60.0
+                            except Exception:
+                                pass
+                        
+                        be_path_b = is_path_b_breached and lock_duration_mins >= 60.0 and bot_state[symphony_id].get("lowest_mc_seen", 100.0) >= 60.0
+                        
+                        if be_path_a:
+                            bot_state[symphony_id]["below_lock_count_a"] += 1
+                            if bot_state[symphony_id]["below_lock_count_a"] == 1:
+                                print(f"  ⚠️ {symphony_name[:35]} triggered Standard Breakeven Breach Pending. Awaiting verification...", flush=True)
+                            elif bot_state[symphony_id]["below_lock_count_a"] >= 3:
+                                is_breakeven_hit = True
+                                bot_state[symphony_id]["stop_hit_type"] = "Breakeven Path A"
                         else:
-                            bot_state[symphony_id]["below_lock_count"] = 0
+                            bot_state[symphony_id]["below_lock_count_a"] = 0
+                            
+                        if be_path_b:
+                            bot_state[symphony_id]["below_lock_count_b"] += 1
+                            if bot_state[symphony_id]["below_lock_count_b"] == 1:
+                                print(f"  ⚠️ {symphony_name[:35]} triggered MC-Stuck Override Pending. Awaiting verification...", flush=True)
+                            elif bot_state[symphony_id]["below_lock_count_b"] >= 3:
+                                is_breakeven_hit = True
+                                bot_state[symphony_id]["stop_hit_type"] = "Breakeven Path B (MC-Stuck)"
+                        else:
+                            bot_state[symphony_id]["below_lock_count_b"] = 0
 
                 # Check 2: Take Profit
                 tp_triggered_now = False

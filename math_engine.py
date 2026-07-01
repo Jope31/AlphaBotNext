@@ -3,6 +3,7 @@ import math
 
 # --- SYSTEM CONSTANTS ---
 PERCENT_CONVERSION = 100.0
+VOL_FALLBACK = 1.0
 
 # Windows & Lookbacks
 VOLATILITY_WINDOW_DAYS = 20
@@ -22,6 +23,11 @@ BREAKEVEN_ACTIVATION_BUFFER = 0.2
 # VWAP Bleed Bounds
 VWAP_BLEED_FLOOR = -3.0
 VWAP_BLEED_CEILING = -0.5
+
+# Stagnation Decay Constants
+STAGNATION_DECAY_HALF_LIFE_MINS = 60.0
+STAGNATION_DECAY_BASE = 0.5
+STAGNATION_DECAY_FLOOR = 0.2
 
 def run_monte_carlo(current_symphony_return, holdings, historical_data, spy_today_return, proxy_today_return, symphony_vol, proxy_etf="SPY", simulation_paths=5000, neighbor_k=150, volatility_multiplier=0.5):
     """
@@ -336,15 +342,20 @@ def compute_para_arm_decision(current_return: float, prev_return: float, para_th
         should_arm = True
     return velocity, should_arm
 
-def calculate_active_stop_distance(safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, max_para_squeeze, stagnation_mins=0.0):
+def compute_active_trailing_stop(symphony_vol, dynamic_multiplier, dynamic_min_stop, para_armed, breakeven_locked, parabolic_squeeze_multiplier, stagnation_mins=0.0):
+    if symphony_vol <= 0:
+        safe_vol = VOL_FALLBACK
+    else:
+        safe_vol = symphony_vol
+        
     distance = max((safe_vol * dynamic_multiplier), dynamic_min_stop)
     
-    if is_squeezed:
-        distance *= max_para_squeeze
+    if para_armed or breakeven_locked:
+        distance *= parabolic_squeeze_multiplier
         
-    if stagnation_mins >= 60.0:
-        decay_factor = 0.5 ** ((stagnation_mins - 60.0) / 60.0)
-        stagnation_decay = max(decay_factor, 0.2)
+    if stagnation_mins >= STAGNATION_DECAY_HALF_LIFE_MINS:
+        decay_factor = STAGNATION_DECAY_BASE ** ((stagnation_mins - STAGNATION_DECAY_HALF_LIFE_MINS) / STAGNATION_DECAY_HALF_LIFE_MINS)
+        stagnation_decay = max(decay_factor, STAGNATION_DECAY_FLOOR)
         distance *= stagnation_decay
         
     return float(distance)

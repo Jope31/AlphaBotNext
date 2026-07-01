@@ -144,6 +144,9 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                     mc_history = []
                     lowest_mc_seen = 100.0
                     lock_engaged_ticks = 0
+                    hwm_tick_idx = 0
+                    below_lock_sim_a = 0
+                    below_lock_sim_b = 0
 
                     triggered_return = None
                     eod_return = ticks[-1]["return"]
@@ -158,7 +161,9 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         vwap_diff = tick.get("vwap_diff", 0.0)
                         base_atr_pct = tick.get("base_atr_pct", vol)
 
-                        if ret > hwm: hwm = ret
+                        if ret > hwm:
+                            hwm = ret
+                            hwm_tick_idx = tick_idx
                         safe_hwm = max(hwm, ret)
                         
                         # --- PARABOLIC SQUEEZE LOGIC ---
@@ -205,11 +210,17 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         regime_correlation = tick.get("regime_correlation", "Low")
                         
                         safe_vol = base_atr_pct if base_atr_pct > 0 else (vol if vol > 0 else 1.0)
-                        is_squeezed = para_armed or breakeven_locked
-
-                        active_stop_dist = math_engine.calculate_active_stop_distance(
-                            safe_vol, dynamic_multiplier, dynamic_min_stop, is_squeezed, 
-                            p.get("MAX_PARABOLIC_SQUEEZE", 0.50), effective_regime, regime_correlation
+                        
+                        stagnation_mins = tick_idx - hwm_tick_idx
+                        
+                        active_stop_dist = math_engine.compute_active_trailing_stop(
+                            symphony_vol=safe_vol,
+                            dynamic_multiplier=dynamic_multiplier, 
+                            dynamic_min_stop=dynamic_min_stop, 
+                            para_armed=para_armed,
+                            breakeven_locked=breakeven_locked,
+                            parabolic_squeeze_multiplier=p.get("MAX_PARABOLIC_SQUEEZE", 0.50),
+                            stagnation_mins=stagnation_mins
                         )
 
                         base_stop = safe_hwm - active_stop_dist
@@ -249,23 +260,27 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                                 below_stop_count = 0
                                 
                         if breakeven_locked and not is_trailing_hit:
-                            if is_magnitude_breached:
-                                be_path_a = mc < 60.0
-                                # 1 tick = 1 minute in the simulation
-                                be_path_b = (lock_engaged_ticks >= 60 and lowest_mc_seen >= 60.0) 
-                                
-                                if be_path_a or be_path_b:
-                                    below_lock_count = bot_state.get("dummy", 0) + 1 # Use local counter
-                                    if 'below_lock_sim' not in locals(): below_lock_sim = 0
-                                    below_lock_sim += 1
-                                    
-                                    if below_lock_sim >= 3:
-                                        is_breakeven_hit = True
-                                        exit_reason_trailing = "Breakeven Path B (MC-Stuck)" if be_path_b else "Breakeven Path A"
-                                else:
-                                    below_lock_sim = 0
+                            is_path_a_breached = ret <= (stop_level - 0.50)
+                            be_path_a = is_path_a_breached and mc < 60.0 and ret < 1.0
+
+                            is_path_b_breached = ret <= (stop_level - 0.10)
+                            be_path_b = is_path_b_breached and lock_engaged_ticks >= 60 and lowest_mc_seen >= 60.0
+                            
+                            if be_path_a:
+                                below_lock_sim_a += 1
+                                if below_lock_sim_a >= 3:
+                                    is_breakeven_hit = True
+                                    exit_reason_trailing = "Breakeven Path A"
                             else:
-                                below_lock_sim = 0
+                                below_lock_sim_a = 0
+                                
+                            if be_path_b:
+                                below_lock_sim_b += 1
+                                if below_lock_sim_b >= 3:
+                                    is_breakeven_hit = True
+                                    exit_reason_trailing = "Breakeven Path B (MC-Stuck)"
+                            else:
+                                below_lock_sim_b = 0
 
                         is_tp_hit = False
                         if mc < p.get("TAKE_PROFIT_MC_PCT", 5.0):
@@ -273,7 +288,7 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                                 tp_armed = True
                                 above_tp_count = 0
                         elif tp_armed:
-                            if mc >= p.get("TAKE_PROFIT_MC_PCT", 5.0):
+                            if mc >= p.get("TAKE_PROFIT_MC_PCT", 5.0) and ret <= (safe_hwm - 0.30):
                                 above_tp_count += 1
                                 if above_tp_count >= 2:
                                     is_tp_hit = True
@@ -282,12 +297,16 @@ def run_autotuner(bot_state, current_date_str, account_uuids, is_forced=False):
                         current_vwap_diff_pct = vwap_diff * 100.0
                         vwap_buffer_pct = -vol * p.get("VWAP_BAND_MULTIPLIER", 0.10)
 
-                        effective_regime = tick.get("effective_regime", "unknown")
-                        is_vwap_broken, vwap_ticks = math_engine.evaluate_vwap_breakdown(
-                            current_vwap_diff_pct, vwap_buffer_pct, safe_hwm, ret, 
-                            p.get("VWAP_CROSS_HWM_PCT", 1.0), vwap_ticks, effective_regime,
-                            strategy_params=p
-                        )
+                        is_vwap_broken = False
+                        if current_vwap_diff_pct < vwap_buffer_pct:
+                            if safe_hwm >= p.get("VWAP_CROSS_HWM_PCT", 1.0) and ret < safe_hwm:
+                                vwap_ticks += 1
+                                if vwap_ticks >= 3:
+                                    is_vwap_broken = True
+                            else:
+                                vwap_ticks = 0
+                        else:
+                            vwap_ticks = 0
 
                         if is_trailing_hit or is_breakeven_hit or is_tp_hit or is_vwap_broken:
                             reason_str = exit_reason_trailing

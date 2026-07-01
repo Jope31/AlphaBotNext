@@ -144,11 +144,13 @@ def wipe_transient_state(state_dict):
             s_data["lowest_mc_seen"] = 100.0
             s_data["lock_engaged_ticks"] = 0
             s_data["lock_engaged_at"] = None
-            s_data["below_lock_count"] = 0
+            s_data["below_lock_count_a"] = 0
+            s_data["below_lock_count_b"] = 0
             s_data["below_stop_count"] = 0
             s_data["above_tp_count"] = 0
             s_data["vwap_ticks"] = 0
             s_data["hwm_hold_ticks"] = 0
+            s_data["hwm_time"] = None
             s_data["mc_history"] = []
             
             # Remove any trigger-related snapshot data
