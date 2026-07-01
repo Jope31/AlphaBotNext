@@ -772,6 +772,7 @@ def main():
                         "below_lock_count_a": 0,
                         "below_lock_count_b": 0,
                         "below_stop_count": 0,
+                        "below_hard_stop_count": 0,
                         "above_tp_count": 0,
                         "vwap_ticks": 0,
                         "breakeven_locked": False,
@@ -795,6 +796,7 @@ def main():
                 state.setdefault("below_lock_count_a", 0)
                 state.setdefault("below_lock_count_b", 0)
                 state.setdefault("below_stop_count", 0)
+                state.setdefault("below_hard_stop_count", 0)
                 state.setdefault("above_tp_count", 0)
                 state.setdefault("vwap_ticks", 0)
                 state.setdefault("hwm_hold_ticks", 0)
@@ -818,7 +820,7 @@ def main():
                         bot_state[symphony_id][key] = False
                 if "lowest_mc_seen" not in bot_state[symphony_id]:
                     bot_state[symphony_id]["lowest_mc_seen"] = 100.0
-                for key in ["lock_engaged_ticks", "below_lock_count_a", "below_lock_count_b", "below_stop_count", "above_tp_count", "vwap_ticks", "hwm_hold_ticks"]:
+                for key in ["lock_engaged_ticks", "below_lock_count_a", "below_lock_count_b", "below_stop_count", "below_hard_stop_count", "above_tp_count", "vwap_ticks", "hwm_hold_ticks"]:
                     if key not in bot_state[symphony_id]:
                         bot_state[symphony_id][key] = 0
                 if "mc_history" not in bot_state[symphony_id]:
@@ -1086,7 +1088,9 @@ def main():
                     vwap_buffer_pct = -(symphony_vol * acc_params.get("VWAP_BAND_MULTIPLIER", 0.10))
                     
                     if valid_vwap_weight > 0.5 and current_vwap_diff_pct < vwap_buffer_pct:
-                        if safe_hwm >= acc_VWAP_CROSS_HWM_PCT and current_return < safe_hwm:
+                        elapsed_mins = (current_et - m_open_dt).total_seconds() / 60.0
+                        is_vwap_active = (safe_hwm >= acc_VWAP_CROSS_HWM_PCT) or (elapsed_mins >= 30.0)
+                        if is_vwap_active and current_return < safe_hwm:
                             bot_state[symphony_id]['vwap_ticks'] += 1
                             if bot_state[symphony_id]['vwap_ticks'] >= 3:
                                 is_vwap_broken = True
@@ -1096,6 +1100,24 @@ def main():
                             bot_state[symphony_id]['vwap_ticks'] = 0
                     else:
                         bot_state[symphony_id]['vwap_ticks'] = 0
+
+                # Check 4: Volatility-Scaled Hard Stop-Loss (Runs independently of arming)
+                is_hard_stop_hit = False
+                if not bot_state[symphony_id]["triggered"]:
+                    hard_mult = acc_params.get("HARD_STOP_LOSS_MULT", 1.5)
+                    hard_min = acc_params.get("HARD_STOP_LOSS_MIN_PCT", 1.5)
+                    # Stop is absolute distance below 0.0% (previous close)
+                    hard_stop_threshold = -max(symphony_vol * hard_mult, hard_min)
+                    
+                    if current_return <= hard_stop_threshold:
+                        bot_state[symphony_id]["below_hard_stop_count"] += 1
+                        if bot_state[symphony_id]["below_hard_stop_count"] == 1:
+                            print(f"  ⚠️ {symphony_name[:35]} dropped below hard stop-loss ({hard_stop_threshold:.2f}%). Awaiting confirmation...", flush=True)
+                        elif bot_state[symphony_id]["below_hard_stop_count"] >= 3:
+                            is_hard_stop_hit = True
+                            bot_state[symphony_id]["stop_hit_type"] = "Hard Stop Loss"
+                    else:
+                        bot_state[symphony_id]["below_hard_stop_count"] = 0
 
                 safe_name = symphony_name[:35].encode('ascii', 'ignore').decode('ascii')
                 print(f"  -> {safe_name}: Ret: {current_return:.2f}% | HWM: {high_water_mark:.2f}% | Stop Dist: {active_trailing_stop:.2f}% | ArmProb: {prob_beating:.1f}%", flush=True)
@@ -1117,7 +1139,7 @@ def main():
                 chart_event = None
                 if is_vwap_broken:
                     chart_event = "VWAP_Break"
-                elif is_trailing_stop_hit or is_breakeven_hit or tp_triggered_now:
+                elif is_trailing_stop_hit or is_breakeven_hit or tp_triggered_now or is_hard_stop_hit:
                     chart_event = "Triggered"
                 elif bot_state[symphony_id].get("para_armed") and not prev_para_armed:
                     chart_event = "Para-Armed"
@@ -1148,7 +1170,7 @@ def main():
                     "recovery_ticks": bot_state[symphony_id].get("vwap_recovery_ticks", 0)
                 })
 
-                if is_trailing_stop_hit or is_breakeven_hit or tp_triggered_now or is_vwap_broken:
+                if is_trailing_stop_hit or is_breakeven_hit or tp_triggered_now or is_vwap_broken or is_hard_stop_hit:
                     if tp_triggered_now:
                         reason = "Take-Profit"
                         attempted_level = current_return
@@ -1158,6 +1180,9 @@ def main():
                     elif is_vwap_broken:
                         reason = "VWAP Breakdown"
                         attempted_level = safe_hwm
+                    elif is_hard_stop_hit:
+                        reason = "Hard Stop Loss"
+                        attempted_level = -max(symphony_vol * acc_params.get("HARD_STOP_LOSS_MULT", 1.5), acc_params.get("HARD_STOP_LOSS_MIN_PCT", 1.5))
                     else:
                         reason = bot_state[symphony_id].get("stop_hit_type", "Trailing Stop")
                         attempted_level = stop_trigger_level

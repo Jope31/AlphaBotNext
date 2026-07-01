@@ -18,7 +18,9 @@ DEFAULT_STRATEGY = {
     "PARABOLIC_VELOCITY_THRESHOLD": 2.0,
     "MAX_PARABOLIC_SQUEEZE": 0.50,
     "VWAP_BLEED_MULTIPLIER": 1.5,
-    "VWAP_BLEED_TICKS": 10
+    "VWAP_BLEED_TICKS": 10,
+    "HARD_STOP_LOSS_MULT": 1.5,
+    "HARD_STOP_LOSS_MIN_PCT": 1.5
 }
 
 # By default, we lock the non-user-specified variables so BO only tunes the requested
@@ -147,6 +149,7 @@ def wipe_transient_state(state_dict):
             s_data["below_lock_count_a"] = 0
             s_data["below_lock_count_b"] = 0
             s_data["below_stop_count"] = 0
+            s_data["below_hard_stop_count"] = 0
             s_data["above_tp_count"] = 0
             s_data["vwap_ticks"] = 0
             s_data["hwm_hold_ticks"] = 0
